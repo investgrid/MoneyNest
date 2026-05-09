@@ -2668,36 +2668,44 @@ ize:.92rem;font-weight:700;color:var(--text);margin-bottom:5px;line-height:1.3}
   }
 }
 
-/* ─── AJUSTE POSICIÓN BADGE PLAN (PRO/LOCAL/TRIAL) ─── */
+/* ─── CORRECCIÓN DE POSICIÓN PIXEL-PERFECT ─── */
 
-/* Contenedor del nombre para que el badge flote respecto a él */
+/* Alineamos el logo y el texto en el sidebar */
 #sidebarLogoImg {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    overflow: visible !important; /* Vital para que el badge no se corte */
+}
+
+/* El 'ancla' para el badge */
+.logo-text-wrapper {
     position: relative;
     display: inline-flex;
     align-items: center;
-    justify-content: center;
 }
 
-/* Estilo para la etiqueta (badge) */
-/* Buscaremos la clase que use tu código para el badge del plan */
-.plan-badge-sidebar, 
-.mode-badge, 
-#topActivarProBtn { 
+/* El Badge superpuesto (PRO, Local o Trial) */
+.badge-status-new {
     position: absolute !important;
-    /* Coordenadas para pisar las letras "st" de Nest */
-    bottom: -8px !important; 
-    right: -22px !important; 
+    /* Estos valores mueven el badge a la "st" de Nest */
+    bottom: -6px !important; 
+    right: -25px !important; 
     
-    /* Estética premium */
+    /* Estética Premium coincidente con tu UI */
     font-size: 9px !important;
+    font-weight: 800 !important;
     padding: 2px 8px !important;
     border-radius: 99px !important;
-    z-index: 10 !important;
-    line-height: 1 !important;
-    white-space: nowrap !important;
+    text-transform: uppercase;
+    white-space: nowrap;
+    z-index: 10;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    line-height: 1;
 }
 
-/* Colores según el estado (Ajustar según tus variables) */
-.badge-pro { background-color: var(--indigo) !important; color: white; }
-.badge-local { background-color: var(--green) !important; color: white; }
-.badge-trial { background-color: var(--gold) !important; color: white; }
+/* Colores dinámicos según el plan */
+.badge-status-new.pro { background: var(--indigo); color: white; }
+.badge-status-new.local { background: var(--green); color: white; }
+.badge-status-new.trial { background: var(--gold); color: white; }
