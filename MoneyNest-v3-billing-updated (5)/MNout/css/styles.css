@@ -2667,3 +2667,37 @@ ize:.92rem;font-weight:700;color:var(--text);margin-bottom:5px;line-height:1.3}
     outline: 2px solid var(--red) !important;
   }
 }
+
+/* ─── AJUSTE POSICIÓN BADGE PLAN (PRO/LOCAL/TRIAL) ─── */
+
+/* Contenedor del nombre para que el badge flote respecto a él */
+#sidebarLogoImg {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Estilo para la etiqueta (badge) */
+/* Buscaremos la clase que use tu código para el badge del plan */
+.plan-badge-sidebar, 
+.mode-badge, 
+#topActivarProBtn { 
+    position: absolute !important;
+    /* Coordenadas para pisar las letras "st" de Nest */
+    bottom: -8px !important; 
+    right: -22px !important; 
+    
+    /* Estética premium */
+    font-size: 9px !important;
+    padding: 2px 8px !important;
+    border-radius: 99px !important;
+    z-index: 10 !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+}
+
+/* Colores según el estado (Ajustar según tus variables) */
+.badge-pro { background-color: var(--indigo) !important; color: white; }
+.badge-local { background-color: var(--green) !important; color: white; }
+.badge-trial { background-color: var(--gold) !important; color: white; }
