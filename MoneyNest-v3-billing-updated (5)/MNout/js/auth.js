@@ -1,0 +1,586 @@
+/**
+ * ════════════════════════════════════════════════════════════════
+ *  MoneyNest — js/auth.js  v2.0
+ *  Modelo de negocio:
+ *    trial       → 24h de prueba gratuita (al registrarse)
+ *    locked_local→ trial expirado, app bloqueada. Requiere Plan Local
+ *    local       → pago único 5€. Datos en localStorage, sin expiración
+ *    pro         → suscripción 5€/año (7 días gratis desde local).
+ *                  Si cancela → vuelve a local (nunca se bloquea de nuevo)
+ *
+ *  Uso (ES modules):
+ *    import { initUser, checkAccess, getUser, … } from './js/auth.js'
+ *
+ *  Uso global (sin bundler):
+ *    window.MNAuth.initUser()
+ *    window.MNAuth.checkAccess()
+ * ════════════════════════════════════════════════════════════════
+ */
+
+'use strict';
+
+// ─── Clave de almacenamiento ─────────────────────────────────────
+const USER_KEY = 'mn_user';
+
+// ─── Duraciones ──────────────────────────────────────────────────
+const TRIAL_DURATION_MS  = 24 * 60 * 60 * 1000;   // 24 horas
+const PRO_TRIAL_DAYS     = 7;                       // días de prueba Pro
+/** @deprecated Solo para compatibilidad con código legacy de app.js */
+const TRIAL_DAYS         = 1;
+
+// ─── Definición de planes ────────────────────────────────────────
+export const PLANS = Object.freeze({
+  TRIAL:        'trial',
+  LOCKED_LOCAL: 'locked_local',
+  LOCAL:        'local',
+  PRO:          'pro',
+  // Alias legacy — evita romper referencias antiguas a 'guest'
+  GUEST:        'trial',
+});
+
+// ─── Estructura de usuario por defecto ──────────────────────────
+export const DEFAULT_USER = Object.freeze({
+  id:              null,    // crypto.randomUUID() al crear
+  email:           null,    // se rellena al registrarse/loguearse
+  plan:            PLANS.TRIAL,
+  trialEndsAt:     null,    // ms — cuándo expira el trial de 24h
+  proTrialEndsAt:  null,    // ms — cuándo expira el trial de 7 días Pro
+  proTrialUsed:    false,   // solo se regalan los 7 días Pro una vez
+  cloudEnabled:    false,   // true únicamente con plan pro activo
+  createdAt:       null,    // ms
+  upgradedAt:      null,    // ms — último cambio de plan
+});
+
+
+// ════════════════════════════════════════════════════════════════
+//  CRUD BÁSICO
+// ════════════════════════════════════════════════════════════════
+
+/**
+ * Lee el usuario desde localStorage.
+ * Si no existe o está corrupto devuelve DEFAULT_USER (sin tocar storage).
+ * @returns {Object}
+ */
+export function getUser() {
+  try {
+    const raw = localStorage.getItem(USER_KEY);
+    if (!raw) return { ...DEFAULT_USER };
+    const parsed = JSON.parse(raw);
+    return { ...DEFAULT_USER, ...parsed };
+  } catch {
+    return { ...DEFAULT_USER };
+  }
+}
+
+/**
+ * Persiste el usuario en localStorage.
+ * @param {Object} user
+ * @returns {Object}
+ */
+export function saveUser(user) {
+  try {
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
+  } catch (e) {
+    console.warn('[MNAuth] No se pudo guardar el usuario:', e);
+  }
+  return user;
+}
+
+/**
+ * Actualiza solo los campos indicados y persiste.
+ * @param {Object} patch
+ * @returns {Object}
+ */
+export function patchUser(patch) {
+  const updated = { ...getUser(), ...patch };
+  return saveUser(updated);
+}
+
+
+// ════════════════════════════════════════════════════════════════
+//  CICLO DE VIDA
+// ════════════════════════════════════════════════════════════════
+
+/**
+ * initUser() — llamar obligatoriamente al arrancar la app.
+ * • Primera visita → crea identidad + trial de 24h.
+ * • Visita posterior → garantiza coherencia de campos.
+ * @returns {Object} usuario activo
+ */
+export function initUser() {
+  let user = getUser();
+
+  if (!user.id) {
+    // ── Primera visita ──────────────────────────────────────────
+    const now = Date.now();
+    user = {
+      ...DEFAULT_USER,
+      id:          _generateId(),
+      plan:        PLANS.TRIAL,
+      trialEndsAt: now + TRIAL_DURATION_MS,
+      createdAt:   now,
+    };
+    saveUser(user);
+    console.info('[MNAuth] Nuevo usuario — trial 24h hasta:', new Date(user.trialEndsAt).toLocaleString());
+  } else {
+    // ── Visita posterior — migración de campos ──────────────────
+    let dirty = false;
+    if (!user.createdAt) { user.createdAt = Date.now(); dirty = true; }
+    // Migrar plan 'guest' legacy → 'trial'
+    if (user.plan === 'guest') { user.plan = PLANS.TRIAL; dirty = true; }
+    if (dirty) saveUser(user);
+  }
+
+  return user;
+}
+
+/**
+ * checkAccess() — comprueba si el usuario puede usar la app.
+ * Debe llamarse después de initUser() en cada arranque.
+ *
+ * • pro/local → siempre ok.
+ * • trial → comprueba los 24h. Si expiró → pasa a locked_local y bloquea.
+ * • locked_local → bloquea directamente.
+ *
+ * @returns {{ ok: boolean, reason: string|null }}
+ */
+export function checkAccess() {
+  const user = getUser();
+
+  switch (user.plan) {
+    // ── Planes desbloqueados ────────────────────────────────────
+    case PLANS.PRO:
+      _checkProSubscription(user); // puede hacer downgrade silencioso a local
+      return { ok: true, reason: null };
+
+    case PLANS.LOCAL:
+      return { ok: true, reason: null };
+
+    // ── Trial activo ────────────────────────────────────────────
+    case PLANS.TRIAL: {
+      const now = Date.now();
+      if (user.trialEndsAt && now > user.trialEndsAt) {
+        // Trial expirado → bloquear
+        patchUser({ plan: PLANS.LOCKED_LOCAL, upgradedAt: now });
+        bloquearApp();
+        return { ok: false, reason: 'trial_expired' };
+      }
+      return { ok: true, reason: null };
+    }
+
+    // ── Bloqueado ───────────────────────────────────────────────
+    case PLANS.LOCKED_LOCAL:
+      bloquearApp();
+      return { ok: false, reason: 'locked_local' };
+
+    default:
+      return { ok: true, reason: null };
+  }
+}
+
+/**
+ * Verifica silenciosamente si la suscripción Pro sigue activa.
+ * Si el periodo de prueba Pro expiró y no hay suscripción pagada,
+ * hace downgrade a 'local' (nunca a locked_local).
+ * En producción, aquí se consultaría el backend/webhook de Stripe.
+ * @param {Object} [user]
+ */
+export function _checkProSubscription(user) {
+  const u = user || getUser();
+  if (u.plan !== PLANS.PRO) return;
+
+  // Si tiene proTrialEndsAt significa que está en periodo de prueba Pro
+  // y aún no ha vinculado pago. Downgrade silencioso al expirar.
+  if (u.proTrialEndsAt && Date.now() > u.proTrialEndsAt && !u.proSubscriptionActive) {
+    cancelPro();
+    console.info('[MNAuth] Prueba Pro expirada → plan local restaurado.');
+  }
+}
+
+
+// ════════════════════════════════════════════════════════════════
+//  GESTIÓN DE PLANES
+// ════════════════════════════════════════════════════════════════
+
+/**
+ * upgradeTrial(email?) — [re]inicia el trial de 24h.
+ * Útil si el usuario se registra por primera vez con email.
+ * @param {string} [email]
+ * @returns {Object}
+ */
+export function upgradeTrial(email) {
+  const now = Date.now();
+  const trialEndsAt = now + TRIAL_DURATION_MS;
+  const user = patchUser({
+    plan:        PLANS.TRIAL,
+    trialEndsAt,
+    upgradedAt:  now,
+    ...(email ? { email } : {}),
+  });
+  console.info('[MNAuth] Trial activado. Expira:', new Date(trialEndsAt).toLocaleString());
+  return user;
+}
+
+/**
+ * buyLocal(email?) — activa el Plan Local (pago único 5€).
+ * Llama a esta función DESPUÉS de confirmar el pago con tu pasarela.
+ * @param {string} [email]
+ * @returns {Object}
+ */
+export function buyLocal(email) {
+  const user = patchUser({
+    plan:            PLANS.LOCAL,
+    trialEndsAt:     null,   // el trial ya no aplica
+    cloudEnabled:    false,
+    upgradedAt:      Date.now(),
+    ...(email ? { email } : {}),
+  });
+  console.info('[MNAuth] Plan Local activado.');
+  return user;
+}
+
+/**
+ * activatePro(email?) — activa el Plan Pro (5€/año).
+ * • Si !proTrialUsed: incluye 7 días de prueba gratuita.
+ * • Llama DESPUÉS de confirmar suscripción con tu pasarela.
+ * @param {string} [email]
+ * @param {boolean} [skipTrial=false] — true si el usuario ya pagó directo
+ * @returns {Object}
+ */
+export function activatePro(email, skipTrial = false) {
+  const current = getUser();
+  const now = Date.now();
+  const useFreeTrial = !current.proTrialUsed && !skipTrial;
+
+  const user = patchUser({
+    plan:                  PLANS.PRO,
+    cloudEnabled:          true,
+    proTrialEndsAt:        useFreeTrial ? now + PRO_TRIAL_DAYS * 24 * 60 * 60 * 1000 : null,
+    proTrialUsed:          true,
+    proSubscriptionActive: !useFreeTrial, // true si pagó directo (no trial)
+    upgradedAt:            now,
+    ...(email ? { email } : {}),
+  });
+  console.info('[MNAuth] Plan Pro activado. Trial gratis:', useFreeTrial);
+  return user;
+}
+
+/**
+ * cancelPro() — cancela la suscripción Pro y vuelve a local.
+ * NUNCA genera locked_local. Los datos del usuario se conservan.
+ * @returns {Object}
+ */
+export function cancelPro() {
+  const user = patchUser({
+    plan:                  PLANS.LOCAL,
+    cloudEnabled:          false,
+    proTrialEndsAt:        null,
+    proSubscriptionActive: false,
+    upgradedAt:            Date.now(),
+  });
+  console.info('[MNAuth] Suscripción Pro cancelada → plan local.');
+  return user;
+}
+
+/** @deprecated — alias para compatibilidad con app.js legacy */
+export function upgradePro(email)  { return activatePro(email); }
+/** @deprecated — alias para compatibilidad con app.js legacy */
+export function downgradeGuest()   { return cancelPro(); }
+
+
+// ════════════════════════════════════════════════════════════════
+//  HELPERS DE ESTADO
+// ════════════════════════════════════════════════════════════════
+
+/** Milisegundos restantes de trial (0 si no aplica o expiró). */
+export function trialMsLeft() {
+  const user = getUser();
+  if (user.plan !== PLANS.TRIAL || !user.trialEndsAt) return 0;
+  return Math.max(0, user.trialEndsAt - Date.now());
+}
+
+/** Horas restantes de trial (decimal, 0 si expiró). */
+export function trialHoursLeft() {
+  return trialMsLeft() / (60 * 60 * 1000);
+}
+
+/**
+ * Representación legible del tiempo de trial restante.
+ * @returns {string} p.ej. "18h 34m" o "45m"
+ */
+export function trialTimeLeftLabel() {
+  const ms = trialMsLeft();
+  if (ms <= 0) return '0m';
+  const h = Math.floor(ms / (60 * 60 * 1000));
+  const m = Math.floor((ms % (60 * 60 * 1000)) / 60000);
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
+/** @deprecated — alias legacy (devuelve días redondeados) */
+export function trialDaysLeft() {
+  return Math.ceil(trialHoursLeft() / 24);
+}
+
+export function isTrialExpired() {
+  const user = getUser();
+  return (user.plan === PLANS.TRIAL || user.plan === PLANS.LOCKED_LOCAL)
+    && !!user.trialEndsAt && Date.now() > user.trialEndsAt;
+}
+
+export function isTrial()       { return getUser().plan === PLANS.TRIAL;        }
+export function isLocked()      { return getUser().plan === PLANS.LOCKED_LOCAL;  }
+export function isLocal()       { return getUser().plan === PLANS.LOCAL;         }
+export function isPro()         { return getUser().plan === PLANS.PRO;           }
+/** @deprecated — en el nuevo modelo no hay plan 'guest' */
+export function isGuest()       { return isTrial();                              }
+
+
+// ════════════════════════════════════════════════════════════════
+//  PAYWALL — bloquearApp()
+// ════════════════════════════════════════════════════════════════
+
+/**
+ * bloquearApp() — reemplaza el <body> con la pantalla de bloqueo.
+ * Se muestra cuando plan = 'locked_local' (trial de 24h expirado).
+ * Compatible con el sistema de temas de MoneyNest (data-theme).
+ */
+export function bloquearApp() {
+  const user = getUser();
+  document.body.style.overflow = 'hidden';
+  document.body.innerHTML = _buildPaywallHTML(user);
+  _initPaywallListeners();
+}
+
+
+// ════════════════════════════════════════════════════════════════
+//  HELPERS INTERNOS
+// ════════════════════════════════════════════════════════════════
+
+function _generateId() {
+  try {
+    return crypto.randomUUID();
+  } catch {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+      const r = Math.random() * 16 | 0;
+      return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+    });
+  }
+}
+
+function _buildPaywallHTML(user) {
+  const theme  = (() => { try { return document.documentElement.getAttribute('data-theme') || 'dark'; } catch { return 'dark'; } })();
+  const isDark = theme === 'dark';
+
+  const bg     = isDark ? '#0A0E17' : '#F1F5F9';
+  const card   = isDark ? '#111827' : '#FFFFFF';
+  const text   = isDark ? '#E8EFF7' : '#0F172A';
+  const text2  = isDark ? '#94A3B8' : '#475569';
+  const border = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
+  const accent = '#00D4AA';
+  const red    = '#F43F5E';
+
+  return /* html */`
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+      body {
+        background: ${bg};
+        font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+        display: flex; align-items: center; justify-content: center;
+        min-height: 100vh; padding: 24px;
+      }
+
+      .pw-wrap {
+        width: 100%; max-width: 460px; text-align: center;
+        animation: pwIn .5s cubic-bezier(0.22,1,0.36,1) forwards;
+      }
+      @keyframes pwIn {
+        from { opacity: 0; transform: scale(.96) translateY(16px); }
+        to   { opacity: 1; transform: none; }
+      }
+
+      .pw-card {
+        background: ${card};
+        border: 1px solid ${border};
+        border-radius: 24px;
+        padding: 40px 36px 32px;
+        box-shadow: 0 32px 80px rgba(0,0,0,${isDark ? '.7' : '.12'});
+        margin-bottom: 16px;
+      }
+
+      .pw-badge {
+        display: inline-flex; align-items: center; gap: 6px;
+        background: rgba(244,63,94,.12); border: 1px solid rgba(244,63,94,.25);
+        color: ${red}; font-size: .7rem; font-weight: 700;
+        text-transform: uppercase; letter-spacing: .1em;
+        padding: 4px 12px; border-radius: 99px; margin-bottom: 24px;
+      }
+      .pw-badge-dot { width: 5px; height: 5px; border-radius: 50%; background: ${red}; }
+
+      .pw-icon {
+        font-size: 3.5rem; margin-bottom: 16px; display: block;
+        animation: pwPop .5s cubic-bezier(0.34,1.56,.64,1) .1s both;
+      }
+      @keyframes pwPop { from { transform: scale(0); } to { transform: scale(1); } }
+
+      .pw-title {
+        font-size: 1.6rem; font-weight: 800; color: ${text};
+        letter-spacing: -.04em; line-height: 1.2; margin-bottom: 10px;
+      }
+      .pw-sub {
+        font-size: .9rem; color: ${text2}; line-height: 1.65; margin-bottom: 28px;
+      }
+
+      /* Pricing card */
+      .pw-price-card {
+        background: linear-gradient(135deg, rgba(0,212,170,.1), rgba(0,212,170,.04));
+        border: 1px solid rgba(0,212,170,.25);
+        border-radius: 16px; padding: 20px; margin-bottom: 20px;
+      }
+      .pw-price-label {
+        font-size: .68rem; font-weight: 700; color: ${accent};
+        text-transform: uppercase; letter-spacing: .1em; margin-bottom: 8px;
+      }
+      .pw-price-amount {
+        font-size: 2.2rem; font-weight: 800; color: ${text};
+        letter-spacing: -.05em; line-height: 1;
+      }
+      .pw-price-amount span { font-size: 1rem; font-weight: 600; color: ${text2}; }
+      .pw-price-desc {
+        font-size: .78rem; color: ${text2}; margin-top: 6px; line-height: 1.5;
+      }
+
+      /* Feature list */
+      .pw-features { display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px; text-align: left; }
+      .pw-feat {
+        display: flex; align-items: center; gap: 12px;
+        padding: 10px 14px;
+        background: rgba(0,212,170,.06); border: 1px solid rgba(0,212,170,.12);
+        border-radius: 10px; font-size: .82rem; color: ${text}; font-weight: 600;
+      }
+      .pw-feat-icon { font-size: 1rem; flex-shrink: 0; }
+
+      /* Buttons */
+      .pw-btn-primary {
+        width: 100%; padding: 16px; border-radius: 14px; border: none;
+        background: linear-gradient(135deg, #00D4AA, #00A882);
+        color: #0A0E17; font-size: 1rem; font-weight: 800;
+        cursor: pointer; font-family: inherit; letter-spacing: -.01em;
+        box-shadow: 0 6px 24px rgba(0,212,170,.35);
+        transition: transform .2s, box-shadow .2s;
+        margin-bottom: 10px;
+      }
+      .pw-btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 36px rgba(0,212,170,.45); }
+
+      .pw-btn-ghost {
+        width: 100%; padding: 13px; border-radius: 12px;
+        border: 1.5px solid ${border};
+        background: transparent; color: ${text2};
+        font-size: .85rem; font-weight: 600;
+        cursor: pointer; font-family: inherit; transition: all .18s;
+      }
+      .pw-btn-ghost:hover { border-color: ${accent}; color: ${accent}; }
+
+      .pw-note { font-size: .72rem; color: ${text2}; line-height: 1.5; }
+      .pw-note a { color: ${accent}; text-decoration: none; font-weight: 600; }
+    </style>
+
+    <div class="pw-wrap">
+      <div class="pw-card">
+        <div class="pw-badge"><div class="pw-badge-dot"></div>Prueba de 24h finalizada</div>
+        <span class="pw-icon">🔒</span>
+        <div class="pw-title">Tu acceso ha expirado</div>
+        <div class="pw-sub">
+          El período de prueba de 24 horas ha concluido.<br>
+          Desbloquea <strong>MoneyNest Local</strong> con un pago único para seguir.
+        </div>
+
+        <div class="pw-price-card">
+          <div class="pw-price-label">⚡ Plan Local — pago único</div>
+          <div class="pw-price-amount">5€ <span>para siempre</span></div>
+          <div class="pw-price-desc">Sin suscripción. Sin sorpresas. Tus datos, siempre en tu dispositivo.</div>
+        </div>
+
+        <div class="pw-features">
+          <div class="pw-feat"><span class="pw-feat-icon">✅</span>Todos tus datos conservados</div>
+          <div class="pw-feat"><span class="pw-feat-icon">✅</span>Ingresos, gastos, inversiones y deudas ilimitados</div>
+          <div class="pw-feat"><span class="pw-feat-icon">✅</span>Exportación PDF y Excel</div>
+          <div class="pw-feat"><span class="pw-feat-icon">☁️</span>Nube disponible con Plan Pro (upgrade opcional)</div>
+        </div>
+
+        <button class="pw-btn-primary" id="pw-buy-local-btn">
+          🔓 Comprar Plan Local — 5€ →
+        </button>
+        <button class="pw-btn-ghost" id="pw-restore-btn-inline">
+          ¿Ya compraste? Restaurar acceso
+        </button>
+      </div>
+
+      <p class="pw-note">
+        Tus datos no se han borrado y están seguros. ·
+        <a href="#" id="pw-restore-link">Restaurar licencia</a>
+      </p>
+    </div>
+  `;
+}
+
+function _initPaywallListeners() {
+  const buyLocalBtn = document.getElementById('pw-buy-local-btn');
+  if (buyLocalBtn) {
+    buyLocalBtn.addEventListener('click', () => {
+      document.dispatchEvent(new CustomEvent('mn:buyLocal', { detail: { source: 'paywall' } }));
+    });
+  }
+
+  const restoreInline = document.getElementById('pw-restore-btn-inline');
+  const restoreLink   = document.getElementById('pw-restore-link');
+  [restoreInline, restoreLink].forEach(el => {
+    if (el) {
+      el.addEventListener('click', (e) => {
+        e.preventDefault();
+        document.dispatchEvent(new CustomEvent('mn:restoreAccess', { detail: { source: 'paywall' } }));
+      });
+    }
+  });
+}
+
+
+// ════════════════════════════════════════════════════════════════
+//  EXPORT GLOBAL (para entornos sin ES modules)
+// ════════════════════════════════════════════════════════════════
+if (typeof window !== 'undefined') {
+  window.MNAuth = {
+    // Constantes
+    PLANS,
+    DEFAULT_USER,
+    TRIAL_DAYS,    // legacy
+    // CRUD
+    getUser,
+    saveUser,
+    patchUser,
+    // Lifecycle
+    initUser,
+    checkAccess,
+    // Plan management
+    upgradeTrial,
+    buyLocal,
+    activatePro,
+    cancelPro,
+    // Aliases legacy
+    upgradePro:    activatePro,
+    downgradeGuest: cancelPro,
+    // Helpers de estado
+    trialMsLeft,
+    trialHoursLeft,
+    trialTimeLeftLabel,
+    trialDaysLeft,   // legacy
+    isTrialExpired,
+    isTrial,
+    isLocked,
+    isLocal,
+    isPro,
+    isGuest,         // legacy
+    // UI
+    bloquearApp,
+  };
+}
