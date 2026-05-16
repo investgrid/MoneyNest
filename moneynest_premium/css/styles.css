@@ -220,7 +220,7 @@ img{max-width:100%;display:block}
 .toggle-switch.on .toggle-knob{transform:translateX(16px)}
 
 /* MAIN */
-.main{flex:1;margin-left:var(--sidebar-w);min-width:320px;display:flex;flex-direction:column;overflow:hidden}
+.main{flex:1;min-width:320px;display:flex;flex-direction:column;overflow:hidden}
 .topbar{
   height:64px;min-height:64px;
   padding:0 28px;
@@ -992,7 +992,7 @@ textarea{resize:vertical;min-height:70px}
     transform:translateX(-100%);
   }
   .sidebar.open{transform:translateX(0)}
-  .main{margin-left:0;min-width:0}
+  .main{min-width:0}
   .hamburger{display:flex}
   .kpi-grid-5{grid-template-columns:repeat(2,1fr)}
   .kpi-grid-4{grid-template-columns:repeat(2,1fr)}
