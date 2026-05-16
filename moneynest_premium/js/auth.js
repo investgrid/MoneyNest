@@ -17,39 +17,11 @@
  * ════════════════════════════════════════════════════════════════
  */
 
-'use strict';
-
-// ─── Clave de almacenamiento ─────────────────────────────────────
-const USER_KEY = 'mn_user';
-
-// ─── Duraciones ──────────────────────────────────────────────────
-const TRIAL_DURATION_MS  = 24 * 60 * 60 * 1000;   // 24 horas
-const PRO_TRIAL_DAYS     = 7;                       // días de prueba Pro
-/** @deprecated Solo para compatibilidad con código legacy de app.js */
-const TRIAL_DAYS         = 1;
-
-// ─── Definición de planes ────────────────────────────────────────
-const PLANS = Object.freeze({
-  TRIAL:        'trial',
-  LOCKED_LOCAL: 'locked_local',
-  LOCAL:        'local',
-  PRO:          'pro',
-  // Alias legacy — evita romper referencias antiguas a 'guest'
-  GUEST:        'trial',
-});
-
-// ─── Estructura de usuario por defecto ──────────────────────────
-const DEFAULT_USER = Object.freeze({
-  id:              null,    // crypto.randomUUID() al crear
-  email:           null,    // se rellena al registrarse/loguearse
-  plan:            PLANS.TRIAL,
-  trialEndsAt:     null,    // ms — cuándo expira el trial de 24h
-  proTrialEndsAt:  null,    // ms — cuándo expira el trial de 7 días Pro
-  proTrialUsed:    false,   // solo se regalan los 7 días Pro una vez
-  cloudEnabled:    false,   // true únicamente con plan pro activo
-  createdAt:       null,    // ms
-  upgradedAt:      null,    // ms — último cambio de plan
-});
+// auth.js usa las constantes globales declaradas en app.js:
+// USER_KEY, TRIAL_DAYS, PLANS, DEFAULT_USER
+const MN_USER_KEY        = 'mn_user';
+const TRIAL_DURATION_MS  = 24 * 60 * 60 * 1000;
+const PRO_TRIAL_DAYS     = 7;
 
 
 // ════════════════════════════════════════════════════════════════
@@ -63,7 +35,7 @@ const DEFAULT_USER = Object.freeze({
  */
 function getUser() {
   try {
-    const raw = localStorage.getItem(USER_KEY);
+    const raw = localStorage.getItem(MN_USER_KEY);
     if (!raw) return { ...DEFAULT_USER };
     const parsed = JSON.parse(raw);
     return { ...DEFAULT_USER, ...parsed };
@@ -79,7 +51,7 @@ function getUser() {
  */
 function saveUser(user) {
   try {
-    localStorage.setItem(USER_KEY, JSON.stringify(user));
+    localStorage.setItem(MN_USER_KEY, JSON.stringify(user));
   } catch (e) {
     console.warn('[MNAuth] No se pudo guardar el usuario:', e);
   }

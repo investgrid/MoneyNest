@@ -20,6 +20,8 @@ const MNStripe = {
   openPayment(priceId, email) {
     if (window.MNPayment) {
       MNPayment.open(priceId, email);
+    } else {
+      console.error('[MNStripe] MNPayment no está disponible. Verifica que stripe-payment.js está cargado.');
     }
   },
 };
