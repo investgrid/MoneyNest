@@ -29,7 +29,7 @@ const PRO_TRIAL_DAYS     = 7;                       // días de prueba Pro
 const TRIAL_DAYS         = 1;
 
 // ─── Definición de planes ────────────────────────────────────────
-export const PLANS = Object.freeze({
+const PLANS = Object.freeze({
   TRIAL:        'trial',
   LOCKED_LOCAL: 'locked_local',
   LOCAL:        'local',
@@ -39,7 +39,7 @@ export const PLANS = Object.freeze({
 });
 
 // ─── Estructura de usuario por defecto ──────────────────────────
-export const DEFAULT_USER = Object.freeze({
+const DEFAULT_USER = Object.freeze({
   id:              null,    // crypto.randomUUID() al crear
   email:           null,    // se rellena al registrarse/loguearse
   plan:            PLANS.TRIAL,
@@ -61,7 +61,7 @@ export const DEFAULT_USER = Object.freeze({
  * Si no existe o está corrupto devuelve DEFAULT_USER (sin tocar storage).
  * @returns {Object}
  */
-export function getUser() {
+function getUser() {
   try {
     const raw = localStorage.getItem(USER_KEY);
     if (!raw) return { ...DEFAULT_USER };
@@ -77,7 +77,7 @@ export function getUser() {
  * @param {Object} user
  * @returns {Object}
  */
-export function saveUser(user) {
+function saveUser(user) {
   try {
     localStorage.setItem(USER_KEY, JSON.stringify(user));
   } catch (e) {
@@ -91,7 +91,7 @@ export function saveUser(user) {
  * @param {Object} patch
  * @returns {Object}
  */
-export function patchUser(patch) {
+function patchUser(patch) {
   const updated = { ...getUser(), ...patch };
   return saveUser(updated);
 }
@@ -107,7 +107,7 @@ export function patchUser(patch) {
  * • Visita posterior → garantiza coherencia de campos.
  * @returns {Object} usuario activo
  */
-export function initUser() {
+function initUser() {
   let user = getUser();
 
   if (!user.id) {
@@ -144,7 +144,7 @@ export function initUser() {
  *
  * @returns {{ ok: boolean, reason: string|null }}
  */
-export function checkAccess() {
+function checkAccess() {
   const user = getUser();
 
   switch (user.plan) {
@@ -185,7 +185,7 @@ export function checkAccess() {
  * En producción, aquí se consultaría el backend/webhook de Stripe.
  * @param {Object} [user]
  */
-export function _checkProSubscription(user) {
+function _checkProSubscription(user) {
   const u = user || getUser();
   if (u.plan !== PLANS.PRO) return;
 
@@ -208,7 +208,7 @@ export function _checkProSubscription(user) {
  * @param {string} [email]
  * @returns {Object}
  */
-export function upgradeTrial(email) {
+function upgradeTrial(email) {
   const now = Date.now();
   const trialEndsAt = now + TRIAL_DURATION_MS;
   const user = patchUser({
@@ -227,7 +227,7 @@ export function upgradeTrial(email) {
  * @param {string} [email]
  * @returns {Object}
  */
-export function buyLocal(email) {
+function buyLocal(email) {
   const user = patchUser({
     plan:            PLANS.LOCAL,
     trialEndsAt:     null,   // el trial ya no aplica
@@ -247,7 +247,7 @@ export function buyLocal(email) {
  * @param {boolean} [skipTrial=false] — true si el usuario ya pagó directo
  * @returns {Object}
  */
-export function activatePro(email, skipTrial = false) {
+function activatePro(email, skipTrial = false) {
   const current = getUser();
   const now = Date.now();
   const useFreeTrial = !current.proTrialUsed && !skipTrial;
@@ -270,7 +270,7 @@ export function activatePro(email, skipTrial = false) {
  * NUNCA genera locked_local. Los datos del usuario se conservan.
  * @returns {Object}
  */
-export function cancelPro() {
+function cancelPro() {
   const user = patchUser({
     plan:                  PLANS.LOCAL,
     cloudEnabled:          false,
@@ -283,9 +283,9 @@ export function cancelPro() {
 }
 
 /** @deprecated — alias para compatibilidad con app.js legacy */
-export function upgradePro(email)  { return activatePro(email); }
+function upgradePro(email)  { return activatePro(email); }
 /** @deprecated — alias para compatibilidad con app.js legacy */
-export function downgradeGuest()   { return cancelPro(); }
+function downgradeGuest()   { return cancelPro(); }
 
 
 // ════════════════════════════════════════════════════════════════
@@ -293,14 +293,14 @@ export function downgradeGuest()   { return cancelPro(); }
 // ════════════════════════════════════════════════════════════════
 
 /** Milisegundos restantes de trial (0 si no aplica o expiró). */
-export function trialMsLeft() {
+function trialMsLeft() {
   const user = getUser();
   if (user.plan !== PLANS.TRIAL || !user.trialEndsAt) return 0;
   return Math.max(0, user.trialEndsAt - Date.now());
 }
 
 /** Horas restantes de trial (decimal, 0 si expiró). */
-export function trialHoursLeft() {
+function trialHoursLeft() {
   return trialMsLeft() / (60 * 60 * 1000);
 }
 
@@ -308,7 +308,7 @@ export function trialHoursLeft() {
  * Representación legible del tiempo de trial restante.
  * @returns {string} p.ej. "18h 34m" o "45m"
  */
-export function trialTimeLeftLabel() {
+function trialTimeLeftLabel() {
   const ms = trialMsLeft();
   if (ms <= 0) return '0m';
   const h = Math.floor(ms / (60 * 60 * 1000));
@@ -317,22 +317,22 @@ export function trialTimeLeftLabel() {
 }
 
 /** @deprecated — alias legacy (devuelve días redondeados) */
-export function trialDaysLeft() {
+function trialDaysLeft() {
   return Math.ceil(trialHoursLeft() / 24);
 }
 
-export function isTrialExpired() {
+function isTrialExpired() {
   const user = getUser();
   return (user.plan === PLANS.TRIAL || user.plan === PLANS.LOCKED_LOCAL)
     && !!user.trialEndsAt && Date.now() > user.trialEndsAt;
 }
 
-export function isTrial()       { return getUser().plan === PLANS.TRIAL;        }
-export function isLocked()      { return getUser().plan === PLANS.LOCKED_LOCAL;  }
-export function isLocal()       { return getUser().plan === PLANS.LOCAL;         }
-export function isPro()         { return getUser().plan === PLANS.PRO;           }
+function isTrial()       { return getUser().plan === PLANS.TRIAL;        }
+function isLocked()      { return getUser().plan === PLANS.LOCKED_LOCAL;  }
+function isLocal()       { return getUser().plan === PLANS.LOCAL;         }
+function isPro()         { return getUser().plan === PLANS.PRO;           }
 /** @deprecated — en el nuevo modelo no hay plan 'guest' */
-export function isGuest()       { return isTrial();                              }
+function isGuest()       { return isTrial();                              }
 
 
 // ════════════════════════════════════════════════════════════════
@@ -344,7 +344,7 @@ export function isGuest()       { return isTrial();                             
  * Se muestra cuando plan = 'locked_local' (trial de 24h expirado).
  * Compatible con el sistema de temas de MoneyNest (data-theme).
  */
-export function bloquearApp() {
+function bloquearApp() {
   const user = getUser();
   document.body.style.overflow = 'hidden';
   document.body.innerHTML = _buildPaywallHTML(user);
