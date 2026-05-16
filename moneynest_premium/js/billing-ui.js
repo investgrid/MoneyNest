@@ -808,53 +808,17 @@ function _closeCheckoutModal() {
 }
 
 function startBuyLocal() {
-  // Close lock overlay first (it will reappear if purchase fails)
   document.getElementById('billingLockOverlay')?.remove();
   _lockActive = false;
-
-  _showCheckoutModal('#00D4AA', async () => {
-    const msg = () => document.getElementById('billingCheckoutMsg');
-    try {
-      await _b().mockBuyLocal({
-        onProgress: (m) => { if (msg()) msg().textContent = m; }
-      });
-      const body = document.getElementById('billingCheckoutBody');
-      if (body) {
-        body.innerHTML = `
-          <div class="billing-success">
-            <div class="billing-success-icon">🔓</div>
-            <div class="billing-success-title">${t('billing_success_local_title')}</div>
-            <div class="billing-success-sub">${t('billing_success_local_sub')}</div>
-          </div>`;
-      }
-      // State change fires automatically via mn:billing:activated → mn:billing:change
-      setTimeout(() => { _closeCheckoutModal(); }, 2200);
-    } catch { _closeCheckoutModal(); }
-  });
+  const email = window.MNAuth?.getUser()?.email ?? '';
+  MNStripe.openPayment(MNStripeConfig.prices.local, email);
 }
 
 function startActivatePro() {
   document.getElementById('billingLockOverlay')?.remove();
   _lockActive = false;
-
-  _showCheckoutModal('#A78BFA', async () => {
-    const msg = () => document.getElementById('billingCheckoutMsg');
-    try {
-      await _b().mockActivatePro({
-        onProgress: (m) => { if (msg()) msg().textContent = m; }
-      });
-      const body = document.getElementById('billingCheckoutBody');
-      if (body) {
-        body.innerHTML = `
-          <div class="billing-success">
-            <div class="billing-success-icon">⚡</div>
-            <div class="billing-success-title">${t('billing_success_pro_title')}</div>
-            <div class="billing-success-sub">${t('billing_success_pro_sub')}</div>
-          </div>`;
-      }
-      setTimeout(() => { _closeCheckoutModal(); }, 2200);
-    } catch { _closeCheckoutModal(); }
-  });
+  const email = window.MNAuth?.getUser()?.email ?? '';
+  MNStripe.openPayment(MNStripeConfig.prices.pro, email);
 }
 
 async function triggerSync() {
