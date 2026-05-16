@@ -261,3 +261,5 @@ const MNPayment = (() => {
 
   return { open, close, init };
 })();
+
+window.MNPayment = MNPayment;
