@@ -1,0 +1,60 @@
+/* ─── MoneyNest Service Worker v2 ─────────────────────────────── */
+const CACHE_NAME = 'moneynest-v2'
+const LOCAL_ASSETS = [
+  './index.html',
+  './manifest.json',
+  './assets/logo.svg',
+  './assets/icon-192.png',
+  './assets/icon-512.png',
+]
+const REMOTE_ASSETS = [
+  'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap',
+  'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
+]
+
+self.addEventListener('install', event => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then(cache =>
+      cache.addAll(LOCAL_ASSETS).then(() =>
+        Promise.allSettled(
+          REMOTE_ASSETS.map(url =>
+            fetch(url, { mode: 'cors' })
+              .then(r => { if (r.ok) cache.put(url, r) })
+              .catch(() => {})
+          )
+        )
+      )
+    ).then(() => self.skipWaiting())
+  )
+})
+
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys()
+      .then(keys => Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))))
+      .then(() => self.clients.claim())
+  )
+})
+
+self.addEventListener('fetch', event => {
+  if (event.request.method !== 'GET') return
+  const url = event.request.url
+  if (url.startsWith('chrome-extension://') || url.startsWith('blob:')) return
+
+  event.respondWith(
+    caches.match(event.request).then(cached => {
+      if (cached) return cached
+      return fetch(event.request).then(response => {
+        if (!response || response.status !== 200 || response.type === 'opaque') return response
+        const clone = response.clone()
+        caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone))
+        return response
+      }).catch(() => {
+        if (event.request.mode === 'navigate') return caches.match('./index.html')
+      })
+    })
+  )
+})
