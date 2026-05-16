@@ -1,6 +1,4 @@
-'use strict';
-
-const MNPayment = (() => {
+window.MNPayment = (() => {
   const ENDPOINT = 'https://jwddciqqhmfkbqhdrfre.supabase.co/functions/v1/create-payment-intent';
 
   let _stripe   = null;
@@ -261,5 +259,3 @@ const MNPayment = (() => {
 
   return { open, close, init };
 })();
-
-window.MNPayment = MNPayment;
