@@ -1,0 +1,12360 @@
+// ─── CONSTANTS ────────────────────────────────────────────────
+const VERSION = '1.1'
+
+// ─── LOGO SVGs ────────────────────────────────────────────────
+// ── Logo SVG (clean, no badge) ───────────────────────────────────────
+const LOGO_DARK  = `<svg viewBox='0 0 200 44' xmlns='http://www.w3.org/2000/svg' style='width:160px;height:44px;display:block'>
+  <defs>
+    <linearGradient id='mnSbGradD' x1='0%' y1='0%' x2='100%' y2='100%'>
+      <stop offset='0%' stop-color='#00D4AA'/>
+      <stop offset='100%' stop-color='#00A882'/>
+    </linearGradient>
+  </defs>
+  <path d='M8 30 Q22 36 36 30' stroke='rgba(255,255,255,0.8)' stroke-width='3' fill='none' stroke-linecap='round'/>
+  <path d='M11 26 Q22 31 33 26' stroke='rgba(255,255,255,0.5)' stroke-width='2' fill='none' stroke-linecap='round'/>
+  <polyline points='10,26 17,18 24,22 34,10' stroke='url(#mnSbGradD)' stroke-width='3.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/>
+  <polyline points='29,9 34,10 33,15' stroke='url(#mnSbGradD)' stroke-width='3.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/>
+  <text x='46' y='28' font-family='Inter,system-ui,sans-serif' font-size='20' font-weight='800' letter-spacing='-0.5' fill='white'>Money<tspan fill='#00D4AA'>Nest</tspan></text>
+</svg>`
+
+const LOGO_LIGHT = `<svg viewBox='0 0 200 44' xmlns='http://www.w3.org/2000/svg' style='width:160px;height:44px;display:block'>
+  <defs>
+    <linearGradient id='mnSbGradL' x1='0%' y1='0%' x2='100%' y2='100%'>
+      <stop offset='0%' stop-color='#009E82'/>
+      <stop offset='100%' stop-color='#007A66'/>
+    </linearGradient>
+  </defs>
+  <path d='M8 30 Q22 36 36 30' stroke='#0F172A' stroke-width='3' fill='none' stroke-linecap='round'/>
+  <path d='M11 26 Q22 31 33 26' stroke='#334155' stroke-width='2' fill='none' stroke-linecap='round' opacity='0.6'/>
+  <polyline points='10,26 17,18 24,22 34,10' stroke='url(#mnSbGradL)' stroke-width='3.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/>
+  <polyline points='29,9 34,10 33,15' stroke='url(#mnSbGradL)' stroke-width='3.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/>
+  <text x='46' y='28' font-family='Inter,system-ui,sans-serif' font-size='20' font-weight='800' letter-spacing='-0.5' fill='#0F172A'>Money<tspan fill='#009E82'>Nest</tspan></text>
+</svg>`
+
+function getCurrentLogo() {
+  return document.documentElement.getAttribute('data-theme') === 'light' ? LOGO_LIGHT : LOGO_DARK
+}
+
+function updateSidebarLogo() {
+  const el = document.getElementById('sidebarLogoImg')
+  if (!el) return
+
+  // 1. Plan state — MNBilling autoritativo, auth como fallback
+  let state = 'none'
+  if (window.MNBilling && typeof window.MNBilling.getSubStatus === 'function') {
+    state = window.MNBilling.getSubStatus().state || 'none'
+  } else {
+    const user = (typeof getUser === 'function') ? getUser() : {}
+    const m = { pro:'pro_active', local:'local_active', trial:'active_trial', locked_local:'none' }
+    state = m[user.plan] || 'none'
+  }
+
+  // 2. Definición de badges por plan
+  const BADGES = {
+    pro_active:   { bg:'linear-gradient(135deg,#A78BFA,#7C3AED)', color:'#fff', icon:'⚡', label:'PRO'   },
+    pro_trialing: { bg:'linear-gradient(135deg,#A78BFA,#7C3AED)', color:'#fff', icon:'⚡', label:'PRO'   },
+    local_active: { bg:'linear-gradient(135deg,#10B981,#059669)', color:'#fff', icon:'💾', label:'Local' },
+    active_trial: { bg:'linear-gradient(135deg,#F59E0B,#D97706)', color:'#fff', icon:'🕐', label:'Trial' },
+    trial_ending: { bg:'linear-gradient(135deg,#F59E0B,#D97706)', color:'#fff', icon:'⏳', label:'Trial' },
+  }
+  const b = BADGES[state]
+
+  // 3. Badge: position:absolute DENTRO del wrapper, esquina inferior-derecha
+  //    right:0 bottom:0 → se superpone encima del SVG en esa esquina
+  const badgeEl = b ? `<span style="
+      position:absolute;
+      bottom:0px;
+      right:0px;
+      background:${b.bg};
+      color:${b.color};
+      font-size:8.8px;
+      font-weight:800;
+      padding:3px 8px 3px 5px;
+      border-radius:999px;
+      display:inline-flex;
+      align-items:center;
+      gap:3px;
+      white-space:nowrap;
+      pointer-events:none;
+      box-shadow:0 2px 8px rgba(0,0,0,0.3);
+      letter-spacing:0.05em;
+      line-height:1;
+      z-index:10;
+    "><span style="font-size:11px;line-height:1">${b.icon}</span>${b.label}</span>` : ''
+
+  // 4. Wrapper: mismo tamaño que el SVG (160×44px), position:relative
+  //    El badge flota encima sin desplazar nada
+  el.innerHTML = `<span style="
+    position:relative;
+    display:inline-block;
+    width:160px;
+    height:44px;
+    line-height:0;
+    flex-shrink:0;
+  ">${getCurrentLogo()}${badgeEl}</span>`
+}
+
+
+const SK = 'mn7_data'
+
+// ════════════════════════════════════════════════════════════════
+// ─── SISTEMA DE USUARIO — guest / trial / pro ────────────────
+//  Inline version of /js/auth.js (kept in sync with that file)
+// ════════════════════════════════════════════════════════════════
+const USER_KEY  = 'mn_user'
+const TRIAL_DAYS = 1 // 24 horas (v2 — ver js/auth.js)
+
+const PLANS = Object.freeze({ GUEST:'trial', TRIAL:'trial', LOCKED_LOCAL:'locked_local', LOCAL:'local', PRO:'pro' })
+
+const DEFAULT_USER = Object.freeze({
+  id:           null,
+  email:        null,
+  plan:         'trial',  // v2: plan inicial = trial 24h
+  trialEndsAt:  null,
+  cloudEnabled: false,
+  createdAt:    null,
+  upgradedAt:   null,
+})
+
+function getUser() {
+  try {
+    const raw = localStorage.getItem(USER_KEY)
+    if (!raw) return { ...DEFAULT_USER }
+    return { ...DEFAULT_USER, ...JSON.parse(raw) }
+  } catch { return { ...DEFAULT_USER } }
+}
+
+function saveUser(user) {
+  try { localStorage.setItem(USER_KEY, JSON.stringify(user)) } catch(e) {}
+  return user
+}
+
+function patchUser(patch) {
+  return saveUser({ ...getUser(), ...patch })
+}
+
+function _generateUserId() {
+  try { return crypto.randomUUID() } catch {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+      const r = Math.random() * 16 | 0
+      return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16)
+    })
+  }
+}
+
+function initUser() {
+  let user = getUser()
+  if (!user.id) {
+    user = { ...DEFAULT_USER, id: _generateUserId(), plan: 'trial', trialEndsAt: Date.now() + 86400000, createdAt: Date.now() }
+    saveUser(user)
+  } else if (!user.createdAt) {
+    saveUser({ ...user, createdAt: Date.now() })
+  }
+  return user
+}
+
+function checkAccess() {
+  const user = getUser()
+  if (user.plan === 'pro')  return { ok: true, reason: null }
+  if (user.plan === 'trial') {
+    if (user.trialEndsAt && Date.now() > user.trialEndsAt) {
+      bloquearApp(user)
+      return { ok: false, reason: 'trial_expired' }
+    }
+    return { ok: true, reason: null }
+  }
+  return { ok: true, reason: null } // guest — free access
+}
+
+function upgradeTrial(email) {
+  const trialEndsAt = Date.now() + TRIAL_DAYS * 86400000
+  return patchUser({ plan:'trial', trialEndsAt, upgradedAt: Date.now(), ...(email ? { email } : {}) })
+}
+
+function upgradePro(email) {
+  return patchUser({ plan:'pro', trialEndsAt: null, cloudEnabled: true, upgradedAt: Date.now(), ...(email ? { email } : {}) })
+}
+
+function downgradeGuest() {
+  return patchUser({ plan:'local', trialEndsAt: null, cloudEnabled: false, upgradedAt: Date.now() })
+}
+// v2 aliases
+function buyLocal(email)    { return patchUser({ plan:'local', trialEndsAt:null, cloudEnabled:false, upgradedAt:Date.now(), ...(email?{email}:{}) }) }
+function cancelPro()        { return downgradeGuest() }
+function activatePro(email) { return upgradePro(email) }
+function trialMsLeft()      { const u=getUser(); if(u.plan!=='trial'||!u.trialEndsAt) return 0; return Math.max(0,u.trialEndsAt-Date.now()) }
+function isLocked()         { return getUser().plan === 'locked_local' }
+function isLocal()          { return getUser().plan === 'local' }
+
+function trialDaysLeft() {
+  const user = getUser()
+  if (user.plan !== 'trial' || !user.trialEndsAt) return 0
+  return Math.max(0, Math.ceil((user.trialEndsAt - Date.now()) / 86400000))
+}
+
+function isTrialExpired() {
+  const user = getUser()
+  return user.plan === 'trial' && !!user.trialEndsAt && Date.now() > user.trialEndsAt
+}
+
+function isPro()   { return getUser().plan === 'pro' }
+function isGuest() { const p = getUser().plan; return p === 'trial' || p === 'locked_local'; }
+
+function bloquearApp(user) {
+  const u = user || getUser()
+  const theme = document.documentElement.getAttribute('data-theme') || 'dark'
+  const isDark = theme === 'dark'
+  const bg = isDark ? '#0A0E17' : '#F1F5F9'
+  const card = isDark ? '#111827' : '#FFFFFF'
+  const txt  = isDark ? '#E8EFF7' : '#0F172A'
+  const txt2 = isDark ? '#94A3B8' : '#475569'
+  const bdr  = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'
+
+  document.body.style.overflow = 'hidden'
+  document.body.innerHTML = `
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{background:${bg};font-family:'Plus Jakarta Sans','Inter',system-ui,sans-serif;
+         display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px}
+    .pw-wrap{width:100%;max-width:440px;text-align:center;animation:pwIn .5s cubic-bezier(0.22,1,0.36,1) forwards}
+    @keyframes pwIn{from{opacity:0;transform:scale(.96) translateY(16px)}to{opacity:1;transform:none}}
+    .pw-card{background:${card};border:1px solid ${bdr};border-radius:24px;padding:40px 36px 32px;
+             box-shadow:0 32px 80px rgba(0,0,0,${isDark?.7:.12});margin-bottom:20px}
+    .pw-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(244,63,94,.1);
+              border:1px solid rgba(244,63,94,.2);color:#F43F5E;font-size:.7rem;font-weight:700;
+              text-transform:uppercase;letter-spacing:.1em;padding:4px 12px;border-radius:99px;margin-bottom:24px}
+    .pw-dot{width:5px;height:5px;border-radius:50%;background:#F43F5E}
+    .pw-icon{font-size:3.5rem;margin-bottom:16px;display:block;
+             animation:pwPop .5s cubic-bezier(0.34,1.56,.64,1) .1s both}
+    @keyframes pwPop{from{transform:scale(0)}to{transform:scale(1)}}
+    .pw-title{font-size:1.6rem;font-weight:800;color:${txt};letter-spacing:-.04em;line-height:1.2;margin-bottom:10px}
+    .pw-sub{font-size:.9rem;color:${txt2};line-height:1.65;margin-bottom:28px}
+    .pw-feats{display:flex;flex-direction:column;gap:8px;margin-bottom:28px;text-align:left}
+    .pw-feat{display:flex;align-items:center;gap:12px;padding:10px 14px;
+             background:rgba(0,212,170,.06);border:1px solid rgba(0,212,170,.12);
+             border-radius:10px;font-size:.82rem;color:${txt};font-weight:600}
+    .pw-cta-primary{width:100%;padding:16px;border-radius:14px;border:none;
+                    background:linear-gradient(135deg,#00D4AA,#00A882);color:#0A0E17;
+                    font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;
+                    box-shadow:0 6px 24px rgba(0,212,170,.35);transition:transform .2s,box-shadow .2s;
+                    margin-bottom:10px;display:block}
+    .pw-cta-primary:hover{transform:translateY(-2px);box-shadow:0 10px 36px rgba(0,212,170,.45)}
+    .pw-cta-ghost{width:100%;padding:13px;border-radius:12px;border:1.5px solid ${bdr};
+                  background:transparent;color:${txt2};font-size:.85rem;font-weight:600;
+                  cursor:pointer;font-family:inherit;transition:all .18s;display:block}
+    .pw-cta-ghost:hover{border-color:#00D4AA;color:#00D4AA}
+    .pw-note{font-size:.72rem;color:${txt2};line-height:1.5}
+    .pw-note a{color:#00D4AA;text-decoration:none;font-weight:600}
+  </style>
+  <div class="pw-wrap">
+    <div class="pw-card">
+      <div class="pw-badge"><div class="pw-dot"></div>Prueba finalizada</div>
+      <span class="pw-icon">⏰</span>
+      <div class="pw-title">Tu prueba ha terminado</div>
+      <div class="pw-sub">Los ${TRIAL_DAYS} días de prueba gratuita han concluido.
+        Activa <strong>MoneyNest Pro</strong> para continuar con acceso total.</div>
+      <div class="pw-feats">
+        <div class="pw-feat">✅ &nbsp;Todos tus datos guardados y seguros</div>
+        <div class="pw-feat">✅ &nbsp;Ingresos, gastos, inversiones ilimitados</div>
+        <div class="pw-feat">✅ &nbsp;Exportación PDF y Excel</div>
+        <div class="pw-feat">✅ &nbsp;Sincronización en la nube (próximamente)</div>
+      </div>
+      <button class="pw-cta-primary" onclick="_pw_activatePro()">⚡ Activar Pro — continuar →</button>
+      <button class="pw-cta-ghost"   onclick="_pw_continueGuest()">Continuar como invitado (funciones limitadas)</button>
+    </div>
+    <p class="pw-note">¿Ya tienes licencia? <a href="#" onclick="_pw_restore(event)">Restaurar acceso</a> ·
+       Tus datos están seguros.</p>
+  </div>`
+
+  window._pw_activatePro   = () => document.dispatchEvent(new CustomEvent('mn:upgradePro',     { detail: { source:'paywall' } }))
+  window._pw_continueGuest = () => { downgradeGuest(); window.location.reload() }
+  window._pw_restore       = (e) => { e.preventDefault(); document.dispatchEvent(new CustomEvent('mn:restoreAccess', { detail: { source:'paywall' } })) }
+}
+
+// Expose on window for debugging / external use.
+// Si js/auth.js (v2) ya cargó antes, ya definió window.MNAuth con funciones
+// más completas (trialHoursLeft, trialTimeLeftLabel, etc.). No lo pisamos.
+if (!window.MNAuth) {
+  window.MNAuth = { PLANS, DEFAULT_USER, getUser, saveUser, patchUser, initUser,
+      buyLocal, activatePro: upgradePro, cancelPro: downgradeGuest,
+      isLocked: () => getUser().plan === 'locked_local',
+      isLocal:  () => getUser().plan === 'local',
+      trialTimeLeftLabel: () => { const ms = trialMsLeft ? trialMsLeft() : 0; const h=Math.floor(ms/3600000); const m=Math.floor((ms%3600000)/60000); return h>0?`${h}h ${m}m`:`${m}m`; },
+      trialMsLeft: () => { const u=getUser(); if(u.plan!=='trial'||!u.trialEndsAt) return 0; return Math.max(0,u.trialEndsAt-Date.now()); },
+    checkAccess, upgradeTrial, upgradePro, downgradeGuest,
+    trialDaysLeft, isTrialExpired, isPro, isGuest, bloquearApp };
+}
+
+
+// ─── LANGUAGE SYSTEM ──────────────────────────────────────────
+const LANG_STORAGE_KEY = 'mn7_lang'
+const TRANSLATIONS = {
+  es: {
+    // Nav
+    nav_principal: 'Principal', nav_finanzas: 'Finanzas',
+    nav_planificacion: 'Planificación', nav_patrimonio_sec: 'Patrimonio',
+    nav_sistema: 'Sistema',
+    nav_dashboard: 'Dashboard', nav_ingresos: 'Ingresos',
+    nav_gastos: 'Gastos', nav_inversiones: 'Inversiones',
+    nav_deudas: 'Deudas', nav_objetivos: 'Objetivos',
+    nav_presupuestos: 'Presupuestos', nav_cuentas: 'Cuentas',
+    nav_patrimonio: 'Patrimonio', nav_analisis: 'Análisis',
+    nav_configuracion: 'Configuración', nav_faq: 'FAQ', nav_sugerencias: 'Sugerencias',
+    nav_billing: 'Plan & Facturación',
+    nav_cerrar_sesion: 'Cerrar sesión',
+    // Topbar
+    disponible: 'Disponible',
+    exportar: 'Exportar',
+    // Theme
+    theme_dark: 'Modo oscuro', theme_light: 'Modo claro',
+    // Dashboard
+    patrimonio_neto: 'Patrimonio Neto',
+    ingresos_mes: 'Ingresos este mes',
+    gastos_mes: 'Gastos este mes',
+    cash_flow: 'Cash Flow',
+    ahorro_mes: 'Ahorro este mes',
+    sin_movimientos: 'Sin movimientos registrados',
+    actividad_reciente: 'Actividad reciente',
+    ultimas_transacciones: 'Últimas transacciones',
+    ver_todo: 'Ver todo →',
+    evolucion_patrimonio: 'Evolución del patrimonio',
+    ultimos_6_meses: 'Últimos 6 meses',
+    gastos_categoria: 'Gastos por categoría',
+    insights: 'Insights',
+    basado_datos: 'Basado en tus datos reales',
+    todo_orden: '¡Todo en orden este mes!',
+    sigue_registrando: 'Sigue registrando tus movimientos.',
+    primer_mes: 'Primer mes',
+    ingresos_año: 'Ingresos',
+    gastos_año: 'Gastos',
+    resumen_financiero: 'Resumen financiero',
+    hola: 'Hola,',
+    // Buttons
+    btn_guardar: 'Guardar', btn_cancelar: 'Cancelar',
+    btn_eliminar: 'Eliminar', btn_editar: 'Editar',
+    btn_nuevo: 'Nuevo', btn_exportar: '⬆ Exportar',
+    btn_nuevo_ingreso: '+ Nuevo ingreso',
+    btn_nuevo_gasto: '+ Nuevo gasto',
+    btn_nueva_inversion: '+ Nueva inversión',
+    btn_nueva_deuda: '+ Nueva deuda',
+    btn_nuevo_objetivo: '+ Nuevo objetivo',
+    // Ingresos
+    page_ingresos: 'Ingresos',
+    sub_ingresos: 'Todos tus ingresos',
+    // Gastos
+    page_gastos: 'Gastos',
+    sub_gastos: 'Todos tus gastos',
+    // Inversiones
+    page_inversiones: 'Inversiones',
+    // Cuentas
+    page_cuentas: 'Cuentas',
+    // Deudas
+    page_deudas: 'Deudas',
+    // Objetivos
+    page_objetivos: 'Objetivos',
+    // Presupuestos
+    page_presupuestos: 'Presupuestos',
+    // Análisis
+    page_analisis: 'Análisis',
+    // Configuración
+    page_configuracion: 'Configuración',
+    page_faq: 'Preguntas frecuentes', page_sugerencias: 'Sugerencias',
+    sug_tipo_sug: 'Sugerencia', sug_tipo_preg: 'Pregunta',
+    sug_placeholder: 'Describe tu idea o pregunta...', sug_enviar_email: '📧 Enviar por email', sug_guardar: '💾 Guardar localmente',
+    // Onboarding
+    ob_bienvenida: '¡Bienvenido a MoneyNest! 🪺',
+    ob_bienvenida_sub: '¿Cómo te llamas? Personalizaremos la experiencia para ti.',
+    ob_idioma: 'Elige tu idioma',
+    ob_idioma_sub: 'Selecciona el idioma en el que quieres usar la app.',
+    ob_tema: 'Elige tu tema',
+    ob_tema_sub: 'Puedes cambiarlo en cualquier momento desde la barra lateral.',
+    ob_listo: '¡Todo configurado!',
+    ob_listo_sub: '¿Quieres ver un tour interactivo? Te guiaremos paso a paso con datos de ejemplo.',
+    ob_continuar: 'Continuar →',
+    ob_empezar: '¡Empezar!',
+    ob_omitir: 'Omitir',
+    ob_atras: '← Atrás',
+    ob_ver_tutorial: 'Ver tutorial',
+    ob_ir_directo: 'Ir directo',
+    ob_3min: '~3 minutos',
+    ob_exploro: 'Exploro solo',
+    ob_oscuro: 'Oscuro', ob_claro: 'Claro',
+    ob_nombre_placeholder: 'Tu nombre...',
+    // Onboarding panel texts
+    ob_s1_pill: 'Paso 1 de 3 · Bienvenida',
+    ob_s1_h1: 'Tu dinero,', ob_s1_h2: 'por fin <span>bajo control.</span>',
+    ob_s1_lead: 'MoneyNest es tu panel financiero personal. Ingresos, gastos, inversiones y objetivos — todo en un solo lugar, siempre contigo.',
+    ob_s1_placeholder: '¿Cómo te llamas?', ob_s1_hint: 'Solo para personalizar tu panel — sin cuenta, sin email',
+    ob_s1_cta: 'Comenzar',
+    ob_s2_pill: 'Paso 2 de 3 · Personaliza',
+    ob_s2_h1: 'Tu look,', ob_s2_h2: 'tus <span>reglas.</span>',
+    ob_s2_lead: 'Elige idioma y tema. Puedes cambiarlo en cualquier momento desde Configuración.',
+    ob_s2_idioma_lbl: 'Idioma', ob_s2_tema_lbl: 'Apariencia',
+    ob_s2_siguiente: 'Siguiente',
+    ob_s3_pill: 'Paso 3 de 3 · Arrancar',
+    ob_s3_h1: '¿Por dónde', ob_s3_h2: '<span>empezamos?</span>',
+    ob_s3_lead: 'Tu panel está configurado. Elige cómo quieres comenzar tu experiencia con MoneyNest.',
+    ob_s3_greeting: '¡Todo listo',
+    ob_opt_tutorial_lbl: 'Tour guiado', ob_opt_tutorial_sub: 'Te enseñamos todo paso a paso con ejemplos reales (~3 min)',
+    ob_opt_demo_lbl: 'Explorar con datos de ejemplo', ob_opt_demo_sub: 'Ve la app completa antes de añadir tus propios datos',
+    ob_opt_direct_lbl: 'Empezar directamente', ob_opt_direct_sub: 'Exploro solo, ya sé lo que necesito',
+    ob_s3_cta: '¡Empezar! 🚀',
+    ob_left2_title: 'Diseñada para ti,', ob_left2_sub: 'desde el primer día.',
+    ob_left2_desc: 'Escoge el idioma y el tema que mejor se adapta a tu forma de trabajar.',
+    ob_left2_idioma_lbl: '🌍 Idioma activo', ob_left2_tema_lbl: '🎨 Tema',
+    ob_feat_ingresos: 'Ingresos & Gastos', ob_feat_ingresos_sub: 'Control total de tu flujo',
+    ob_feat_inv: 'Inversiones', ob_feat_inv_sub: 'Seguimiento de tu cartera',
+    ob_feat_obj: 'Objetivos', ob_feat_obj_sub: 'Alcanza tus metas financieras',
+    ob_feat_priv: '100% privado', ob_feat_priv_sub: 'Tus datos solo en tu dispositivo',
+    ob_feat_gratis: 'Sin suscripción', ob_feat_gratis_sub: 'Todo gratis, sin límites',
+    ob_left3_ready: '✨ Tu panel está listo — empieza a añadir tus datos',
+    // Misc
+    sin_datos: 'Sin datos suficientes',
+    buscar: 'Buscar...',
+    todas_cats: 'Todas las categorías',
+    periodo: 'Período:',
+    este_mes: 'Este mes',
+    mes_anterior: 'Mes anterior',
+    este_año: 'Este año',
+    todo: 'Todo',
+    personalizado: 'Personalizado',
+    // Settings view
+    cfg_perfil: 'Tu perfil', cfg_nombre: 'Nombre', cfg_guardar: '💾 Guardar',
+    cfg_idioma: 'Idioma', cfg_apariencia: 'Apariencia',
+    cfg_oscuro: 'Oscuro', cfg_claro: 'Claro', cfg_activo: '✓ Activo',
+    cfg_apariencia_tip: 'También puedes cambiarlo desde la barra lateral.',
+    cfg_datos: 'Importar / Exportar datos',
+    cfg_exportar_pdf: '📊 Exportar informe completo (PDF / Excel)',
+    cfg_backup_json: '📤 Copia de seguridad (JSON)',
+    cfg_drive: '☁️ Guardar en Google Drive',
+    cfg_importar: '📥 Importar copia de seguridad',
+    cfg_borrar_todo: '🗑 Borrar todos los datos',
+    cfg_demo_titulo: 'Modo demo',
+    cfg_demo_activo_lbl: '● Activo · datos de ejemplo cargados',
+    cfg_demo_inactivo_lbl: 'Explorar la app con datos de ejemplo',
+    cfg_demo_desc_on: 'Los datos son de ejemplo. Usa el botón flotante 🟡 Modo demo (esquina inferior derecha) para cambiar de perfil o salir al modo real.',
+    cfg_demo_desc_off: 'Explora todas las funciones sin introducir datos propios. Elige un perfil (asalariado, freelance, familia, inversor) y carga datos realistas al instante.',
+    cfg_demo_salir: '🏁 Salir al modo real', cfg_demo_recargar: '🔄 Recargar con perfil estándar',
+    cfg_demo_activar: '🚀 Activar modo demo',
+    cfg_info: 'Información de la app', cfg_version_lbl: 'Versión',
+    cfg_ver_tutorial: '🎓 Ver tutorial',
+    cfg_cats_titulo: 'Categorías personalizadas',
+    cfg_cats_sub: 'Los emojis se asignan automáticamente',
+    cfg_nueva_cat: 'Nueva categoría...',
+    cfg_emoji_tip: 'Toca el emoji para elegir, luego escribe el nombre',
+    cfg_anadir: '+ Añadir', cfg_personaliza_sub: 'Personaliza tu experiencia MoneyNest',
+    cat_type_ingreso: 'Ingresos', cat_type_gasto: 'Gastos',
+    cat_type_inversion: 'Inversiones', cat_type_deuda: 'Deudas', cat_type_objetivo: 'Objetivos',
+    // Trial / plans
+    trial_pill: 'Prueba gratuita', trial_days_left: 'días restantes',
+    guest_gate_title: 'Crea tu cuenta para continuar',
+    guest_gate_desc: 'Para añadir movimientos necesitas una cuenta gratuita. Empieza con 7 días de prueba completa.',
+      bn_analisis: 'Análisis',
+    bn_config: 'Config',
+    bn_gastos: 'Gastos',
+    bn_inicio: 'Inicio',
+    btn_aportar_confirm: 'Aportar',
+    btn_cuenta_cancelar: 'Cancelar',
+    btn_cuenta_guardar: 'Guardar',
+    btn_liquidar_confirm: 'Liquidar',
+    btn_monthly_cerrar: 'Cerrar',
+    btn_monthly_pdf: '📄 Exportar PDF',
+    btn_presupuesto_cancelar: 'Cancelar',
+    btn_presupuesto_guardar: 'Guardar',
+    btn_registrar_pago: 'Registrar pago',
+    btn_tax_cancelar: 'Cancelar',
+    btn_tax_guardar: 'Guardar',
+    btn_trans_cancelar: 'Cancelar',
+    btn_trans_transferir: 'Transferir',
+    cliente_editar: 'Editar Cliente',
+    cliente_nuevo: 'Nuevo Cliente',
+    cobrado_btn: '✓ Cobrado',
+    confirm_borrar_todo: '¿Borrar TODOS los datos? Esta acción no se puede deshacer.',
+    confirm_borrar_todo_btn: 'Borrar todo',
+    confirm_borrar_todo_titulo: 'Borrar todos los datos',
+    confirm_btn_cancelar: 'Cancelar',
+    confirm_btn_eliminar: 'Eliminar',
+    confirm_cerrar_sesion: '¿Cerrar sesión? Tu plan y datos financieros se conservarán en este dispositivo.',
+    confirm_cerrar_sesion_btn: 'Cerrar sesión',
+    confirm_cerrar_sesion_titulo: 'Cerrar sesión',
+    confirm_eliminar_cliente: '¿Eliminar este cliente?',
+    confirm_eliminar_cliente_titulo: 'Eliminar cliente',
+    confirm_eliminar_cuenta: '¿Eliminar esta cuenta?',
+    confirm_eliminar_cuenta_titulo: 'Eliminar cuenta',
+    confirm_eliminar_deuda: '¿Eliminar esta deuda?',
+    confirm_eliminar_deuda_titulo: 'Eliminar deuda',
+    confirm_eliminar_gasto: '¿Eliminar este gasto?',
+    confirm_eliminar_gasto_titulo: 'Eliminar gasto',
+    confirm_eliminar_ingreso: '¿Eliminar este ingreso? Esta acción no se puede deshacer.',
+    confirm_eliminar_ingreso_titulo: 'Eliminar ingreso',
+    confirm_eliminar_inversion: '¿Eliminar esta inversión?',
+    confirm_eliminar_inversion_titulo: 'Eliminar inversión',
+    confirm_eliminar_objetivo: '¿Eliminar este objetivo?',
+    confirm_eliminar_objetivo_titulo: 'Eliminar objetivo',
+    confirm_eliminar_presupuesto: '¿Eliminar el presupuesto de',
+    confirm_eliminar_presupuesto_titulo: 'Eliminar presupuesto',
+    confirm_importar: '¿Importar datos? Se reemplazarán todos los datos actuales.',
+    confirm_importar_btn: 'Importar',
+    confirm_importar_titulo: 'Importar datos',
+    confirm_saldo_neg: 'dejará la cuenta con saldo negativo. ¿Deseas continuar?',
+    confirm_saldo_neg_btn: 'Continuar igualmente',
+    confirm_saldo_neg_titulo: '⚠️ Saldo insuficiente',
+    confirm_salir_demo: '¿Salir del modo demo y borrar los datos de ejemplo?',
+    confirm_salir_demo_btn: 'Salir al modo real',
+    confirm_salir_demo_titulo: 'Salir del demo',
+    confirm_titulo_def: '¿Estás seguro?',
+    cuenta_nombre_ph: 'Cuenta corriente Santander...',
+    cuenta_sin_cuenta: 'Sin cuenta',
+    deuda_calculadora_ph: '¿Cuánto puedes pagar al mes? (€)',
+    deuda_calcular_btn: 'Calcular',
+    deuda_input_invalido: 'Introduce un importe mensual válido.',
+    deuda_libre_pagar: 'Pagando al mes estarías libre de deudas en aprox.',
+    deuda_sin_pendientes: '✅ ¡No tienes deudas pendientes!',
+    drive_guardado: '✓ Guardado',
+    drive_guardando: '⏳ Guardando...',
+    drive_local: '(descarga local)',
+    err_concepto_importe: 'Concepto e importe requeridos',
+    err_cuenta_no_encontrada: 'Cuenta no encontrada',
+    err_cuenta_origen: 'Selecciona la cuenta donde ingresar el capital',
+    err_cuentas_distintas: 'Selecciona cuentas distintas',
+    err_excel: 'Error al generar el Excel',
+    err_exportar: 'Error al exportar',
+    err_importe_aportar: 'Introduce el importe',
+    err_importe_pago: 'Introduce el importe del pago',
+    err_importe_valido: 'Introduce un importe válido',
+    err_inversion_no_encontrada: 'Inversión no encontrada',
+    err_leer_archivo: 'Error al leer el archivo',
+    err_limite_valido: 'Introduce un límite válido',
+    err_nombre_importe: 'Nombre e importe requeridos',
+    err_nombre_meta: 'Nombre y meta requeridos',
+    err_nombre_requerido: 'Nombre requerido',
+    err_pdf: 'Error al generar el PDF',
+    err_selecciona_cat: 'Selecciona una categoría',
+    err_selecciona_cuenta: 'Selecciona una cuenta',
+    err_valor_salida: 'Introduce el valor de salida',
+    gc_ahora_no: 'Ahora no',
+    gc_crear: 'Crear objetivo 🎯',
+    gc_sub: 'Definir una meta de ahorro es el primer paso para mejorar tus finanzas. Te ayudaremos a hacer seguimiento automático.',
+    gc_titulo: '¿Qué objetivo tienes este mes?',
+    guardando: '⏳ Guardando…',
+    intro_tagline: 'Tus finanzas, en orden',
+    inversion_saldo_hint: 'Selecciona una cuenta para ver el saldo disponible',
+    inversion_ya_liquidada: 'Esta inversión ya fue liquidada el',
+    libre: 'Libre',
+    meses: 'meses',
+    mini_intro_tagline: 'Tus finanzas, en orden',
+    mission_bar_sub: 'Añade tu primer ingreso para empezar',
+    mission_bar_titulo: 'Completa tu primera misión',
+    mission_modal_cerrar: 'Cerrar',
+    mission_modal_sub: 'Completa estas acciones para conocer MoneyNest en 5 minutos.',
+    mission_modal_titulo: '🚀 Tus misiones de inicio',
+    modal_aportar_cuenta_lbl: 'Cuenta origen',
+    modal_aportar_existente_lbl: '🏦 Dinero existente',
+    modal_aportar_existente_sub: 'Se resta del disponible',
+    modal_aportar_fuente: '¿De dónde viene este dinero?',
+    modal_aportar_importe_lbl: 'Importe a aportar (€) *',
+    modal_aportar_nuevo_lbl: '💸 Dinero nuevo',
+    modal_aportar_nuevo_sub: 'No afecta al disponible',
+    modal_cuenta_color_lbl: 'Color identificativo',
+    modal_cuenta_nombre_lbl: 'Nombre de la cuenta *',
+    modal_cuenta_nombre_ph: 'Cuenta corriente Santander...',
+    modal_cuenta_notas_lbl: 'Entidad / Notas',
+    modal_cuenta_notas_ph: 'Banco Santander, ING...',
+    modal_cuenta_saldo_hint: 'Libre para usar ahora mismo',
+    modal_cuenta_saldo_lbl: 'Dinero disponible (€)',
+    modal_cuenta_tipo_ahorro: '💰 Ahorro',
+    modal_cuenta_tipo_banco: '🏦 Banco',
+    modal_cuenta_tipo_cripto: '₿ Cripto',
+    modal_cuenta_tipo_efectivo: '💵 Efectivo',
+    modal_cuenta_tipo_inversion: '📈 Inversión',
+    modal_cuenta_tipo_lbl: 'Tipo',
+    modal_cuenta_tipo_otro: '📁 Otro',
+    modal_cuenta_titulo: 'Nueva Cuenta',
+    modal_cuenta_titulo_editar: 'Editar Cuenta',
+    modal_cuenta_valor_hint: 'Saldo total incluyendo activos',
+    modal_cuenta_valor_lbl: 'Valor total cuenta (€)',
+    modal_deuda_cat_lbl: 'Categoría',
+    modal_deuda_interes_lbl: 'Interés anual (%)',
+    modal_deuda_nombre_lbl: 'Nombre *',
+    modal_deuda_notas_lbl: 'Notas',
+    modal_deuda_nueva_cat_lbl: 'Nueva categoría',
+    modal_deuda_pagado_lbl: 'Ya pagado (€)',
+    modal_deuda_total_lbl: 'Total deuda (€) *',
+    modal_deuda_vencimiento_lbl: 'Vencimiento',
+    modal_export_desc: 'Exporta tus datos financieros en el formato que prefieras.',
+    modal_export_excel_sub: 'Ingresos, gastos, inversiones, deudas, objetivos, clientes',
+    modal_export_excel_titulo: 'Excel completo (todas las hojas)',
+    modal_export_json_sub: 'Todos los datos · Para restaurar más tarde',
+    modal_export_json_titulo: 'Copia de seguridad (JSON)',
+    modal_export_pdf_sub: 'Resumen visual con todas las secciones',
+    modal_export_pdf_titulo: 'Informe PDF completo',
+    modal_export_seccion: 'Exportar por sección',
+    modal_export_titulo: 'Exportar datos',
+    modal_gasto_cat_lbl: 'Categoría',
+    modal_gasto_concepto_lbl: 'Concepto *',
+    modal_gasto_cuenta_lbl: 'Cuenta *',
+    modal_gasto_cuenta_sub: '(obligatoria)',
+    modal_gasto_fecha_lbl: 'Fecha',
+    modal_gasto_importe_lbl: 'Importe (€) *',
+    modal_gasto_notas_lbl: 'Notas',
+    modal_gasto_nueva_cat_lbl: 'Nueva categoría',
+    modal_ingreso_cat_lbl: 'Categoría',
+    modal_ingreso_concepto_lbl: 'Concepto *',
+    modal_ingreso_cuenta_lbl: 'Cuenta *',
+    modal_ingreso_cuenta_sub: '(obligatoria)',
+    modal_ingreso_fecha_lbl: 'Fecha',
+    modal_ingreso_importe_lbl: 'Importe (€) *',
+    modal_ingreso_notas_lbl: 'Notas',
+    modal_ingreso_nueva_cat_lbl: 'Nueva categoría',
+    modal_inv_capital_lbl: 'Capital invertido (€) *',
+    modal_inv_cat_lbl: 'Categoría',
+    modal_inv_cuenta_lbl: 'Cuenta de origen *',
+    modal_inv_fecha_lbl: 'Fecha entrada',
+    modal_inv_nombre_lbl: 'Nombre *',
+    modal_inv_notas_lbl: 'Notas',
+    modal_inv_nueva_cat_lbl: 'Nueva categoría',
+    modal_inv_rentabilidad_hint: 'Solo para activos con retorno predecible',
+    modal_inv_rentabilidad_lbl: 'Rentabilidad esperada (%)',
+    modal_liquidar_cuenta_lbl: 'Cuenta donde ingresar',
+    modal_liquidar_info: '✓ El capital se devolverá a la cuenta · La ganancia se registrará como ingreso · La pérdida se registrará como gasto',
+    modal_liquidar_rentabilidad_lbl: 'O rentabilidad real (%)',
+    modal_liquidar_titulo: '💰 Liquidar inversión',
+    modal_liquidar_valor_lbl: 'Valor de salida (€)',
+    modal_monthly_titulo: '📋 Cierre de mes',
+    modal_obj_actual_lbl: 'Ahorrado hasta ahora (€)',
+    modal_obj_cat_lbl: 'Categoría',
+    modal_obj_color_lbl: 'Color',
+    modal_obj_fecha_lbl: 'Fecha objetivo',
+    modal_obj_imagen_sub: 'Opcional · aparece como fondo de la tarjeta',
+    modal_obj_imagen_titulo: 'Imagen del objetivo',
+    modal_obj_meta_lbl: 'Meta (€) *',
+    modal_obj_nombre_lbl: 'Nombre *',
+    modal_obj_notas_lbl: 'Notas',
+    modal_obj_nueva_cat_lbl: 'Nueva categoría',
+    modal_obj_quitar_btn: '✕ Quitar',
+    modal_obj_subir_btn: '📷 Subir imagen',
+    modal_pago_fecha_lbl: 'Fecha del pago',
+    modal_pago_importe_lbl: 'Importe del pago (€) *',
+    modal_pres_cat_lbl: 'Categoría',
+    modal_pres_limite_lbl: 'Límite mensual (€) *',
+    modal_pres_nueva_cat_lbl: 'Nueva categoría',
+    modal_pres_titulo: 'Establecer Presupuesto',
+    modal_tax_autonomo: 'Autónomo / Freelance',
+    modal_tax_custom: 'Personalizado',
+    modal_tax_desc: 'En modo empresa, MoneyNest calculará automáticamente la reserva fiscal sobre tus ingresos.',
+    modal_tax_empresa: 'Empresa (IS 25%)',
+    modal_tax_irpf_hint: 'Retención a cuenta / Impuesto sociedades',
+    modal_tax_irpf_lbl: 'IRPF / IS (%)',
+    modal_tax_iva_hint: 'Porcentaje de IVA a repercutir',
+    modal_tax_iva_lbl: 'IVA (%)',
+    modal_tax_regimen_lbl: 'Régimen fiscal',
+    modal_tax_startup: 'Startup / Nueva empresa (IS 15%)',
+    modal_tax_titulo: '⚙️ Configuración de impuestos',
+    modal_trans_desde_lbl: 'Desde',
+    modal_trans_hacia_lbl: 'Hacia',
+    modal_trans_importe_lbl: 'Importe (€) *',
+    modal_trans_titulo: 'Transferencia entre cuentas',
+    nav_seccion_finanzas: 'Finanzas',
+    nav_seccion_patrimonio: 'Patrimonio',
+    nav_seccion_planificacion: 'Planificación',
+    nav_seccion_principal: 'Principal',
+    nav_seccion_sistema: 'Sistema',
+    nav_sub_analisis: 'Insights y tendencias',
+    nav_sub_cuentas: 'Tu dinero disponible',
+    nav_sub_dashboard: 'Resumen general',
+    nav_sub_deudas: 'Lo que debes',
+    nav_sub_faq: 'Ayuda rápida',
+    nav_sub_gastos: 'Lo que sale',
+    nav_sub_ingresos: 'Lo que entra',
+    nav_sub_inversiones: 'Hace crecer tu dinero',
+    nav_sub_objetivos: 'Tus metas de ahorro',
+    nav_sub_patrimonio: 'Tu riqueza total',
+    nav_sub_presupuestos: 'Límites por categoría',
+    ob_skip: 'Omitir',
+    quick_add_categoria: 'Categoría',
+    quick_add_descripcion_ph: 'Descripción (opcional)',
+    quick_add_gasto: '💸 Gasto',
+    quick_add_guardar: 'Guardar',
+    quick_add_ingreso: '💰 Ingreso',
+    quick_add_titulo: '⚡ Añadir rápido',
+    story_cerrar: 'Cerrar',
+    story_siguiente: 'Siguiente →',
+    toast_aportado_ok: 'Aportado al objetivo ✓',
+    toast_cat_añadida: 'Categoría añadida ✓',
+    toast_cat_existe: 'Esa categoría ya existe',
+    toast_cuenta_eliminada: 'Cuenta eliminada',
+    toast_cuenta_guardada: 'Cuenta guardada ✓',
+    toast_cuenta_min: 'Necesitas al menos una cuenta',
+    toast_datos_eliminados: 'Todos los datos eliminados — configuración reiniciada',
+    toast_deuda_eliminada: 'Deuda eliminada',
+    toast_deuda_guardada: 'Deuda guardada ✓',
+    toast_deudas_exportadas: 'Deudas exportadas ✓',
+    toast_drive_error: 'Drive no disponible — copia descargada localmente',
+    toast_drive_ok: '☁️ Copia guardada en Google Drive ✓',
+    toast_espacio_insuficiente: '💾 Espacio insuficiente. Usa una imagen más pequeña.',
+    toast_excel_exportado: 'Excel exportado ✓',
+    toast_exportado: 'Exportado ✓',
+    toast_gasto_eliminado: 'Gasto eliminado',
+    toast_gasto_guardado: 'Gasto guardado ✓',
+    toast_gastos_exportados: 'Gastos exportados ✓',
+    toast_guardado: 'Guardado ✓',
+    toast_imagen_actualizada: 'Imagen actualizada ✓',
+    toast_imagen_eliminada: 'Imagen eliminada',
+    toast_ingreso_eliminado: 'Ingreso eliminado',
+    toast_ingreso_guardado: 'Ingreso guardado ✓',
+    toast_ingresos_exportados: 'Ingresos exportados ✓',
+    toast_inversion_eliminada: 'Inversión eliminada',
+    toast_inversion_guardada: 'Inversión registrada ✓ · Saldo actualizado',
+    toast_inversiones_exportadas: 'Inversiones exportadas ✓',
+    toast_json_exportado: 'Copia de seguridad exportada ✓',
+    toast_json_importado: 'Datos importados ✓',
+    toast_liquidado_ganancia: 'Inversión liquidada · Ganancia registrada',
+    toast_liquidado_neutro: 'Inversión liquidada',
+    toast_liquidado_perdida: 'Inversión liquidada · Pérdida registrada',
+    toast_objetivo_eliminado: 'Objetivo eliminado',
+    toast_objetivo_guardado: 'Objetivo guardado ✓',
+    toast_objetivos_exportados: 'Objetivos exportados ✓',
+    toast_pago_registrado: 'Pago registrado ✓',
+    toast_pdf_exportado: 'PDF exportado ✓',
+    toast_perfil_guardado: 'Perfil guardado ✓',
+    toast_presupuesto_eliminado: 'Presupuesto eliminado',
+    toast_presupuesto_guardado: 'Presupuesto guardado ✓',
+    toast_presupuestos_exportados: 'Presupuestos exportados ✓',
+    toast_transferencia_ok: 'Transferencia realizada ✓',
+    topbar_activar_pro: '⚡ Activar Pro',
+    topbar_cambiar_tema: 'Cambiar tema',
+    topbar_disponible: 'Disponible',
+    topbar_exportar: '⬆ Exportar',
+    tut_salir: '✕ Salir',
+    tut_siguiente: 'Siguiente →',
+    ver_movimientos_btn: '📋 Ver movimientos',
+    deuda_libertad_titulo: '🏁 Planificación de Libertad Financiera',
+    deuda_libertad_sub: 'Define tu objetivo y calcula cuánto debes pagar',
+    deuda_libertad_objetivo_lbl: 'Quiero ser libre de deudas en',
+    deuda_libertad_calcular: 'Calcular cuota',
+    deuda_libertad_resultado_pre: 'Para ser libre en',
+    deuda_libertad_resultado_mid: 'necesitas pagar:',
+    deuda_libertad_mensual: 'Mensual',
+    deuda_libertad_semanal: 'Semanal',
+    deuda_libertad_diario: 'Diario',
+    deuda_libertad_sin_deuda: '¡Ya estás libre de deudas! 🎉',
+    deuda_libertad_invalido: 'Introduce un período válido (número mayor que 0).',
+    anos: 'años',
+    semanas: 'semanas',
+    dias: 'días',
+    deuda_activar_estrategia: 'Activar esta estrategia',
+    deuda_estrategia_activa: '✓ Estrategia Activa',
+    deuda_info_automatizacion: 'Tus pagos se distribuirán según esta cuota para cumplir tu objetivo en el tiempo previsto.',
+    topbar_prueba_termina_en: 'Prueba termina en:',
+    horas: 'h',
+    minutos: 'm',
+},
+  en: {
+    nav_principal: 'Main', nav_finanzas: 'Finance',
+    nav_planificacion: 'Planning', nav_patrimonio_sec: 'Net Worth',
+    nav_sistema: 'System',
+    nav_dashboard: 'Dashboard', nav_ingresos: 'Income',
+    nav_gastos: 'Expenses', nav_inversiones: 'Investments',
+    nav_deudas: 'Debts', nav_objetivos: 'Goals',
+    nav_presupuestos: 'Budgets', nav_cuentas: 'Accounts',
+    nav_patrimonio: 'Net Worth', nav_analisis: 'Analysis',
+    nav_configuracion: 'Settings', nav_faq: 'FAQ', nav_sugerencias: 'Suggestions',
+    nav_billing: 'Plan & Billing',
+    nav_cerrar_sesion: 'Sign out',
+    disponible: 'Available',
+    exportar: 'Export',
+    theme_dark: 'Dark mode', theme_light: 'Light mode',
+    patrimonio_neto: 'Net Worth',
+    ingresos_mes: 'Income this month',
+    gastos_mes: 'Expenses this month',
+    cash_flow: 'Cash Flow',
+    ahorro_mes: 'Savings this month',
+    sin_movimientos: 'No transactions recorded yet',
+    actividad_reciente: 'Recent activity',
+    ultimas_transacciones: 'Latest transactions',
+    ver_todo: 'See all →',
+    evolucion_patrimonio: 'Net Worth evolution',
+    ultimos_6_meses: 'Last 6 months',
+    gastos_categoria: 'Expenses by category',
+    insights: 'Insights',
+    basado_datos: 'Based on your real data',
+    todo_orden: 'Everything on track this month!',
+    sigue_registrando: 'Keep recording your transactions.',
+    primer_mes: 'First month',
+    ingresos_año: 'Income',
+    gastos_año: 'Expenses',
+    resumen_financiero: 'Financial summary',
+    hola: 'Hello,',
+    btn_guardar: 'Save', btn_cancelar: 'Cancel',
+    btn_eliminar: 'Delete', btn_editar: 'Edit',
+    btn_nuevo: 'New', btn_exportar: '⬆ Export',
+    btn_nuevo_ingreso: '+ New income',
+    btn_nuevo_gasto: '+ New expense',
+    btn_nueva_inversion: '+ New investment',
+    btn_nueva_deuda: '+ New debt',
+    btn_nuevo_objetivo: '+ New goal',
+    page_ingresos: 'Income',
+    sub_ingresos: 'All your income',
+    page_gastos: 'Expenses',
+    sub_gastos: 'All your expenses',
+    page_inversiones: 'Investments',
+    page_cuentas: 'Accounts',
+    page_deudas: 'Debts',
+    page_objetivos: 'Goals',
+    page_presupuestos: 'Budgets',
+    page_analisis: 'Analysis',
+    page_configuracion: 'Settings',
+    page_faq: 'FAQ', page_sugerencias: 'Suggestions',
+    sug_tipo_sug: 'Suggestion', sug_tipo_preg: 'Question',
+    sug_placeholder: 'Describe your idea or question...', sug_enviar_email: '📧 Send by email', sug_guardar: '💾 Save locally',
+    ob_bienvenida: 'Welcome to MoneyNest! 🪺',
+    ob_bienvenida_sub: "What's your name? We'll personalize your experience.",
+    ob_idioma: 'Choose your language',
+    ob_idioma_sub: 'Select the language you want to use the app in.',
+    ob_tema: 'Choose your theme',
+    ob_tema_sub: 'You can change it anytime from the sidebar.',
+    ob_listo: 'All set!',
+    ob_listo_sub: 'Want to see an interactive tour? We will guide you step by step with real demo data.',
+    ob_continuar: 'Continue →',
+    ob_empezar: 'Get started!',
+    ob_omitir: 'Skip',
+    ob_atras: '← Back',
+    ob_ver_tutorial: 'See tutorial',
+    ob_ir_directo: 'Go direct',
+    ob_3min: '~3 minutes',
+    ob_exploro: 'I\'ll explore',
+    ob_oscuro: 'Dark', ob_claro: 'Light',
+    ob_nombre_placeholder: 'Your name...',
+    ob_s1_pill: 'Step 1 of 3 · Welcome',
+    ob_s1_h1: 'Your money,', ob_s1_h2: 'finally <span>under control.</span>',
+    ob_s1_lead: 'MoneyNest is your personal financial dashboard. Income, expenses, investments and goals — all in one place, always with you.',
+    ob_s1_placeholder: 'What\'s your name?', ob_s1_hint: 'Just to personalize your dashboard — no account, no email',
+    ob_s1_cta: 'Begin',
+    ob_s2_pill: 'Step 2 of 3 · Customize',
+    ob_s2_h1: 'Your look,', ob_s2_h2: 'your <span>rules.</span>',
+    ob_s2_lead: 'Choose language and theme. You can change it anytime from Settings.',
+    ob_s2_idioma_lbl: 'Language', ob_s2_tema_lbl: 'Appearance',
+    ob_s2_siguiente: 'Next',
+    ob_s3_pill: 'Step 3 of 3 · Start',
+    ob_s3_h1: 'Where shall we', ob_s3_h2: '<span>begin?</span>',
+    ob_s3_lead: 'Your dashboard is ready. Choose how you want to start your MoneyNest experience.',
+    ob_s3_greeting: 'All set',
+    ob_opt_tutorial_lbl: 'Guided tour', ob_opt_tutorial_sub: 'We\'ll show you everything step by step with real examples (~3 min)',
+    ob_opt_demo_lbl: 'Explore with sample data', ob_opt_demo_sub: 'See the full app before adding your own data',
+    ob_opt_direct_lbl: 'Start directly', ob_opt_direct_sub: 'I\'ll explore on my own, I know what I need',
+    ob_s3_cta: 'Let\'s go! 🚀',
+    ob_left2_title: 'Designed for you,', ob_left2_sub: 'from day one.',
+    ob_left2_desc: 'Choose the language and theme that best suits your way of working.',
+    ob_left2_idioma_lbl: '🌍 Active language', ob_left2_tema_lbl: '🎨 Theme',
+    ob_feat_ingresos: 'Income & Expenses', ob_feat_ingresos_sub: 'Total control of your flow',
+    ob_feat_inv: 'Investments', ob_feat_inv_sub: 'Track your portfolio',
+    ob_feat_obj: 'Goals', ob_feat_obj_sub: 'Reach your financial targets',
+    ob_feat_priv: '100% private', ob_feat_priv_sub: 'Your data only on your device',
+    ob_feat_gratis: 'No subscription', ob_feat_gratis_sub: 'Everything free, no limits',
+    ob_left3_ready: '✨ Your dashboard is ready — start adding your data',
+    sin_datos: 'Not enough data',
+    buscar: 'Search...',
+    todas_cats: 'All categories',
+    periodo: 'Period:',
+    este_mes: 'This month',
+    mes_anterior: 'Last month',
+    este_año: 'This year',
+    todo: 'All',
+    personalizado: 'Custom',
+    cfg_perfil: 'Your profile', cfg_nombre: 'Name', cfg_guardar: '💾 Save',
+    cfg_idioma: 'Language', cfg_apariencia: 'Appearance',
+    cfg_oscuro: 'Dark', cfg_claro: 'Light', cfg_activo: '✓ Active',
+    cfg_apariencia_tip: 'You can also change it from the sidebar toggle.',
+    cfg_datos: 'Import / Export data',
+    cfg_exportar_pdf: '📊 Export full report (PDF / Excel)',
+    cfg_backup_json: '📤 Backup (JSON)',
+    cfg_drive: '☁️ Save to Google Drive',
+    cfg_importar: '📥 Import backup',
+    cfg_borrar_todo: '🗑 Delete all data',
+    cfg_demo_titulo: 'Demo mode',
+    cfg_demo_activo_lbl: '● Active · sample data loaded',
+    cfg_demo_inactivo_lbl: 'Explore the app with sample data',
+    cfg_demo_desc_on: 'Data is for demo. Use the floating 🟡 Demo mode button (bottom right) to change profile or exit.',
+    cfg_demo_desc_off: 'Explore all features without entering your own data. Choose a profile and load realistic data instantly.',
+    cfg_demo_salir: '🏁 Exit to real mode', cfg_demo_recargar: '🔄 Reload with standard profile',
+    cfg_demo_activar: '🚀 Activate demo mode',
+    cfg_info: 'App information', cfg_version_lbl: 'Version',
+    cfg_ver_tutorial: '🎓 View tutorial',
+    cfg_cats_titulo: 'Custom categories',
+    cfg_cats_sub: 'Emojis are assigned automatically',
+    cfg_nueva_cat: 'New category...',
+    cfg_emoji_tip: 'Tap the emoji to choose, then type the name',
+    cfg_anadir: '+ Add', cfg_personaliza_sub: 'Customize your MoneyNest experience',
+    cat_type_ingreso: 'Income', cat_type_gasto: 'Expenses',
+    cat_type_inversion: 'Investments', cat_type_deuda: 'Debts', cat_type_objetivo: 'Goals',
+    trial_pill: 'Free trial', trial_days_left: 'days left',
+    guest_gate_title: 'Create your account to continue',
+    guest_gate_desc: 'To add transactions you need a free account. Start with a 7-day full trial.',
+      bn_analisis: 'Analysis',
+    bn_config: 'Settings',
+    bn_gastos: 'Expenses',
+    bn_inicio: 'Home',
+    btn_aportar_confirm: 'Contribute',
+    btn_cuenta_cancelar: 'Cancel',
+    btn_cuenta_guardar: 'Save',
+    btn_liquidar_confirm: 'Liquidate',
+    btn_monthly_cerrar: 'Close',
+    btn_monthly_pdf: '📄 Export PDF',
+    btn_presupuesto_cancelar: 'Cancel',
+    btn_presupuesto_guardar: 'Save',
+    btn_registrar_pago: 'Record payment',
+    btn_tax_cancelar: 'Cancel',
+    btn_tax_guardar: 'Save',
+    btn_trans_cancelar: 'Cancel',
+    btn_trans_transferir: 'Transfer',
+    cliente_editar: 'Edit Client',
+    cliente_nuevo: 'New Client',
+    cobrado_btn: '✓ Collected',
+    confirm_borrar_todo: 'Delete ALL data? This action cannot be undone.',
+    confirm_borrar_todo_btn: 'Delete all',
+    confirm_borrar_todo_titulo: 'Delete all data',
+    confirm_btn_cancelar: 'Cancel',
+    confirm_btn_eliminar: 'Delete',
+    confirm_cerrar_sesion: 'Sign out? Your plan and financial data will remain on this device.',
+    confirm_cerrar_sesion_btn: 'Sign out',
+    confirm_cerrar_sesion_titulo: 'Sign out',
+    confirm_eliminar_cliente: 'Delete this client?',
+    confirm_eliminar_cliente_titulo: 'Delete client',
+    confirm_eliminar_cuenta: 'Delete this account?',
+    confirm_eliminar_cuenta_titulo: 'Delete account',
+    confirm_eliminar_deuda: 'Delete this debt?',
+    confirm_eliminar_deuda_titulo: 'Delete debt',
+    confirm_eliminar_gasto: 'Delete this expense?',
+    confirm_eliminar_gasto_titulo: 'Delete expense',
+    confirm_eliminar_ingreso: 'Delete this income? This action cannot be undone.',
+    confirm_eliminar_ingreso_titulo: 'Delete income',
+    confirm_eliminar_inversion: 'Delete this investment?',
+    confirm_eliminar_inversion_titulo: 'Delete investment',
+    confirm_eliminar_objetivo: 'Delete this goal?',
+    confirm_eliminar_objetivo_titulo: 'Delete goal',
+    confirm_eliminar_presupuesto: 'Delete the budget for',
+    confirm_eliminar_presupuesto_titulo: 'Delete budget',
+    confirm_importar: 'Import data? All current data will be replaced.',
+    confirm_importar_btn: 'Import',
+    confirm_importar_titulo: 'Import data',
+    confirm_saldo_neg: 'will leave the account with a negative balance. Continue?',
+    confirm_saldo_neg_btn: 'Continue anyway',
+    confirm_saldo_neg_titulo: '⚠️ Insufficient balance',
+    confirm_salir_demo: 'Exit demo mode and delete sample data?',
+    confirm_salir_demo_btn: 'Exit to real mode',
+    confirm_salir_demo_titulo: 'Exit demo',
+    confirm_titulo_def: 'Are you sure?',
+    cuenta_nombre_ph: 'Santander checking account...',
+    cuenta_sin_cuenta: 'No account',
+    deuda_calculadora_ph: 'How much can you pay per month? (€)',
+    deuda_calcular_btn: 'Calculate',
+    deuda_input_invalido: 'Enter a valid monthly amount.',
+    deuda_libre_pagar: 'Paying per month you would be debt-free in approx.',
+    deuda_sin_pendientes: '✅ You have no pending debts!',
+    drive_guardado: '✓ Saved',
+    drive_guardando: '⏳ Saving...',
+    drive_local: '(local download)',
+    err_concepto_importe: 'Description and amount required',
+    err_cuenta_no_encontrada: 'Account not found',
+    err_cuenta_origen: 'Select the account to receive the capital',
+    err_cuentas_distintas: 'Select different accounts',
+    err_excel: 'Error generating Excel',
+    err_exportar: 'Export error',
+    err_importe_aportar: 'Enter the amount',
+    err_importe_pago: 'Enter the payment amount',
+    err_importe_valido: 'Enter a valid amount',
+    err_inversion_no_encontrada: 'Investment not found',
+    err_leer_archivo: 'Error reading file',
+    err_limite_valido: 'Enter a valid limit',
+    err_nombre_importe: 'Name and amount required',
+    err_nombre_meta: 'Name and goal required',
+    err_nombre_requerido: 'Name required',
+    err_pdf: 'Error generating PDF',
+    err_selecciona_cat: 'Select a category',
+    err_selecciona_cuenta: 'Select an account',
+    err_valor_salida: 'Enter the exit value',
+    gc_ahora_no: 'Not now',
+    gc_crear: 'Create goal 🎯',
+    gc_sub: 'Setting a savings goal is the first step to improving your finances. We will help you track it automatically.',
+    gc_titulo: 'What is your goal this month?',
+    guardando: '⏳ Saving…',
+    intro_tagline: 'Your finances, in order',
+    inversion_saldo_hint: 'Select an account to see available balance',
+    inversion_ya_liquidada: 'This investment was already closed on',
+    libre: 'Free',
+    meses: 'months',
+    mini_intro_tagline: 'Your finances, in order',
+    mission_bar_sub: 'Add your first income to get started',
+    mission_bar_titulo: 'Complete your first mission',
+    mission_modal_cerrar: 'Close',
+    mission_modal_sub: 'Complete these actions to discover MoneyNest in 5 minutes.',
+    mission_modal_titulo: '🚀 Your starter missions',
+    modal_aportar_cuenta_lbl: 'Source account',
+    modal_aportar_existente_lbl: '🏦 Existing money',
+    modal_aportar_existente_sub: 'Deducted from available',
+    modal_aportar_fuente: 'Where does this money come from?',
+    modal_aportar_importe_lbl: 'Amount to contribute (€) *',
+    modal_aportar_nuevo_lbl: '💸 New money',
+    modal_aportar_nuevo_sub: 'Does not affect available',
+    modal_cuenta_color_lbl: 'Identifying color',
+    modal_cuenta_nombre_lbl: 'Account name *',
+    modal_cuenta_nombre_ph: 'Santander checking account...',
+    modal_cuenta_notas_lbl: 'Institution / Notes',
+    modal_cuenta_notas_ph: 'Santander, ING...',
+    modal_cuenta_saldo_hint: 'Free to use right now',
+    modal_cuenta_saldo_lbl: 'Available money (€)',
+    modal_cuenta_tipo_ahorro: '💰 Savings',
+    modal_cuenta_tipo_banco: '🏦 Bank',
+    modal_cuenta_tipo_cripto: '₿ Crypto',
+    modal_cuenta_tipo_efectivo: '💵 Cash',
+    modal_cuenta_tipo_inversion: '📈 Investment',
+    modal_cuenta_tipo_lbl: 'Type',
+    modal_cuenta_tipo_otro: '📁 Other',
+    modal_cuenta_titulo: 'New Account',
+    modal_cuenta_titulo_editar: 'Edit Account',
+    modal_cuenta_valor_hint: 'Total balance including assets',
+    modal_cuenta_valor_lbl: 'Total account value (€)',
+    modal_deuda_cat_lbl: 'Category',
+    modal_deuda_interes_lbl: 'Annual interest (%)',
+    modal_deuda_nombre_lbl: 'Name *',
+    modal_deuda_notas_lbl: 'Notes',
+    modal_deuda_nueva_cat_lbl: 'New category',
+    modal_deuda_pagado_lbl: 'Already paid (€)',
+    modal_deuda_total_lbl: 'Total debt (€) *',
+    modal_deuda_vencimiento_lbl: 'Maturity',
+    modal_export_desc: 'Export your financial data in your preferred format.',
+    modal_export_excel_sub: 'Income, expenses, investments, debts, goals, clients',
+    modal_export_excel_titulo: 'Full Excel (all sheets)',
+    modal_export_json_sub: 'All data · To restore later',
+    modal_export_json_titulo: 'Backup (JSON)',
+    modal_export_pdf_sub: 'Visual summary with all sections',
+    modal_export_pdf_titulo: 'Full PDF report',
+    modal_export_seccion: 'Export by section',
+    modal_export_titulo: 'Export data',
+    modal_gasto_cat_lbl: 'Category',
+    modal_gasto_concepto_lbl: 'Description *',
+    modal_gasto_cuenta_lbl: 'Account *',
+    modal_gasto_cuenta_sub: '(required)',
+    modal_gasto_fecha_lbl: 'Date',
+    modal_gasto_importe_lbl: 'Amount (€) *',
+    modal_gasto_notas_lbl: 'Notes',
+    modal_gasto_nueva_cat_lbl: 'New category',
+    modal_ingreso_cat_lbl: 'Category',
+    modal_ingreso_concepto_lbl: 'Description *',
+    modal_ingreso_cuenta_lbl: 'Account *',
+    modal_ingreso_cuenta_sub: '(required)',
+    modal_ingreso_fecha_lbl: 'Date',
+    modal_ingreso_importe_lbl: 'Amount (€) *',
+    modal_ingreso_notas_lbl: 'Notes',
+    modal_ingreso_nueva_cat_lbl: 'New category',
+    modal_inv_capital_lbl: 'Capital invested (€) *',
+    modal_inv_cat_lbl: 'Category',
+    modal_inv_cuenta_lbl: 'Source account *',
+    modal_inv_fecha_lbl: 'Entry date',
+    modal_inv_nombre_lbl: 'Name *',
+    modal_inv_notas_lbl: 'Notes',
+    modal_inv_nueva_cat_lbl: 'New category',
+    modal_inv_rentabilidad_hint: 'Only for assets with predictable return',
+    modal_inv_rentabilidad_lbl: 'Expected return (%)',
+    modal_liquidar_cuenta_lbl: 'Account to deposit to',
+    modal_liquidar_info: '✓ Capital will be returned · Gain recorded as income · Loss recorded as expense',
+    modal_liquidar_rentabilidad_lbl: 'Or actual return (%)',
+    modal_liquidar_titulo: '💰 Liquidate investment',
+    modal_liquidar_valor_lbl: 'Exit value (€)',
+    modal_monthly_titulo: '📋 Month close',
+    modal_obj_actual_lbl: 'Saved so far (€)',
+    modal_obj_cat_lbl: 'Category',
+    modal_obj_color_lbl: 'Color',
+    modal_obj_fecha_lbl: 'Goal date',
+    modal_obj_imagen_sub: 'Optional · appears as card background',
+    modal_obj_imagen_titulo: 'Goal image',
+    modal_obj_meta_lbl: 'Goal (€) *',
+    modal_obj_nombre_lbl: 'Name *',
+    modal_obj_notas_lbl: 'Notes',
+    modal_obj_nueva_cat_lbl: 'New category',
+    modal_obj_quitar_btn: '✕ Remove',
+    modal_obj_subir_btn: '📷 Upload image',
+    modal_pago_fecha_lbl: 'Payment date',
+    modal_pago_importe_lbl: 'Payment amount (€) *',
+    modal_pres_cat_lbl: 'Category',
+    modal_pres_limite_lbl: 'Monthly limit (€) *',
+    modal_pres_nueva_cat_lbl: 'New category',
+    modal_pres_titulo: 'Set Budget',
+    modal_tax_autonomo: 'Self-employed / Freelance',
+    modal_tax_custom: 'Custom',
+    modal_tax_desc: 'In business mode, MoneyNest will automatically calculate tax reserve on your income.',
+    modal_tax_empresa: 'Company (CT 25%)',
+    modal_tax_irpf_hint: 'Withholding / Corporate tax',
+    modal_tax_irpf_lbl: 'Income Tax (%)',
+    modal_tax_iva_hint: 'VAT percentage to charge',
+    modal_tax_iva_lbl: 'VAT (%)',
+    modal_tax_regimen_lbl: 'Tax regime',
+    modal_tax_startup: 'Startup / New company (CT 15%)',
+    modal_tax_titulo: '⚙️ Tax settings',
+    modal_trans_desde_lbl: 'From',
+    modal_trans_hacia_lbl: 'To',
+    modal_trans_importe_lbl: 'Amount (€) *',
+    modal_trans_titulo: 'Transfer between accounts',
+    nav_seccion_finanzas: 'Finance',
+    nav_seccion_patrimonio: 'Net Worth',
+    nav_seccion_planificacion: 'Planning',
+    nav_seccion_principal: 'Main',
+    nav_seccion_sistema: 'System',
+    nav_sub_analisis: 'Insights & Trends',
+    nav_sub_cuentas: 'Accounts',
+    nav_sub_dashboard: 'Overview',
+    nav_sub_deudas: 'Debts',
+    nav_sub_faq: 'Help',
+    nav_sub_gastos: 'Expenses',
+    nav_sub_ingresos: 'Income',
+    nav_sub_inversiones: 'Investments',
+    nav_sub_objetivos: 'Goals',
+    nav_sub_patrimonio: 'Your wealth',
+    nav_sub_presupuestos: 'Budgets',
+    ob_skip: 'Skip',
+    quick_add_categoria: 'Category',
+    quick_add_descripcion_ph: 'Description (optional)',
+    quick_add_gasto: '💸 Expense',
+    quick_add_guardar: 'Save',
+    quick_add_ingreso: '💰 Income',
+    quick_add_titulo: '⚡ Quick add',
+    story_cerrar: 'Close',
+    story_siguiente: 'Next →',
+    toast_aportado_ok: 'Contributed to goal ✓',
+    toast_cat_añadida: 'Category added ✓',
+    toast_cat_existe: 'That category already exists',
+    toast_cuenta_eliminada: 'Account deleted',
+    toast_cuenta_guardada: 'Account saved ✓',
+    toast_cuenta_min: 'You need at least one account',
+    toast_datos_eliminados: 'All data deleted — settings reset',
+    toast_deuda_eliminada: 'Debt deleted',
+    toast_deuda_guardada: 'Debt saved ✓',
+    toast_deudas_exportadas: 'Debts exported ✓',
+    toast_drive_error: 'Drive unavailable — downloaded locally',
+    toast_drive_ok: '☁️ Backup saved to Google Drive ✓',
+    toast_espacio_insuficiente: '💾 Not enough space. Use a smaller image.',
+    toast_excel_exportado: 'Excel exported ✓',
+    toast_exportado: 'Exported ✓',
+    toast_gasto_eliminado: 'Expense deleted',
+    toast_gasto_guardado: 'Expense saved ✓',
+    toast_gastos_exportados: 'Expenses exported ✓',
+    toast_guardado: 'Saved ✓',
+    toast_imagen_actualizada: 'Image updated ✓',
+    toast_imagen_eliminada: 'Image removed',
+    toast_ingreso_eliminado: 'Income deleted',
+    toast_ingreso_guardado: 'Income saved ✓',
+    toast_ingresos_exportados: 'Income exported ✓',
+    toast_inversion_eliminada: 'Investment deleted',
+    toast_inversion_guardada: 'Investment recorded ✓ · Balance updated',
+    toast_inversiones_exportadas: 'Investments exported ✓',
+    toast_json_exportado: 'Backup exported ✓',
+    toast_json_importado: 'Data imported ✓',
+    toast_liquidado_ganancia: 'Investment closed · Gain recorded',
+    toast_liquidado_neutro: 'Investment closed',
+    toast_liquidado_perdida: 'Investment closed · Loss recorded',
+    toast_objetivo_eliminado: 'Goal deleted',
+    toast_objetivo_guardado: 'Goal saved ✓',
+    toast_objetivos_exportados: 'Goals exported ✓',
+    toast_pago_registrado: 'Payment recorded ✓',
+    toast_pdf_exportado: 'PDF exported ✓',
+    toast_perfil_guardado: 'Profile saved ✓',
+    toast_presupuesto_eliminado: 'Budget deleted',
+    toast_presupuesto_guardado: 'Budget saved ✓',
+    toast_presupuestos_exportados: 'Budgets exported ✓',
+    toast_transferencia_ok: 'Transfer completed ✓',
+    topbar_activar_pro: '⚡ Upgrade Pro',
+    topbar_cambiar_tema: 'Change theme',
+    topbar_disponible: 'Available',
+    topbar_exportar: '⬆ Export',
+    tut_salir: '✕ Exit',
+    tut_siguiente: 'Next →',
+    ver_movimientos_btn: '📋 View movements',
+    deuda_libertad_titulo: '🏁 Financial Freedom Planning',
+    deuda_libertad_sub: 'Set your goal and calculate how much you need to pay',
+    deuda_libertad_objetivo_lbl: 'I want to be debt-free in',
+    deuda_libertad_calcular: 'Calculate payment',
+    deuda_libertad_resultado_pre: 'To be free in',
+    deuda_libertad_resultado_mid: 'you need to pay:',
+    deuda_libertad_mensual: 'Monthly',
+    deuda_libertad_semanal: 'Weekly',
+    deuda_libertad_diario: 'Daily',
+    deuda_libertad_sin_deuda: 'You are already debt-free! 🎉',
+    deuda_libertad_invalido: 'Please enter a valid period (number greater than 0).',
+    anos: 'years',
+    semanas: 'weeks',
+    dias: 'days',
+    deuda_activar_estrategia: 'Activate this strategy',
+    deuda_estrategia_activa: '✓ Active Strategy',
+    deuda_info_automatizacion: 'Your payments will be distributed according to this amount to meet your goal within the planned time.',
+    topbar_prueba_termina_en: 'Trial ends in:',
+    horas: 'h',
+    minutos: 'm',
+},
+  it: {
+    nav_principal: 'Principale', nav_finanzas: 'Finanze',
+    nav_planificacion: 'Pianificazione', nav_patrimonio_sec: 'Patrimonio',
+    nav_sistema: 'Sistema',
+    nav_dashboard: 'Dashboard', nav_ingresos: 'Entrate',
+    nav_gastos: 'Spese', nav_inversiones: 'Investimenti',
+    nav_deudas: 'Debiti', nav_objetivos: 'Obiettivi',
+    nav_presupuestos: 'Budget', nav_cuentas: 'Conti',
+    nav_patrimonio: 'Patrimonio', nav_analisis: 'Analisi',
+    nav_configuracion: 'Impostazioni', nav_faq: 'FAQ', nav_sugerencias: 'Suggerimenti',
+    nav_billing: 'Piano & Fatturazione',
+    nav_cerrar_sesion: 'Esci',
+    disponible: 'Disponibile', exportar: 'Esportare',
+    theme_dark: 'Modalità scura', theme_light: 'Modalità chiara',
+    patrimonio_neto: 'Patrimonio Netto',
+    ingresos_mes: 'Entrate questo mese', gastos_mes: 'Spese questo mese',
+    cash_flow: 'Flusso di cassa', ahorro_mes: 'Risparmio questo mese',
+    sin_movimientos: 'Nessuna transazione registrata',
+    actividad_reciente: 'Attività recente', ultimas_transacciones: 'Ultime transazioni',
+    ver_todo: 'Vedi tutto →', evolucion_patrimonio: 'Evoluzione del patrimonio',
+    ultimos_6_meses: 'Ultimi 6 mesi', gastos_categoria: 'Spese per categoria',
+    insights: 'Analisi', basado_datos: 'Basato sui tuoi dati reali',
+    todo_orden: 'Tutto in ordine questo mese!', sigue_registrando: 'Continua a registrare le tue transazioni.',
+    primer_mes: 'Primo mese', ingresos_año: 'Entrate', gastos_año: 'Spese',
+    resumen_financiero: 'Riepilogo finanziario', hola: 'Ciao,',
+    btn_guardar: 'Salva', btn_cancelar: 'Annulla', btn_eliminar: 'Elimina',
+    btn_editar: 'Modifica', btn_nuevo: 'Nuovo', btn_exportar: '⬆ Esportare',
+    btn_nuevo_ingreso: '+ Nuova entrata', btn_nuevo_gasto: '+ Nuova spesa',
+    btn_nueva_inversion: '+ Nuovo investimento', btn_nueva_deuda: '+ Nuovo debito',
+    btn_nuevo_objetivo: '+ Nuovo obiettivo',
+    page_ingresos: 'Entrate', sub_ingresos: 'Tutte le tue entrate',
+    page_gastos: 'Spese', sub_gastos: 'Tutte le tue spese',
+    page_inversiones: 'Investimenti', page_cuentas: 'Conti',
+    page_deudas: 'Debiti', page_objetivos: 'Obiettivi',
+    page_presupuestos: 'Budget', page_analisis: 'Analisi',
+    page_configuracion: 'Impostazioni',
+    page_faq: 'Domande frequenti', page_sugerencias: 'Suggerimenti',
+    sug_tipo_sug: 'Suggerimento', sug_tipo_preg: 'Domanda',
+    sug_placeholder: 'Descrivi la tua idea o domanda...', sug_enviar_email: '📧 Invia per email', sug_guardar: '💾 Salva localmente',
+    ob_bienvenida: 'Benvenuto su MoneyNest! 🪺',
+    ob_bienvenida_sub: 'Come ti chiami? Personalizzeremo l\'esperienza per te.',
+    ob_idioma: 'Scegli la tua lingua', ob_idioma_sub: 'Seleziona la lingua che vuoi usare.',
+    ob_tema: 'Scegli il tuo tema', ob_tema_sub: 'Puoi cambiarlo in qualsiasi momento.',
+    ob_listo: 'Tutto configurato!',
+    ob_listo_sub: 'Vuoi vedere un tour interattivo?',
+    ob_continuar: 'Continua →', ob_empezar: 'Inizia!',
+    ob_omitir: 'Salta', ob_atras: '← Indietro',
+    ob_ver_tutorial: 'Vedere il tutorial', ob_ir_directo: 'Vai direttamente',
+    ob_3min: '~3 minuti', ob_exploro: 'Esplorerò',
+    ob_oscuro: 'Scuro', ob_claro: 'Chiaro',
+    ob_nombre_placeholder: 'Il tuo nome...',
+    ob_s1_pill: 'Passo 1 di 3 · Benvenuto',
+    ob_s1_h1: 'Il tuo denaro,', ob_s1_h2: 'finalmente <span>sotto controllo.</span>',
+    ob_s1_lead: 'MoneyNest è il tuo pannello finanziario personale. Entrate, uscite, investimenti e obiettivi — tutto in un unico posto.',
+    ob_s1_placeholder: 'Come ti chiami?', ob_s1_hint: 'Solo per personalizzare — nessun account, nessuna email',
+    ob_s1_cta: 'Iniziare',
+    ob_s2_pill: 'Passo 2 di 3 · Personalizza',
+    ob_s2_h1: 'Il tuo stile,', ob_s2_h2: 'le tue <span>regole.</span>',
+    ob_s2_lead: 'Scegli lingua e tema. Puoi cambiarlo quando vuoi dalle Impostazioni.',
+    ob_s2_idioma_lbl: 'Lingua', ob_s2_tema_lbl: 'Aspetto',
+    ob_s2_siguiente: 'Avanti',
+    ob_s3_pill: 'Passo 3 di 3 · Cominciamo',
+    ob_s3_h1: 'Da dove', ob_s3_h2: '<span>iniziamo?</span>',
+    ob_s3_lead: 'Il tuo pannello è pronto. Scegli come vuoi iniziare la tua esperienza con MoneyNest.',
+    ob_s3_greeting: 'Tutto pronto',
+    ob_opt_tutorial_lbl: 'Tour guidato', ob_opt_tutorial_sub: 'Ti guidiamo passo a passo con esempi reali (~3 min)',
+    ob_opt_demo_lbl: 'Esplora con dati di esempio', ob_opt_demo_sub: 'Vedi l\'app completa prima di aggiungere i tuoi dati',
+    ob_opt_direct_lbl: 'Inizia direttamente', ob_opt_direct_sub: 'Esploro da solo, so già quello che mi serve',
+    ob_s3_cta: 'Iniziamo! 🚀',
+    ob_left2_title: 'Progettata per te,', ob_left2_sub: 'fin dal primo giorno.',
+    ob_left2_desc: 'Scegli la lingua e il tema che si adatta meglio al tuo modo di lavorare.',
+    ob_left2_idioma_lbl: '🌍 Lingua attiva', ob_left2_tema_lbl: '🎨 Tema',
+    ob_feat_ingresos: 'Entrate & Uscite', ob_feat_ingresos_sub: 'Controllo totale del tuo flusso',
+    ob_feat_inv: 'Investimenti', ob_feat_inv_sub: 'Monitora il tuo portafoglio',
+    ob_feat_obj: 'Obiettivi', ob_feat_obj_sub: 'Raggiungi i tuoi traguardi finanziari',
+    ob_feat_priv: '100% privato', ob_feat_priv_sub: 'I tuoi dati solo sul tuo dispositivo',
+    ob_feat_gratis: 'Nessun abbonamento', ob_feat_gratis_sub: 'Tutto gratis, senza limiti',
+    ob_left3_ready: '✨ Il tuo pannello è pronto — inizia ad aggiungere i tuoi dati',
+    sin_datos: 'Dati insufficienti', buscar: 'Cerca...',
+    todas_cats: 'Tutte le categorie', periodo: 'Periodo:',
+    este_mes: 'Questo mese', mes_anterior: 'Mese scorso',
+    este_año: 'Quest\'anno', todo: 'Tutto', personalizado: 'Personalizzato',
+    cfg_perfil: 'Il tuo profilo', cfg_nombre: 'Nome', cfg_guardar: '💾 Salva',
+    cfg_idioma: 'Lingua', cfg_apariencia: 'Aspetto',
+    cfg_oscuro: 'Scuro', cfg_claro: 'Chiaro', cfg_activo: '✓ Attivo',
+    cfg_apariencia_tip: 'Puoi cambiarlo in qualsiasi momento dalla barra laterale.',
+    cfg_datos: 'Importa / Esporta dati',
+    cfg_exportar_pdf: '📊 Esporta report completo (PDF / Excel)',
+    cfg_backup_json: '📤 Backup (JSON)',
+    cfg_drive: '☁️ Salva su Google Drive',
+    cfg_importar: '📥 Importa backup',
+    cfg_borrar_todo: '🗑 Elimina tutti i dati',
+    cfg_demo_titulo: 'Modalità demo',
+    cfg_demo_activo_lbl: '● Attivo · dati di esempio caricati',
+    cfg_demo_inactivo_lbl: 'Esplora l\'app con dati di esempio',
+    cfg_demo_desc_on: 'I dati sono di esempio. Usa il pulsante flottante 🟡 Modalità demo (in basso a destra) per cambiare profilo o uscire.',
+    cfg_demo_desc_off: 'Esplora tutte le funzioni senza inserire i tuoi dati. Scegli un profilo e carica dati realistici istantaneamente.',
+    cfg_demo_salir: '🏁 Esci alla modalità reale', cfg_demo_recargar: '🔄 Ricarica con profilo standard',
+    cfg_demo_activar: '🚀 Attiva modalità demo',
+    cfg_info: 'Informazioni sull\'app', cfg_version_lbl: 'Versione',
+    cfg_ver_tutorial: '🎓 Vedi tutorial',
+    cfg_cats_titulo: 'Categorie personalizzate',
+    cfg_cats_sub: 'Le emoji vengono assegnate automaticamente',
+    cfg_nueva_cat: 'Nuova categoria...',
+    cfg_emoji_tip: 'Tocca l\'emoji per scegliere, poi scrivi il nome',
+    cfg_anadir: '+ Aggiungi', cfg_personaliza_sub: 'Personalizza la tua esperienza MoneyNest',
+    cat_type_ingreso: 'Entrate', cat_type_gasto: 'Spese',
+    cat_type_inversion: 'Investimenti', cat_type_deuda: 'Debiti', cat_type_objetivo: 'Obiettivi',
+    trial_pill: 'Prova gratuita', trial_days_left: 'giorni rimasti',
+    guest_gate_title: 'Crea il tuo account per continuare',
+    guest_gate_desc: 'Per aggiungere movimenti hai bisogno di un account gratuito. Inizia con 7 giorni di prova completa.',
+      bn_analisis: 'Analisi',
+    bn_config: 'Impostazioni',
+    bn_gastos: 'Spese',
+    bn_inicio: 'Home',
+    btn_aportar_confirm: 'Contribuisci',
+    btn_cuenta_cancelar: 'Annulla',
+    btn_cuenta_guardar: 'Salva',
+    btn_liquidar_confirm: 'Liquidare',
+    btn_monthly_cerrar: 'Chiudi',
+    btn_monthly_pdf: '📄 Esporta PDF',
+    btn_presupuesto_cancelar: 'Annulla',
+    btn_presupuesto_guardar: 'Salva',
+    btn_registrar_pago: 'Registra pagamento',
+    btn_tax_cancelar: 'Annulla',
+    btn_tax_guardar: 'Salva',
+    btn_trans_cancelar: 'Annulla',
+    btn_trans_transferir: 'Trasferisci',
+    cliente_editar: 'Modifica Cliente',
+    cliente_nuevo: 'Nuovo Cliente',
+    cobrado_btn: '✓ Riscosso',
+    confirm_borrar_todo: 'Eliminare TUTTI i dati? L\'azione non può essere annullata.',
+    confirm_borrar_todo_btn: 'Elimina tutto',
+    confirm_borrar_todo_titulo: 'Elimina tutti i dati',
+    confirm_btn_cancelar: 'Annulla',
+    confirm_btn_eliminar: 'Elimina',
+    confirm_cerrar_sesion: 'Disconnessione? Il tuo piano e i dati rimarranno su questo dispositivo.',
+    confirm_cerrar_sesion_btn: 'Disconnessione',
+    confirm_cerrar_sesion_titulo: 'Disconnessione',
+    confirm_eliminar_cliente: 'Eliminare questo cliente?',
+    confirm_eliminar_cliente_titulo: 'Elimina cliente',
+    confirm_eliminar_cuenta: 'Eliminare questo conto?',
+    confirm_eliminar_cuenta_titulo: 'Elimina conto',
+    confirm_eliminar_deuda: 'Eliminare questo debito?',
+    confirm_eliminar_deuda_titulo: 'Elimina debito',
+    confirm_eliminar_gasto: 'Eliminare questa spesa?',
+    confirm_eliminar_gasto_titulo: 'Elimina spesa',
+    confirm_eliminar_ingreso: 'Eliminare questa entrata? L\'azione non può essere annullata.',
+    confirm_eliminar_ingreso_titulo: 'Elimina entrata',
+    confirm_eliminar_inversion: 'Eliminare questo investimento?',
+    confirm_eliminar_inversion_titulo: 'Elimina investimento',
+    confirm_eliminar_objetivo: 'Eliminare questo obiettivo?',
+    confirm_eliminar_objetivo_titulo: 'Elimina obiettivo',
+    confirm_eliminar_presupuesto: 'Eliminare il budget per',
+    confirm_eliminar_presupuesto_titulo: 'Elimina budget',
+    confirm_importar: 'Importare dati? Tutti i dati attuali saranno sostituiti.',
+    confirm_importar_btn: 'Importa',
+    confirm_importar_titulo: 'Importa dati',
+    confirm_saldo_neg: 'lascerà il conto con saldo negativo. Continuare?',
+    confirm_saldo_neg_btn: 'Continua comunque',
+    confirm_saldo_neg_titulo: '⚠️ Saldo insufficiente',
+    confirm_salir_demo: 'Uscire da modalità demo e eliminare dati di esempio?',
+    confirm_salir_demo_btn: 'Esci a modalità reale',
+    confirm_salir_demo_titulo: 'Esci demo',
+    confirm_titulo_def: 'Sei sicuro?',
+    cuenta_nombre_ph: 'Conto corrente Santander...',
+    cuenta_sin_cuenta: 'Nessun conto',
+    deuda_calculadora_ph: 'Quanto puoi pagare al mese? (€)',
+    deuda_calcular_btn: 'Calcola',
+    deuda_input_invalido: 'Inserisci un importo mensile valido.',
+    deuda_libre_pagar: 'Pagando al mese saresti senza debiti approx.',
+    deuda_sin_pendientes: '✅ Non hai debiti in sospeso!',
+    drive_guardado: '✓ Salvato',
+    drive_guardando: '⏳ Salvataggio...',
+    drive_local: '(download locale)',
+    err_concepto_importe: 'Descrizione e importo richiesti',
+    err_cuenta_no_encontrada: 'Conto non trovato',
+    err_cuenta_origen: 'Seleziona il conto per ricevere il capitale',
+    err_cuentas_distintas: 'Seleziona conti diversi',
+    err_excel: 'Errore di generazione Excel',
+    err_exportar: 'Errore di esportazione',
+    err_importe_aportar: 'Inserisci l\'importo',
+    err_importe_pago: 'Inserisci l\'importo del pagamento',
+    err_importe_valido: 'Inserisci un importo valido',
+    err_inversion_no_encontrada: 'Investimento non trovato',
+    err_leer_archivo: 'Errore di lettura del file',
+    err_limite_valido: 'Inserisci un limite valido',
+    err_nombre_importe: 'Nome e importo richiesti',
+    err_nombre_meta: 'Nome e obiettivo richiesti',
+    err_nombre_requerido: 'Nome richiesto',
+    err_pdf: 'Errore di generazione PDF',
+    err_selecciona_cat: 'Seleziona una categoria',
+    err_selecciona_cuenta: 'Seleziona un conto',
+    err_valor_salida: 'Inserisci il valore di uscita',
+    gc_ahora_no: 'Non ora',
+    gc_crear: 'Crea obiettivo 🎯',
+    gc_sub: 'Impostare un obiettivo di risparmio è il primo passo. Ti aiuteremo a monitorarlo automaticamente.',
+    gc_titulo: 'Qual è il tuo obiettivo questo mese?',
+    guardando: '⏳ Salvataggio…',
+    intro_tagline: 'Le tue finanze, in ordine',
+    inversion_saldo_hint: 'Seleziona un conto per vedere il saldo disponibile',
+    inversion_ya_liquidada: 'Questo investimento è stato già chiuso il',
+    libre: 'Libero',
+    meses: 'mesi',
+    mini_intro_tagline: 'Le tue finanze, in ordine',
+    mission_bar_sub: 'Aggiungi il tuo primo reddito per iniziare',
+    mission_bar_titulo: 'Completa la tua prima missione',
+    mission_modal_cerrar: 'Chiudi',
+    mission_modal_sub: 'Completa questi step per scoprire MoneyNest in 5 minuti.',
+    mission_modal_titulo: '🚀 Le tue missioni di avvio',
+    modal_aportar_cuenta_lbl: 'Conto sorgente',
+    modal_aportar_existente_lbl: '🏦 Denaro esistente',
+    modal_aportar_existente_sub: 'Detratto dal disponibile',
+    modal_aportar_fuente: 'Da dove viene questo denaro?',
+    modal_aportar_importe_lbl: 'Importo da contribuire (€) *',
+    modal_aportar_nuevo_lbl: '💸 Denaro nuovo',
+    modal_aportar_nuevo_sub: 'Non influisce sul disponibile',
+    modal_cuenta_color_lbl: 'Colore identificativo',
+    modal_cuenta_nombre_lbl: 'Nome conto *',
+    modal_cuenta_nombre_ph: 'Conto corrente Santander...',
+    modal_cuenta_notas_lbl: 'Istituzione / Note',
+    modal_cuenta_notas_ph: 'Santander, ING...',
+    modal_cuenta_saldo_hint: 'Libero da usare adesso',
+    modal_cuenta_saldo_lbl: 'Denaro disponibile (€)',
+    modal_cuenta_tipo_ahorro: '💰 Risparmio',
+    modal_cuenta_tipo_banco: '🏦 Banca',
+    modal_cuenta_tipo_cripto: '₿ Crypto',
+    modal_cuenta_tipo_efectivo: '💵 Contante',
+    modal_cuenta_tipo_inversion: '📈 Investimento',
+    modal_cuenta_tipo_lbl: 'Tipo',
+    modal_cuenta_tipo_otro: '📁 Altro',
+    modal_cuenta_titulo: 'Nuovo Conto',
+    modal_cuenta_titulo_editar: 'Modifica Conto',
+    modal_cuenta_valor_hint: 'Saldo totale incluso asset',
+    modal_cuenta_valor_lbl: 'Valore totale conto (€)',
+    modal_deuda_cat_lbl: 'Categoria',
+    modal_deuda_interes_lbl: 'Interesse annuale (%)',
+    modal_deuda_nombre_lbl: 'Nome *',
+    modal_deuda_notas_lbl: 'Note',
+    modal_deuda_nueva_cat_lbl: 'Nuova categoria',
+    modal_deuda_pagado_lbl: 'Già pagato (€)',
+    modal_deuda_total_lbl: 'Importo totale debito (€) *',
+    modal_deuda_vencimiento_lbl: 'Scadenza',
+    modal_export_desc: 'Esporta i tuoi dati finanziari nel formato preferito.',
+    modal_export_excel_sub: 'Entrate, uscite, investimenti, debiti, obiettivi, clienti',
+    modal_export_excel_titulo: 'Excel completo (tutti i fogli)',
+    modal_export_json_sub: 'Tutti i dati · Per ripristinare dopo',
+    modal_export_json_titulo: 'Backup (JSON)',
+    modal_export_pdf_sub: 'Riassunto visuale con tutte le sezioni',
+    modal_export_pdf_titulo: 'Rapporto PDF completo',
+    modal_export_seccion: 'Esporta per sezione',
+    modal_export_titulo: 'Esporta dati',
+    modal_gasto_cat_lbl: 'Categoria',
+    modal_gasto_concepto_lbl: 'Descrizione *',
+    modal_gasto_cuenta_lbl: 'Conto *',
+    modal_gasto_cuenta_sub: '(obbligatorio)',
+    modal_gasto_fecha_lbl: 'Data',
+    modal_gasto_importe_lbl: 'Importo (€) *',
+    modal_gasto_notas_lbl: 'Note',
+    modal_gasto_nueva_cat_lbl: 'Nuova categoria',
+    modal_ingreso_cat_lbl: 'Categoria',
+    modal_ingreso_concepto_lbl: 'Descrizione *',
+    modal_ingreso_cuenta_lbl: 'Conto *',
+    modal_ingreso_cuenta_sub: '(obbligatorio)',
+    modal_ingreso_fecha_lbl: 'Data',
+    modal_ingreso_importe_lbl: 'Importo (€) *',
+    modal_ingreso_notas_lbl: 'Note',
+    modal_ingreso_nueva_cat_lbl: 'Nuova categoria',
+    modal_inv_capital_lbl: 'Capitale investito (€) *',
+    modal_inv_cat_lbl: 'Categoria',
+    modal_inv_cuenta_lbl: 'Conto sorgente *',
+    modal_inv_fecha_lbl: 'Data di entrata',
+    modal_inv_nombre_lbl: 'Nome *',
+    modal_inv_notas_lbl: 'Note',
+    modal_inv_nueva_cat_lbl: 'Nuova categoria',
+    modal_inv_rentabilidad_hint: 'Solo per asset con rendimento prevedibile',
+    modal_inv_rentabilidad_lbl: 'Rendimento atteso (%)',
+    modal_liquidar_cuenta_lbl: 'Conto per depositare',
+    modal_liquidar_info: '✓ Il capitale sarà restituito · Guadagno registrato come entrata · Perdita registrata come spesa',
+    modal_liquidar_rentabilidad_lbl: 'O rendimento reale (%)',
+    modal_liquidar_titulo: '💰 Liquidare investimento',
+    modal_liquidar_valor_lbl: 'Valore di uscita (€)',
+    modal_monthly_titulo: '📋 Chiusura mensile',
+    modal_obj_actual_lbl: 'Risparmiato finora (€)',
+    modal_obj_cat_lbl: 'Categoria',
+    modal_obj_color_lbl: 'Colore',
+    modal_obj_fecha_lbl: 'Data obiettivo',
+    modal_obj_imagen_sub: 'Facoltativo · appare come sfondo della carta',
+    modal_obj_imagen_titulo: 'Immagine obiettivo',
+    modal_obj_meta_lbl: 'Obiettivo (€) *',
+    modal_obj_nombre_lbl: 'Nome *',
+    modal_obj_notas_lbl: 'Note',
+    modal_obj_nueva_cat_lbl: 'Nuova categoria',
+    modal_obj_quitar_btn: '✕ Rimuovi',
+    modal_obj_subir_btn: '📷 Carica immagine',
+    modal_pago_fecha_lbl: 'Data pagamento',
+    modal_pago_importe_lbl: 'Importo pagamento (€) *',
+    modal_pres_cat_lbl: 'Categoria',
+    modal_pres_limite_lbl: 'Limite mensile (€) *',
+    modal_pres_nueva_cat_lbl: 'Nuova categoria',
+    modal_pres_titulo: 'Imposta Budget',
+    modal_tax_autonomo: 'Freelance / Autonomo',
+    modal_tax_custom: 'Personalizzato',
+    modal_tax_desc: 'In modalità aziendale, MoneyNest calcolerà automaticamente la riserva fiscale.',
+    modal_tax_empresa: 'Azienda (IT 25%)',
+    modal_tax_irpf_hint: 'Ritenuta / Imposta aziendale',
+    modal_tax_irpf_lbl: 'Imposta sul reddito (%)',
+    modal_tax_iva_hint: 'Percentuale IVA da addebitare',
+    modal_tax_iva_lbl: 'IVA (%)',
+    modal_tax_regimen_lbl: 'Regime fiscale',
+    modal_tax_startup: 'Startup / Nuova azienda (IT 15%)',
+    modal_tax_titulo: '⚙️ Impostazioni fiscali',
+    modal_trans_desde_lbl: 'Da',
+    modal_trans_hacia_lbl: 'A',
+    modal_trans_importe_lbl: 'Importo (€) *',
+    modal_trans_titulo: 'Trasferimento tra conti',
+    nav_seccion_finanzas: 'Finanze',
+    nav_seccion_patrimonio: 'Patrimonio Netto',
+    nav_seccion_planificacion: 'Pianificazione',
+    nav_seccion_principal: 'Home',
+    nav_seccion_sistema: 'Sistema',
+    nav_sub_analisis: 'Analisi & Tendenze',
+    nav_sub_cuentas: 'Conti',
+    nav_sub_dashboard: 'Panoramica',
+    nav_sub_deudas: 'Debiti',
+    nav_sub_faq: 'Aiuto',
+    nav_sub_gastos: 'Uscite',
+    nav_sub_ingresos: 'Entrate',
+    nav_sub_inversiones: 'Investimenti',
+    nav_sub_objetivos: 'Obiettivi',
+    nav_sub_patrimonio: 'La tua ricchezza',
+    nav_sub_presupuestos: 'Budget',
+    ob_skip: 'Salta',
+    quick_add_categoria: 'Categoria',
+    quick_add_descripcion_ph: 'Descrizione (facoltativo)',
+    quick_add_gasto: '💸 Spesa',
+    quick_add_guardar: 'Salva',
+    quick_add_ingreso: '💰 Entrata',
+    quick_add_titulo: '⚡ Aggiungi veloce',
+    story_cerrar: 'Chiudi',
+    story_siguiente: 'Avanti →',
+    toast_aportado_ok: 'Contributo all\'obiettivo ✓',
+    toast_cat_añadida: 'Categoria aggiunta ✓',
+    toast_cat_existe: 'Questa categoria esiste già',
+    toast_cuenta_eliminada: 'Conto eliminato',
+    toast_cuenta_guardada: 'Conto salvato ✓',
+    toast_cuenta_min: 'Hai bisogno di almeno un conto',
+    toast_datos_eliminados: 'Tutti i dati eliminati — impostazioni ripristinate',
+    toast_deuda_eliminada: 'Debito eliminato',
+    toast_deuda_guardada: 'Debito salvato ✓',
+    toast_deudas_exportadas: 'Debiti esportati ✓',
+    toast_drive_error: 'Drive non disponibile — download locale',
+    toast_drive_ok: '☁️ Backup salvato su Google Drive ✓',
+    toast_espacio_insuficiente: '💾 Spazio insufficiente. Usa un\'immagine più piccola.',
+    toast_excel_exportado: 'Excel esportato ✓',
+    toast_exportado: 'Esportato ✓',
+    toast_gasto_eliminado: 'Spesa eliminata',
+    toast_gasto_guardado: 'Spesa salvata ✓',
+    toast_gastos_exportados: 'Spese esportate ✓',
+    toast_guardado: 'Salvato ✓',
+    toast_imagen_actualizada: 'Immagine aggiornata ✓',
+    toast_imagen_eliminada: 'Immagine rimossa',
+    toast_ingreso_eliminado: 'Entrata eliminata',
+    toast_ingreso_guardado: 'Entrata salvata ✓',
+    toast_ingresos_exportados: 'Entrate esportate ✓',
+    toast_inversion_eliminada: 'Investimento eliminato',
+    toast_inversion_guardada: 'Investimento registrato ✓ · Saldo aggiornato',
+    toast_inversiones_exportadas: 'Investimenti esportati ✓',
+    toast_json_exportado: 'Backup esportato ✓',
+    toast_json_importado: 'Dati importati ✓',
+    toast_liquidado_ganancia: 'Investimento chiuso · Guadagno registrato',
+    toast_liquidado_neutro: 'Investimento chiuso',
+    toast_liquidado_perdida: 'Investimento chiuso · Perdita registrata',
+    toast_objetivo_eliminado: 'Obiettivo eliminato',
+    toast_objetivo_guardado: 'Obiettivo salvato ✓',
+    toast_objetivos_exportados: 'Obiettivi esportati ✓',
+    toast_pago_registrado: 'Pagamento registrato ✓',
+    toast_pdf_exportado: 'PDF esportato ✓',
+    toast_perfil_guardado: 'Profilo salvato ✓',
+    toast_presupuesto_eliminado: 'Budget eliminato',
+    toast_presupuesto_guardado: 'Budget salvato ✓',
+    toast_presupuestos_exportados: 'Budget esportati ✓',
+    toast_transferencia_ok: 'Trasferimento completato ✓',
+    topbar_activar_pro: '⚡ Attiva Pro',
+    topbar_cambiar_tema: 'Cambia tema',
+    topbar_disponible: 'Disponibile',
+    topbar_exportar: '⬆ Esporta',
+    tut_salir: '✕ Esci',
+    tut_siguiente: 'Avanti →',
+    ver_movimientos_btn: '📋 Visualizza movimenti',
+    deuda_libertad_titulo: '🏁 Pianificazione della Libertà Finanziaria',
+    deuda_libertad_sub: 'Definisci il tuo obiettivo e calcola quanto devi pagare',
+    deuda_libertad_objetivo_lbl: 'Voglio essere libero dai debiti in',
+    deuda_libertad_calcular: 'Calcola rata',
+    deuda_libertad_resultado_pre: 'Per essere libero in',
+    deuda_libertad_resultado_mid: 'devi pagare:',
+    deuda_libertad_mensual: 'Mensile',
+    deuda_libertad_semanal: 'Settimanale',
+    deuda_libertad_diario: 'Giornaliero',
+    deuda_libertad_sin_deuda: 'Sei già libero dai debiti! 🎉',
+    deuda_libertad_invalido: 'Inserisci un periodo valido (numero maggiore di 0).',
+    anos: 'anni',
+    semanas: 'settimane',
+    dias: 'giorni',
+    deuda_activar_estrategia: 'Attiva questa strategia',
+    deuda_estrategia_activa: '✓ Strategia Attiva',
+    deuda_info_automatizacion: 'I tuoi pagamenti saranno distribuiti secondo questo importo per raggiungere il tuo obiettivo nei tempi previsti.',
+    topbar_prueba_termina_en: 'Prova termina tra:',
+    horas: 'h',
+    minutos: 'm',
+},
+  fr: {
+    nav_principal: 'Principal', nav_finanzas: 'Finances',
+    nav_planificacion: 'Planification', nav_patrimonio_sec: 'Patrimoine',
+    nav_sistema: 'Système',
+    nav_dashboard: 'Tableau de bord', nav_ingresos: 'Revenus',
+    nav_gastos: 'Dépenses', nav_inversiones: 'Investissements',
+    nav_deudas: 'Dettes', nav_objetivos: 'Objectifs',
+    nav_presupuestos: 'Budgets', nav_cuentas: 'Comptes',
+    nav_patrimonio: 'Patrimoine', nav_analisis: 'Analyse',
+    nav_configuracion: 'Paramètres', nav_faq: 'FAQ', nav_sugerencias: 'Suggestions',
+    nav_billing: 'Abonnement & Facturation',
+    nav_cerrar_sesion: 'Se déconnecter',
+    disponible: 'Disponible', exportar: 'Exporter',
+    theme_dark: 'Mode sombre', theme_light: 'Mode clair',
+    patrimonio_neto: 'Patrimoine Net',
+    ingresos_mes: 'Revenus ce mois', gastos_mes: 'Dépenses ce mois',
+    cash_flow: 'Flux de trésorerie', ahorro_mes: 'Épargne ce mois',
+    sin_movimientos: 'Aucune transaction enregistrée',
+    actividad_reciente: 'Activité récente', ultimas_transacciones: 'Dernières transactions',
+    ver_todo: 'Voir tout →', evolucion_patrimonio: 'Évolution du patrimoine',
+    ultimos_6_meses: '6 derniers mois', gastos_categoria: 'Dépenses par catégorie',
+    insights: 'Insights', basado_datos: 'Basé sur vos données réelles',
+    todo_orden: 'Tout en ordre ce mois!', sigue_registrando: 'Continuez à enregistrer vos transactions.',
+    primer_mes: 'Premier mois', ingresos_año: 'Revenus', gastos_año: 'Dépenses',
+    resumen_financiero: 'Résumé financier', hola: 'Bonjour,',
+    btn_guardar: 'Enregistrer', btn_cancelar: 'Annuler', btn_eliminar: 'Supprimer',
+    btn_editar: 'Modifier', btn_nuevo: 'Nouveau', btn_exportar: '⬆ Exporter',
+    btn_nuevo_ingreso: '+ Nouveau revenu', btn_nuevo_gasto: '+ Nouvelle dépense',
+    btn_nueva_inversion: '+ Nouvel investissement', btn_nueva_deuda: '+ Nouvelle dette',
+    btn_nuevo_objetivo: '+ Nouvel objectif',
+    page_ingresos: 'Revenus', sub_ingresos: 'Tous vos revenus',
+    page_gastos: 'Dépenses', sub_gastos: 'Toutes vos dépenses',
+    page_inversiones: 'Investissements', page_cuentas: 'Comptes',
+    page_deudas: 'Dettes', page_objetivos: 'Objectifs',
+    page_presupuestos: 'Budgets', page_analisis: 'Analyse',
+    page_configuracion: 'Paramètres',
+    page_faq: 'FAQ', page_sugerencias: 'Suggestions',
+    sug_tipo_sug: 'Suggestion', sug_tipo_preg: 'Question',
+    sug_placeholder: 'Décrivez votre idée ou question...', sug_enviar_email: '📧 Envoyer par email', sug_guardar: '💾 Sauvegarder',
+    ob_bienvenida: 'Bienvenue sur MoneyNest! 🪺',
+    ob_bienvenida_sub: 'Comment vous appelez-vous?',
+    ob_idioma: 'Choisissez votre langue', ob_idioma_sub: 'Sélectionnez la langue.',
+    ob_tema: 'Choisissez votre thème', ob_tema_sub: 'Vous pouvez le changer à tout moment.',
+    ob_listo: 'Tout est configuré!',
+    ob_listo_sub: 'Voulez-vous voir un tour interactif?',
+    ob_continuar: 'Continuer →', ob_empezar: 'Commencer!',
+    ob_omitir: 'Passer', ob_atras: '← Retour',
+    ob_ver_tutorial: 'Voir le tutoriel', ob_ir_directo: 'Aller directement',
+    ob_3min: '~3 minutes', ob_exploro: "J'explorerai",
+    ob_oscuro: 'Sombre', ob_claro: 'Clair',
+    ob_nombre_placeholder: 'Votre nom...',
+    ob_s1_pill: 'Étape 1 de 3 · Bienvenue',
+    ob_s1_h1: 'Votre argent,', ob_s1_h2: 'enfin <span>sous contrôle.</span>',
+    ob_s1_lead: 'MoneyNest est votre tableau de bord financier personnel. Revenus, dépenses, investissements et objectifs — tout en un seul endroit.',
+    ob_s1_placeholder: 'Comment vous appelez-vous?', ob_s1_hint: 'Juste pour personnaliser — sans compte, sans email',
+    ob_s1_cta: 'Commencer',
+    ob_s2_pill: 'Étape 2 de 3 · Personnaliser',
+    ob_s2_h1: 'Votre style,', ob_s2_h2: 'vos <span>règles.</span>',
+    ob_s2_lead: 'Choisissez la langue et le thème. Vous pouvez les modifier à tout moment.',
+    ob_s2_idioma_lbl: 'Langue', ob_s2_tema_lbl: 'Apparence',
+    ob_s2_siguiente: 'Suivant',
+    ob_s3_pill: 'Étape 3 de 3 · Démarrer',
+    ob_s3_h1: 'Par où', ob_s3_h2: '<span>commençons?</span>',
+    ob_s3_lead: 'Votre tableau de bord est prêt. Choisissez comment vous voulez commencer.',
+    ob_s3_greeting: 'Tout est prêt',
+    ob_opt_tutorial_lbl: 'Visite guidée', ob_opt_tutorial_sub: 'Nous vous guidons étape par étape avec de vrais exemples (~3 min)',
+    ob_opt_demo_lbl: 'Explorer avec des données exemples', ob_opt_demo_sub: 'Voyez l\'app complète avant d\'ajouter vos propres données',
+    ob_opt_direct_lbl: 'Commencer directement', ob_opt_direct_sub: 'J\'explore seul, je sais ce dont j\'ai besoin',
+    ob_s3_cta: 'C\'est parti! 🚀',
+    ob_left2_title: 'Conçue pour vous,', ob_left2_sub: 'dès le premier jour.',
+    ob_left2_desc: 'Choisissez la langue et le thème qui s\'adapte le mieux à votre façon de travailler.',
+    ob_left2_idioma_lbl: '🌍 Langue active', ob_left2_tema_lbl: '🎨 Thème',
+    ob_feat_ingresos: 'Revenus & Dépenses', ob_feat_ingresos_sub: 'Contrôle total de vos flux',
+    ob_feat_inv: 'Investissements', ob_feat_inv_sub: 'Suivez votre portefeuille',
+    ob_feat_obj: 'Objectifs', ob_feat_obj_sub: 'Atteignez vos cibles financières',
+    ob_feat_priv: '100% privé', ob_feat_priv_sub: 'Vos données uniquement sur votre appareil',
+    ob_feat_gratis: 'Sans abonnement', ob_feat_gratis_sub: 'Tout gratuit, sans limites',
+    ob_left3_ready: '✨ Votre tableau de bord est prêt — commencez à ajouter vos données',
+    sin_datos: 'Données insuffisantes', buscar: 'Rechercher...',
+    todas_cats: 'Toutes les catégories', periodo: 'Période:',
+    este_mes: 'Ce mois', mes_anterior: 'Mois dernier',
+    este_año: 'Cette année', todo: 'Tout', personalizado: 'Personnalisé',
+    cfg_perfil: 'Votre profil', cfg_nombre: 'Nom', cfg_guardar: '💾 Enregistrer',
+    cfg_idioma: 'Langue', cfg_apariencia: 'Apparence',
+    cfg_oscuro: 'Sombre', cfg_claro: 'Clair', cfg_activo: '✓ Actif',
+    cfg_apariencia_tip: 'Vous pouvez aussi le changer depuis la barre latérale.',
+    cfg_datos: 'Importer / Exporter des données',
+    cfg_exportar_pdf: '📊 Exporter rapport complet (PDF / Excel)',
+    cfg_backup_json: '📤 Sauvegarde (JSON)',
+    cfg_drive: '☁️ Sauvegarder sur Google Drive',
+    cfg_importar: '📥 Importer une sauvegarde',
+    cfg_borrar_todo: '🗑 Supprimer toutes les données',
+    cfg_demo_titulo: 'Mode démo',
+    cfg_demo_activo_lbl: '● Actif · données exemples chargées',
+    cfg_demo_inactivo_lbl: 'Explorer l\'app avec des données exemples',
+    cfg_demo_desc_on: 'Les données sont des exemples. Utilisez le bouton flottant 🟡 Mode démo (en bas à droite) pour changer de profil ou quitter.',
+    cfg_demo_desc_off: 'Explorez toutes les fonctions sans saisir vos propres données. Choisissez un profil et chargez des données réalistes instantanément.',
+    cfg_demo_salir: '🏁 Quitter le mode réel', cfg_demo_recargar: '🔄 Recharger avec profil standard',
+    cfg_demo_activar: '🚀 Activer le mode démo',
+    cfg_info: 'Informations sur l\'app', cfg_version_lbl: 'Version',
+    cfg_ver_tutorial: '🎓 Voir le tutoriel',
+    cfg_cats_titulo: 'Catégories personnalisées',
+    cfg_cats_sub: 'Les emojis sont assignés automatiquement',
+    cfg_nueva_cat: 'Nouvelle catégorie...',
+    cfg_emoji_tip: 'Touchez l\'emoji pour choisir, puis écrivez le nom',
+    cfg_anadir: '+ Ajouter', cfg_personaliza_sub: 'Personnalisez votre expérience MoneyNest',
+    cat_type_ingreso: 'Revenus', cat_type_gasto: 'Dépenses',
+    cat_type_inversion: 'Investissements', cat_type_deuda: 'Dettes', cat_type_objetivo: 'Objectifs',
+    trial_pill: 'Essai gratuit', trial_days_left: 'jours restants',
+    guest_gate_title: 'Créez votre compte pour continuer',
+    guest_gate_desc: 'Pour ajouter des transactions vous avez besoin d\'un compte gratuit. Commencez avec 7 jours d\'essai complet.',
+      bn_analisis: 'Analyses',
+    bn_config: 'Paramètres',
+    bn_gastos: 'Dépenses',
+    bn_inicio: 'Accueil',
+    btn_aportar_confirm: 'Contribuer',
+    btn_cuenta_cancelar: 'Annuler',
+    btn_cuenta_guardar: 'Enregistrer',
+    btn_liquidar_confirm: 'Liquider',
+    btn_monthly_cerrar: 'Fermer',
+    btn_monthly_pdf: '📄 Exporter PDF',
+    btn_presupuesto_cancelar: 'Annuler',
+    btn_presupuesto_guardar: 'Enregistrer',
+    btn_registrar_pago: 'Enregistrer le paiement',
+    btn_tax_cancelar: 'Annuler',
+    btn_tax_guardar: 'Enregistrer',
+    btn_trans_cancelar: 'Annuler',
+    btn_trans_transferir: 'Transférer',
+    cliente_editar: 'Éditer Client',
+    cliente_nuevo: 'Nouveau Client',
+    cobrado_btn: '✓ Collecté',
+    confirm_borrar_todo: 'Supprimer TOUTES les données ? Cette action ne peut pas être annulée.',
+    confirm_borrar_todo_btn: 'Supprimer tout',
+    confirm_borrar_todo_titulo: 'Supprimer toutes les données',
+    confirm_btn_cancelar: 'Annuler',
+    confirm_btn_eliminar: 'Supprimer',
+    confirm_cerrar_sesion: 'Déconnexion ? Votre plan et données resteront sur cet appareil.',
+    confirm_cerrar_sesion_btn: 'Déconnexion',
+    confirm_cerrar_sesion_titulo: 'Déconnexion',
+    confirm_eliminar_cliente: 'Supprimer ce client ?',
+    confirm_eliminar_cliente_titulo: 'Supprimer client',
+    confirm_eliminar_cuenta: 'Supprimer ce compte ?',
+    confirm_eliminar_cuenta_titulo: 'Supprimer compte',
+    confirm_eliminar_deuda: 'Supprimer cette dette ?',
+    confirm_eliminar_deuda_titulo: 'Supprimer dette',
+    confirm_eliminar_gasto: 'Supprimer cette dépense ?',
+    confirm_eliminar_gasto_titulo: 'Supprimer dépense',
+    confirm_eliminar_ingreso: 'Supprimer ce revenu ? Cette action ne peut pas être annulée.',
+    confirm_eliminar_ingreso_titulo: 'Supprimer revenu',
+    confirm_eliminar_inversion: 'Supprimer cet investissement ?',
+    confirm_eliminar_inversion_titulo: 'Supprimer investissement',
+    confirm_eliminar_objetivo: 'Supprimer cet objectif ?',
+    confirm_eliminar_objetivo_titulo: 'Supprimer objectif',
+    confirm_eliminar_presupuesto: 'Supprimer le budget pour',
+    confirm_eliminar_presupuesto_titulo: 'Supprimer budget',
+    confirm_importar: 'Importer données ? Toutes les données actuelles seront remplacées.',
+    confirm_importar_btn: 'Importer',
+    confirm_importar_titulo: 'Importer données',
+    confirm_saldo_neg: 'laissera le compte avec un solde négatif. Continuer ?',
+    confirm_saldo_neg_btn: 'Continuer quand même',
+    confirm_saldo_neg_titulo: '⚠️ Solde insuffisant',
+    confirm_salir_demo: 'Quitter mode démo et supprimer exemple de données ?',
+    confirm_salir_demo_btn: 'Quitter vers mode réel',
+    confirm_salir_demo_titulo: 'Quitter démo',
+    confirm_titulo_def: 'Êtes-vous sûr ?',
+    cuenta_nombre_ph: 'Compte courant Santander...',
+    cuenta_sin_cuenta: 'Pas de compte',
+    deuda_calculadora_ph: 'Combien pouvez-vous payer par mois ? (€)',
+    deuda_calcular_btn: 'Calculer',
+    deuda_input_invalido: 'Entrez un montant mensuel valide.',
+    deuda_libre_pagar: 'En payant par mois, vous seriez sans dettes approx.',
+    deuda_sin_pendientes: '✅ Vous n\'avez pas de dettes !',
+    drive_guardado: '✓ Enregistré',
+    drive_guardando: '⏳ Enregistrement...',
+    drive_local: '(téléchargement local)',
+    err_concepto_importe: 'Description et montant requis',
+    err_cuenta_no_encontrada: 'Compte non trouvé',
+    err_cuenta_origen: 'Sélectionnez le compte pour recevoir le capital',
+    err_cuentas_distintas: 'Sélectionnez des comptes différents',
+    err_excel: 'Erreur de génération Excel',
+    err_exportar: 'Erreur d\'exportation',
+    err_importe_aportar: 'Entrez le montant',
+    err_importe_pago: 'Entrez le montant du paiement',
+    err_importe_valido: 'Entrez un montant valide',
+    err_inversion_no_encontrada: 'Investissement non trouvé',
+    err_leer_archivo: 'Erreur de lecture du fichier',
+    err_limite_valido: 'Entrez une limite valide',
+    err_nombre_importe: 'Nom et montant requis',
+    err_nombre_meta: 'Nom et objectif requis',
+    err_nombre_requerido: 'Nom requis',
+    err_pdf: 'Erreur de génération PDF',
+    err_selecciona_cat: 'Sélectionnez une catégorie',
+    err_selecciona_cuenta: 'Sélectionnez un compte',
+    err_valor_salida: 'Entrez la valeur de sortie',
+    gc_ahora_no: 'Pas maintenant',
+    gc_crear: 'Créer objectif 🎯',
+    gc_sub: 'Définir un objectif d\'épargne est le premier pas. Nous vous aiderons à le suivre.',
+    gc_titulo: 'Quel est votre objectif ce mois ?',
+    guardando: '⏳ Enregistrement…',
+    intro_tagline: 'Vos finances, en ordre',
+    inversion_saldo_hint: 'Sélectionnez un compte pour voir le solde disponible',
+    inversion_ya_liquidada: 'Cet investissement a été fermé le',
+    libre: 'Libre',
+    meses: 'mois',
+    mini_intro_tagline: 'Vos finances, en ordre',
+    mission_bar_sub: 'Ajoutez votre premier revenu pour commencer',
+    mission_bar_titulo: 'Complétez votre première mission',
+    mission_modal_cerrar: 'Fermer',
+    mission_modal_sub: 'Complétez ces actions pour découvrir MoneyNest en 5 minutes.',
+    mission_modal_titulo: '🚀 Vos missions de démarrage',
+    modal_aportar_cuenta_lbl: 'Compte source',
+    modal_aportar_existente_lbl: '🏦 Argent existant',
+    modal_aportar_existente_sub: 'Déduit du disponible',
+    modal_aportar_fuente: 'D\'où vient cet argent ?',
+    modal_aportar_importe_lbl: 'Montant à contribuer (€) *',
+    modal_aportar_nuevo_lbl: '💸 Argent nouveau',
+    modal_aportar_nuevo_sub: 'N\'affecte pas le disponible',
+    modal_cuenta_color_lbl: 'Couleur d\'identification',
+    modal_cuenta_nombre_lbl: 'Nom du compte *',
+    modal_cuenta_nombre_ph: 'Compte courant Santander...',
+    modal_cuenta_notas_lbl: 'Institution / Notes',
+    modal_cuenta_notas_ph: 'Santander, ING...',
+    modal_cuenta_saldo_hint: 'Libre d\'utilisation maintenant',
+    modal_cuenta_saldo_lbl: 'Argent disponible (€)',
+    modal_cuenta_tipo_ahorro: '💰 Épargne',
+    modal_cuenta_tipo_banco: '🏦 Banque',
+    modal_cuenta_tipo_cripto: '₿ Crypto',
+    modal_cuenta_tipo_efectivo: '💵 Espèces',
+    modal_cuenta_tipo_inversion: '📈 Investissement',
+    modal_cuenta_tipo_lbl: 'Type',
+    modal_cuenta_tipo_otro: '📁 Autre',
+    modal_cuenta_titulo: 'Nouveau Compte',
+    modal_cuenta_titulo_editar: 'Éditer Compte',
+    modal_cuenta_valor_hint: 'Solde total y compris les actifs',
+    modal_cuenta_valor_lbl: 'Valeur totale du compte (€)',
+    modal_deuda_cat_lbl: 'Catégorie',
+    modal_deuda_interes_lbl: 'Intérêt annuel (%)',
+    modal_deuda_nombre_lbl: 'Nom *',
+    modal_deuda_notas_lbl: 'Notes',
+    modal_deuda_nueva_cat_lbl: 'Nouvelle catégorie',
+    modal_deuda_pagado_lbl: 'Déjà payé (€)',
+    modal_deuda_total_lbl: 'Montant total (€) *',
+    modal_deuda_vencimiento_lbl: 'Échéance',
+    modal_export_desc: 'Exportez vos données financières dans le format préféré.',
+    modal_export_excel_sub: 'Revenus, dépenses, investissements, dettes, objectifs, clients',
+    modal_export_excel_titulo: 'Excel complet (toutes les feuilles)',
+    modal_export_json_sub: 'Toutes les données · À restaurer plus tard',
+    modal_export_json_titulo: 'Sauvegarde (JSON)',
+    modal_export_pdf_sub: 'Résumé visuel avec toutes les sections',
+    modal_export_pdf_titulo: 'Rapport PDF complet',
+    modal_export_seccion: 'Exporter par section',
+    modal_export_titulo: 'Exporter données',
+    modal_gasto_cat_lbl: 'Catégorie',
+    modal_gasto_concepto_lbl: 'Description *',
+    modal_gasto_cuenta_lbl: 'Compte *',
+    modal_gasto_cuenta_sub: '(obligatoire)',
+    modal_gasto_fecha_lbl: 'Date',
+    modal_gasto_importe_lbl: 'Montant (€) *',
+    modal_gasto_notas_lbl: 'Notes',
+    modal_gasto_nueva_cat_lbl: 'Nouvelle catégorie',
+    modal_ingreso_cat_lbl: 'Catégorie',
+    modal_ingreso_concepto_lbl: 'Description *',
+    modal_ingreso_cuenta_lbl: 'Compte *',
+    modal_ingreso_cuenta_sub: '(obligatoire)',
+    modal_ingreso_fecha_lbl: 'Date',
+    modal_ingreso_importe_lbl: 'Montant (€) *',
+    modal_ingreso_notas_lbl: 'Notes',
+    modal_ingreso_nueva_cat_lbl: 'Nouvelle catégorie',
+    modal_inv_capital_lbl: 'Capital investi (€) *',
+    modal_inv_cat_lbl: 'Catégorie',
+    modal_inv_cuenta_lbl: 'Compte source *',
+    modal_inv_fecha_lbl: 'Date d\'entrée',
+    modal_inv_nombre_lbl: 'Nom *',
+    modal_inv_notas_lbl: 'Notes',
+    modal_inv_nueva_cat_lbl: 'Nouvelle catégorie',
+    modal_inv_rentabilidad_hint: 'Uniquement pour les actifs à rendement prévisible',
+    modal_inv_rentabilidad_lbl: 'Rendement attendu (%)',
+    modal_liquidar_cuenta_lbl: 'Compte de dépôt',
+    modal_liquidar_info: '✓ Le capital sera retourné · Gain enregistré comme revenu · Perte enregistrée comme dépense',
+    modal_liquidar_rentabilidad_lbl: 'Ou rendement réel (%)',
+    modal_liquidar_titulo: '💰 Liquider l\'investissement',
+    modal_liquidar_valor_lbl: 'Valeur de sortie (€)',
+    modal_monthly_titulo: '📋 Fermeture mensuelle',
+    modal_obj_actual_lbl: 'Épargné jusqu\'à présent (€)',
+    modal_obj_cat_lbl: 'Catégorie',
+    modal_obj_color_lbl: 'Couleur',
+    modal_obj_fecha_lbl: 'Date d\'objectif',
+    modal_obj_imagen_sub: 'Optionnel · apparaît comme arrière-plan de carte',
+    modal_obj_imagen_titulo: 'Image de l\'objectif',
+    modal_obj_meta_lbl: 'Objectif (€) *',
+    modal_obj_nombre_lbl: 'Nom *',
+    modal_obj_notas_lbl: 'Notes',
+    modal_obj_nueva_cat_lbl: 'Nouvelle catégorie',
+    modal_obj_quitar_btn: '✕ Supprimer',
+    modal_obj_subir_btn: '📷 Télécharger image',
+    modal_pago_fecha_lbl: 'Date du paiement',
+    modal_pago_importe_lbl: 'Montant du paiement (€) *',
+    modal_pres_cat_lbl: 'Catégorie',
+    modal_pres_limite_lbl: 'Limite mensuelle (€) *',
+    modal_pres_nueva_cat_lbl: 'Nouvelle catégorie',
+    modal_pres_titulo: 'Définir Budget',
+    modal_tax_autonomo: 'Indépendant / Prestataire',
+    modal_tax_custom: 'Personnalisé',
+    modal_tax_desc: 'En mode entreprise, MoneyNest calculera automatiquement la réserve fiscale.',
+    modal_tax_empresa: 'Entreprise (IS 25%)',
+    modal_tax_irpf_hint: 'Retenue / Impôt entreprise',
+    modal_tax_irpf_lbl: 'Impôt sur le revenu (%)',
+    modal_tax_iva_hint: 'Pourcentage de TVA à facturer',
+    modal_tax_iva_lbl: 'TVA (%)',
+    modal_tax_regimen_lbl: 'Régime fiscal',
+    modal_tax_startup: 'Startup / Nouvelle entreprise (IS 15%)',
+    modal_tax_titulo: '⚙️ Paramètres fiscaux',
+    modal_trans_desde_lbl: 'De',
+    modal_trans_hacia_lbl: 'À',
+    modal_trans_importe_lbl: 'Montant (€) *',
+    modal_trans_titulo: 'Transfert entre comptes',
+    nav_seccion_finanzas: 'Finances',
+    nav_seccion_patrimonio: 'Patrimoine Net',
+    nav_seccion_planificacion: 'Planification',
+    nav_seccion_principal: 'Accueil',
+    nav_seccion_sistema: 'Système',
+    nav_sub_analisis: 'Analyses & Tendances',
+    nav_sub_cuentas: 'Comptes',
+    nav_sub_dashboard: 'Aperçu',
+    nav_sub_deudas: 'Dettes',
+    nav_sub_faq: 'Aide',
+    nav_sub_gastos: 'Dépenses',
+    nav_sub_ingresos: 'Revenus',
+    nav_sub_inversiones: 'Investissements',
+    nav_sub_objetivos: 'Objectifs',
+    nav_sub_patrimonio: 'Votre richesse',
+    nav_sub_presupuestos: 'Budgets',
+    ob_skip: 'Ignorer',
+    quick_add_categoria: 'Catégorie',
+    quick_add_descripcion_ph: 'Description (optionnel)',
+    quick_add_gasto: '💸 Dépense',
+    quick_add_guardar: 'Enregistrer',
+    quick_add_ingreso: '💰 Revenu',
+    quick_add_titulo: '⚡ Ajout rapide',
+    story_cerrar: 'Fermer',
+    story_siguiente: 'Suivant →',
+    toast_aportado_ok: 'Contribution à l\'objectif ✓',
+    toast_cat_añadida: 'Catégorie ajoutée ✓',
+    toast_cat_existe: 'Cette catégorie existe déjà',
+    toast_cuenta_eliminada: 'Compte supprimé',
+    toast_cuenta_guardada: 'Compte enregistré ✓',
+    toast_cuenta_min: 'Vous avez besoin d\'au moins un compte',
+    toast_datos_eliminados: 'Toutes les données supprimées — paramètres réinitialisés',
+    toast_deuda_eliminada: 'Dette supprimée',
+    toast_deuda_guardada: 'Dette enregistrée ✓',
+    toast_deudas_exportadas: 'Dettes exportées ✓',
+    toast_drive_error: 'Drive indisponible — téléchargement local',
+    toast_drive_ok: '☁️ Sauvegarde enregistrée sur Google Drive ✓',
+    toast_espacio_insuficiente: '💾 Espace insuffisant. Utilisez une image plus petite.',
+    toast_excel_exportado: 'Excel exporté ✓',
+    toast_exportado: 'Exporté ✓',
+    toast_gasto_eliminado: 'Dépense supprimée',
+    toast_gasto_guardado: 'Dépense enregistrée ✓',
+    toast_gastos_exportados: 'Dépenses exportées ✓',
+    toast_guardado: 'Enregistré ✓',
+    toast_imagen_actualizada: 'Image mise à jour ✓',
+    toast_imagen_eliminada: 'Image supprimée',
+    toast_ingreso_eliminado: 'Revenu supprimé',
+    toast_ingreso_guardado: 'Revenu enregistré ✓',
+    toast_ingresos_exportados: 'Revenus exportés ✓',
+    toast_inversion_eliminada: 'Investissement supprimé',
+    toast_inversion_guardada: 'Investissement enregistré ✓ · Solde mis à jour',
+    toast_inversiones_exportadas: 'Investissements exportés ✓',
+    toast_json_exportado: 'Sauvegarde exportée ✓',
+    toast_json_importado: 'Données importées ✓',
+    toast_liquidado_ganancia: 'Investissement fermé · Gain enregistré',
+    toast_liquidado_neutro: 'Investissement fermé',
+    toast_liquidado_perdida: 'Investissement fermé · Perte enregistrée',
+    toast_objetivo_eliminado: 'Objectif supprimé',
+    toast_objetivo_guardado: 'Objectif enregistré ✓',
+    toast_objetivos_exportados: 'Objectifs exportés ✓',
+    toast_pago_registrado: 'Paiement enregistré ✓',
+    toast_pdf_exportado: 'PDF exporté ✓',
+    toast_perfil_guardado: 'Profil enregistré ✓',
+    toast_presupuesto_eliminado: 'Budget supprimé',
+    toast_presupuesto_guardado: 'Budget enregistré ✓',
+    toast_presupuestos_exportados: 'Budgets exportés ✓',
+    toast_transferencia_ok: 'Transfert complété ✓',
+    topbar_activar_pro: '⚡ Passer à Pro',
+    topbar_cambiar_tema: 'Changer le thème',
+    topbar_disponible: 'Disponible',
+    topbar_exportar: '⬆ Exporter',
+    tut_salir: '✕ Quitter',
+    tut_siguiente: 'Suivant →',
+    ver_movimientos_btn: '📋 Voir mouvements',
+    deuda_libertad_titulo: '🏁 Planification de la Liberté Financière',
+    deuda_libertad_sub: 'Définissez votre objectif et calculez ce que vous devez payer',
+    deuda_libertad_objetivo_lbl: 'Je veux être libre de dettes en',
+    deuda_libertad_calcular: 'Calculer la mensualité',
+    deuda_libertad_resultado_pre: 'Pour être libre en',
+    deuda_libertad_resultado_mid: 'vous devez payer :',
+    deuda_libertad_mensual: 'Mensuel',
+    deuda_libertad_semanal: 'Hebdomadaire',
+    deuda_libertad_diario: 'Quotidien',
+    deuda_libertad_sin_deuda: 'Vous êtes déjà libre de dettes ! 🎉',
+    deuda_libertad_invalido: 'Veuillez saisir une période valide (nombre supérieur à 0).',
+    anos: 'ans',
+    semanas: 'semaines',
+    dias: 'jours',
+    deuda_activar_estrategia: 'Activer cette stratégie',
+    deuda_estrategia_activa: '✓ Stratégie Active',
+    deuda_info_automatizacion: 'Vos paiements seront distribués selon ce montant pour atteindre votre objectif dans le délai prévu.',
+    topbar_prueba_termina_en: 'Essai se termine dans:',
+    horas: 'h',
+    minutos: 'm',
+},
+  de: {
+    nav_principal: 'Haupt', nav_finanzas: 'Finanzen',
+    nav_planificacion: 'Planung', nav_patrimonio_sec: 'Vermögen',
+    nav_sistema: 'System',
+    nav_dashboard: 'Dashboard', nav_ingresos: 'Einnahmen',
+    nav_gastos: 'Ausgaben', nav_inversiones: 'Investitionen',
+    nav_deudas: 'Schulden', nav_objetivos: 'Ziele',
+    nav_presupuestos: 'Budgets', nav_cuentas: 'Konten',
+    nav_patrimonio: 'Vermögen', nav_analisis: 'Analyse',
+    nav_configuracion: 'Einstellungen', nav_faq: 'FAQ', nav_sugerencias: 'Vorschläge',
+    nav_billing: 'Tarif & Abrechnung',
+    nav_cerrar_sesion: 'Abmelden',
+    disponible: 'Verfügbar', exportar: 'Exportieren',
+    theme_dark: 'Dunkelmodus', theme_light: 'Hellmodus',
+    patrimonio_neto: 'Nettovermögen',
+    ingresos_mes: 'Einnahmen diesen Monat', gastos_mes: 'Ausgaben diesen Monat',
+    cash_flow: 'Cashflow', ahorro_mes: 'Ersparnis diesen Monat',
+    sin_movimientos: 'Noch keine Transaktionen',
+    actividad_reciente: 'Letzte Aktivität', ultimas_transacciones: 'Letzte Transaktionen',
+    ver_todo: 'Alle anzeigen →', evolucion_patrimonio: 'Vermögensentwicklung',
+    ultimos_6_meses: 'Letzte 6 Monate', gastos_categoria: 'Ausgaben nach Kategorie',
+    insights: 'Erkenntnisse', basado_datos: 'Basierend auf Ihren Daten',
+    todo_orden: 'Alles in Ordnung diesen Monat!', sigue_registrando: 'Führen Sie Aufzeichnungen.',
+    primer_mes: 'Erster Monat', ingresos_año: 'Einnahmen', gastos_año: 'Ausgaben',
+    resumen_financiero: 'Finanzübersicht', hola: 'Hallo,',
+    btn_guardar: 'Speichern', btn_cancelar: 'Abbrechen', btn_eliminar: 'Löschen',
+    btn_editar: 'Bearbeiten', btn_nuevo: 'Neu', btn_exportar: '⬆ Exportieren',
+    btn_nuevo_ingreso: '+ Neue Einnahme', btn_nuevo_gasto: '+ Neue Ausgabe',
+    btn_nueva_inversion: '+ Neue Investition', btn_nueva_deuda: '+ Neue Schuld',
+    btn_nuevo_objetivo: '+ Neues Ziel',
+    page_ingresos: 'Einnahmen', sub_ingresos: 'Alle Einnahmen',
+    page_gastos: 'Ausgaben', sub_gastos: 'Alle Ausgaben',
+    page_inversiones: 'Investitionen', page_cuentas: 'Konten',
+    page_deudas: 'Schulden', page_objetivos: 'Ziele',
+    page_presupuestos: 'Budgets', page_analisis: 'Analyse',
+    page_configuracion: 'Einstellungen',
+    page_faq: 'FAQ', page_sugerencias: 'Vorschläge',
+    sug_tipo_sug: 'Vorschlag', sug_tipo_preg: 'Frage',
+    sug_placeholder: 'Beschreiben Sie Ihre Idee oder Frage...', sug_enviar_email: '📧 Per E-Mail senden', sug_guardar: '💾 Lokal speichern',
+    ob_bienvenida: 'Willkommen bei MoneyNest! 🪺',
+    ob_bienvenida_sub: 'Wie heißen Sie?',
+    ob_idioma: 'Sprache wählen', ob_idioma_sub: 'Wählen Sie Ihre bevorzugte Sprache.',
+    ob_tema: 'Design wählen', ob_tema_sub: 'Sie können es jederzeit ändern.',
+    ob_listo: 'Alles eingerichtet!',
+    ob_listo_sub: 'Möchten Sie eine interaktive Tour sehen?',
+    ob_continuar: 'Weiter →', ob_empezar: 'Loslegen!',
+    ob_omitir: 'Überspringen', ob_atras: '← Zurück',
+    ob_ver_tutorial: 'Tutorial ansehen', ob_ir_directo: 'Direkt einsteigen',
+    ob_3min: '~3 Minuten', ob_exploro: 'Selbst erkunden',
+    ob_oscuro: 'Dunkel', ob_claro: 'Hell',
+    ob_nombre_placeholder: 'Ihr Name...',
+    ob_s1_pill: 'Schritt 1 von 3 · Willkommen',
+    ob_s1_h1: 'Ihr Geld,', ob_s1_h2: 'endlich <span>unter Kontrolle.</span>',
+    ob_s1_lead: 'MoneyNest ist Ihr persönliches Finanz-Dashboard. Einnahmen, Ausgaben, Investitionen und Ziele — alles an einem Ort.',
+    ob_s1_placeholder: 'Wie heißen Sie?', ob_s1_hint: 'Nur zur Personalisierung — kein Konto, keine E-Mail',
+    ob_s1_cta: 'Starten',
+    ob_s2_pill: 'Schritt 2 von 3 · Anpassen',
+    ob_s2_h1: 'Ihr Stil,', ob_s2_h2: 'Ihre <span>Regeln.</span>',
+    ob_s2_lead: 'Wählen Sie Sprache und Design. Sie können es jederzeit in den Einstellungen ändern.',
+    ob_s2_idioma_lbl: 'Sprache', ob_s2_tema_lbl: 'Design',
+    ob_s2_siguiente: 'Weiter',
+    ob_s3_pill: 'Schritt 3 von 3 · Loslegen',
+    ob_s3_h1: 'Wo sollen wir', ob_s3_h2: '<span>beginnen?</span>',
+    ob_s3_lead: 'Ihr Dashboard ist bereit. Wählen Sie, wie Sie Ihre MoneyNest-Erfahrung starten möchten.',
+    ob_s3_greeting: 'Alles bereit',
+    ob_opt_tutorial_lbl: 'Geführte Tour', ob_opt_tutorial_sub: 'Wir zeigen Ihnen alles Schritt für Schritt mit echten Beispielen (~3 Min)',
+    ob_opt_demo_lbl: 'Mit Beispieldaten erkunden', ob_opt_demo_sub: 'Sehen Sie die vollständige App, bevor Sie eigene Daten eingeben',
+    ob_opt_direct_lbl: 'Direkt beginnen', ob_opt_direct_sub: 'Ich erkunde selbst, ich weiß was ich brauche',
+    ob_s3_cta: 'Los geht\'s! 🚀',
+    ob_left2_title: 'Für Sie gestaltet,', ob_left2_sub: 'vom ersten Tag an.',
+    ob_left2_desc: 'Wählen Sie die Sprache und das Design, das am besten zu Ihrer Arbeitsweise passt.',
+    ob_left2_idioma_lbl: '🌍 Aktive Sprache', ob_left2_tema_lbl: '🎨 Design',
+    ob_feat_ingresos: 'Einnahmen & Ausgaben', ob_feat_ingresos_sub: 'Totale Kontrolle über Ihren Geldfluss',
+    ob_feat_inv: 'Investitionen', ob_feat_inv_sub: 'Verfolgen Sie Ihr Portfolio',
+    ob_feat_obj: 'Ziele', ob_feat_obj_sub: 'Erreichen Sie Ihre finanziellen Ziele',
+    ob_feat_priv: '100% privat', ob_feat_priv_sub: 'Ihre Daten nur auf Ihrem Gerät',
+    ob_feat_gratis: 'Kein Abonnement', ob_feat_gratis_sub: 'Alles kostenlos, keine Grenzen',
+    ob_left3_ready: '✨ Ihr Dashboard ist bereit — fügen Sie jetzt Ihre Daten hinzu',
+    sin_datos: 'Nicht genug Daten', buscar: 'Suchen...',
+    todas_cats: 'Alle Kategorien', periodo: 'Zeitraum:',
+    este_mes: 'Diesen Monat', mes_anterior: 'Letzten Monat',
+    este_año: 'Dieses Jahr', todo: 'Alles', personalizado: 'Benutzerdefiniert',
+    cfg_perfil: 'Ihr Profil', cfg_nombre: 'Name', cfg_guardar: '💾 Speichern',
+    cfg_idioma: 'Sprache', cfg_apariencia: 'Erscheinungsbild',
+    cfg_oscuro: 'Dunkel', cfg_claro: 'Hell', cfg_activo: '✓ Aktiv',
+    cfg_apariencia_tip: 'Sie können es auch über den Schalter in der Seitenleiste ändern.',
+    cfg_datos: 'Importieren / Exportieren',
+    cfg_exportar_pdf: '📊 Vollständigen Bericht exportieren (PDF / Excel)',
+    cfg_backup_json: '📤 Sicherungskopie (JSON)',
+    cfg_drive: '☁️ Auf Google Drive speichern',
+    cfg_importar: '📥 Sicherung importieren',
+    cfg_borrar_todo: '🗑 Alle Daten löschen',
+    cfg_demo_titulo: 'Demo-Modus',
+    cfg_demo_activo_lbl: '● Aktiv · Beispieldaten geladen',
+    cfg_demo_inactivo_lbl: 'App mit Beispieldaten erkunden',
+    cfg_demo_desc_on: 'Die Daten sind Beispiele. Verwenden Sie den schwebenden Knopf 🟡 Demo-Modus (unten rechts), um das Profil zu wechseln oder zu beenden.',
+    cfg_demo_desc_off: 'Erkunden Sie alle Funktionen ohne eigene Daten einzugeben. Wählen Sie ein Profil und laden Sie sofort realistische Daten.',
+    cfg_demo_salir: '🏁 Zum echten Modus wechseln', cfg_demo_recargar: '🔄 Mit Standardprofil neu laden',
+    cfg_demo_activar: '🚀 Demo-Modus aktivieren',
+    cfg_info: 'App-Informationen', cfg_version_lbl: 'Version',
+    cfg_ver_tutorial: '🎓 Tutorial ansehen',
+    cfg_cats_titulo: 'Benutzerdefinierte Kategorien',
+    cfg_cats_sub: 'Emojis werden automatisch zugewiesen',
+    cfg_nueva_cat: 'Neue Kategorie...',
+    cfg_emoji_tip: 'Tippen Sie auf das Emoji zum Auswählen, dann schreiben Sie den Namen',
+    cfg_anadir: '+ Hinzufügen', cfg_personaliza_sub: 'Passen Sie Ihre MoneyNest-Erfahrung an',
+    cat_type_ingreso: 'Einnahmen', cat_type_gasto: 'Ausgaben',
+    cat_type_inversion: 'Investitionen', cat_type_deuda: 'Schulden', cat_type_objetivo: 'Ziele',
+    trial_pill: 'Kostenlose Testversion', trial_days_left: 'Tage übrig',
+    guest_gate_title: 'Erstellen Sie Ihr Konto um fortzufahren',
+    guest_gate_desc: 'Um Transaktionen hinzuzufügen benötigen Sie ein kostenloses Konto. Starten Sie mit einer 7-tägigen Vollversion.',
+      bn_analisis: 'Analysen',
+    bn_config: 'Einstellungen',
+    bn_gastos: 'Ausgaben',
+    bn_inicio: 'Startseite',
+    btn_aportar_confirm: 'Beitragen',
+    btn_cuenta_cancelar: 'Abbrechen',
+    btn_cuenta_guardar: 'Speichern',
+    btn_liquidar_confirm: 'Liquidieren',
+    btn_monthly_cerrar: 'Schließen',
+    btn_monthly_pdf: '📄 PDF exportieren',
+    btn_presupuesto_cancelar: 'Abbrechen',
+    btn_presupuesto_guardar: 'Speichern',
+    btn_registrar_pago: 'Zahlung erfassen',
+    btn_tax_cancelar: 'Abbrechen',
+    btn_tax_guardar: 'Speichern',
+    btn_trans_cancelar: 'Abbrechen',
+    btn_trans_transferir: 'Überweisen',
+    cliente_editar: 'Kunde bearbeiten',
+    cliente_nuevo: 'Neuer Kunde',
+    cobrado_btn: '✓ Erhalten',
+    confirm_borrar_todo: 'ALLE Daten löschen? Diese Aktion kann nicht rückgängig gemacht werden.',
+    confirm_borrar_todo_btn: 'Alles löschen',
+    confirm_borrar_todo_titulo: 'Alle Daten löschen',
+    confirm_btn_cancelar: 'Abbrechen',
+    confirm_btn_eliminar: 'Löschen',
+    confirm_cerrar_sesion: 'Abmelden? Dein Plan und Finanzdaten bleiben auf diesem Gerät.',
+    confirm_cerrar_sesion_btn: 'Abmelden',
+    confirm_cerrar_sesion_titulo: 'Abmelden',
+    confirm_eliminar_cliente: 'Diesen Kunden löschen?',
+    confirm_eliminar_cliente_titulo: 'Kunden löschen',
+    confirm_eliminar_cuenta: 'Dieses Konto löschen?',
+    confirm_eliminar_cuenta_titulo: 'Konto löschen',
+    confirm_eliminar_deuda: 'Diese Schuld löschen?',
+    confirm_eliminar_deuda_titulo: 'Schulden löschen',
+    confirm_eliminar_gasto: 'Diese Ausgabe löschen?',
+    confirm_eliminar_gasto_titulo: 'Ausgabe löschen',
+    confirm_eliminar_ingreso: 'Dieses Einkommen löschen? Diese Aktion kann nicht rückgängig gemacht werden.',
+    confirm_eliminar_ingreso_titulo: 'Einkommen löschen',
+    confirm_eliminar_inversion: 'Diese Investition löschen?',
+    confirm_eliminar_inversion_titulo: 'Investition löschen',
+    confirm_eliminar_objetivo: 'Dieses Ziel löschen?',
+    confirm_eliminar_objetivo_titulo: 'Ziel löschen',
+    confirm_eliminar_presupuesto: 'Budget löschen für',
+    confirm_eliminar_presupuesto_titulo: 'Budget löschen',
+    confirm_importar: 'Daten importieren? Alle aktuellen Daten werden ersetzt.',
+    confirm_importar_btn: 'Importieren',
+    confirm_importar_titulo: 'Daten importieren',
+    confirm_saldo_neg: 'wird das Konto mit negativem Saldo hinterlassen. Fortfahren?',
+    confirm_saldo_neg_btn: 'Trotzdem fortfahren',
+    confirm_saldo_neg_titulo: '⚠️ Unzureichender Kontostand',
+    confirm_salir_demo: 'Demodmodus beenden und Beispieldaten löschen?',
+    confirm_salir_demo_btn: 'In echten Modus wechseln',
+    confirm_salir_demo_titulo: 'Demo beenden',
+    confirm_titulo_def: 'Bist du sicher?',
+    cuenta_nombre_ph: 'Santander-Girokonto...',
+    cuenta_sin_cuenta: 'Kein Konto',
+    deuda_calculadora_ph: 'Wie viel kannst du pro Monat zahlen? (€)',
+    deuda_calcular_btn: 'Berechnen',
+    deuda_input_invalido: 'Gültige Monatssumme eingeben.',
+    deuda_libre_pagar: 'Mit monatlicher Zahlung wärst du schuldenfrei ca.',
+    deuda_sin_pendientes: '✅ Du hast keine offenen Schulden!',
+    drive_guardado: '✓ Gespeichert',
+    drive_guardando: '⏳ Speichere...',
+    drive_local: '(lokaler Download)',
+    err_concepto_importe: 'Beschreibung und Betrag erforderlich',
+    err_cuenta_no_encontrada: 'Konto nicht gefunden',
+    err_cuenta_origen: 'Wähle das Konto für den Kapitalempfang',
+    err_cuentas_distintas: 'Wähle unterschiedliche Konten',
+    err_excel: 'Excel-Generierungsfehler',
+    err_exportar: 'Exportfehler',
+    err_importe_aportar: 'Betrag eingeben',
+    err_importe_pago: 'Zahlungsbetrag eingeben',
+    err_importe_valido: 'Gültigen Betrag eingeben',
+    err_inversion_no_encontrada: 'Investition nicht gefunden',
+    err_leer_archivo: 'Datei-Lesefehler',
+    err_limite_valido: 'Gültige Grenze eingeben',
+    err_nombre_importe: 'Name und Betrag erforderlich',
+    err_nombre_meta: 'Name und Ziel erforderlich',
+    err_nombre_requerido: 'Name erforderlich',
+    err_pdf: 'PDF-Generierungsfehler',
+    err_selecciona_cat: 'Wähle eine Kategorie',
+    err_selecciona_cuenta: 'Wähle ein Konto',
+    err_valor_salida: 'Ausstiegswert eingeben',
+    gc_ahora_no: 'Nicht jetzt',
+    gc_crear: 'Ziel erstellen 🎯',
+    gc_sub: 'Ein Sparziel zu setzen ist der erste Schritt. Wir helfen dir es automatisch zu verfol',
+    gc_titulo: 'Was ist dein Ziel diesen Monat?',
+    guardando: '⏳ Speichere…',
+    intro_tagline: 'Deine Finanzen, geordnet',
+    inversion_saldo_hint: 'Wähle ein Konto, um verfügbaren Saldo zu sehen',
+    inversion_ya_liquidada: 'Diese Investition wurde bereits am geschlossen',
+    libre: 'Frei',
+    meses: 'Monate',
+    mini_intro_tagline: 'Deine Finanzen, geordnet',
+    mission_bar_sub: 'Füge dein erstes Einkommen hinzu, um zu beginnen',
+    mission_bar_titulo: 'Schließe deine erste Mission ab',
+    mission_modal_cerrar: 'Schließen',
+    mission_modal_sub: 'Vollende diese Aktionen, um MoneyNest in 5 Minuten zu entdecken.',
+    mission_modal_titulo: '🚀 Deine Startmissionen',
+    modal_aportar_cuenta_lbl: 'Quellkonto',
+    modal_aportar_existente_lbl: '🏦 Vorhandenes Geld',
+    modal_aportar_existente_sub: 'Wird vom Verfügbaren abgezogen',
+    modal_aportar_fuente: 'Woher kommt dieses Geld?',
+    modal_aportar_importe_lbl: 'Beitragsbetrag (€) *',
+    modal_aportar_nuevo_lbl: '💸 Neues Geld',
+    modal_aportar_nuevo_sub: 'Beeinflusst nicht das Verfügbare',
+    modal_cuenta_color_lbl: 'Identifikationsfarbe',
+    modal_cuenta_nombre_lbl: 'Kontoname *',
+    modal_cuenta_nombre_ph: 'Santander-Girokonto...',
+    modal_cuenta_notas_lbl: 'Institut / Notizen',
+    modal_cuenta_notas_ph: 'Santander, ING...',
+    modal_cuenta_saldo_hint: 'Jetzt frei zu nutzen',
+    modal_cuenta_saldo_lbl: 'Verfügbares Geld (€)',
+    modal_cuenta_tipo_ahorro: '💰 Ersparnisse',
+    modal_cuenta_tipo_banco: '🏦 Bank',
+    modal_cuenta_tipo_cripto: '₿ Krypto',
+    modal_cuenta_tipo_efectivo: '💵 Bargeld',
+    modal_cuenta_tipo_inversion: '📈 Investition',
+    modal_cuenta_tipo_lbl: 'Typ',
+    modal_cuenta_tipo_otro: '📁 Sonstiges',
+    modal_cuenta_titulo: 'Neues Konto',
+    modal_cuenta_titulo_editar: 'Konto bearbeiten',
+    modal_cuenta_valor_hint: 'Gesamtsaldo inklusive Assets',
+    modal_cuenta_valor_lbl: 'Gesamtkontowert (€)',
+    modal_deuda_cat_lbl: 'Kategorie',
+    modal_deuda_interes_lbl: 'Jährliche Zinsen (%)',
+    modal_deuda_nombre_lbl: 'Name *',
+    modal_deuda_notas_lbl: 'Notizen',
+    modal_deuda_nueva_cat_lbl: 'Neue Kategorie',
+    modal_deuda_pagado_lbl: 'Bereits bezahlt (€)',
+    modal_deuda_total_lbl: 'Gesamtschulden (€) *',
+    modal_deuda_vencimiento_lbl: 'Fälligkeitsdatum',
+    modal_export_desc: 'Exportiere deine Finanzdaten in deinem bevorzugten Format.',
+    modal_export_excel_sub: 'Einkommen, Ausgaben, Investitionen, Schulden, Ziele, Clients',
+    modal_export_excel_titulo: 'Vollständige Excel (alle Blätter)',
+    modal_export_json_sub: 'Alle Daten · Zum späteren Wiederherstellen',
+    modal_export_json_titulo: 'Sicherung (JSON)',
+    modal_export_pdf_sub: 'Visuelle Zusammenfassung mit allen Abschnitten',
+    modal_export_pdf_titulo: 'Vollständiger PDF-Bericht',
+    modal_export_seccion: 'Nach Abschnitt exportieren',
+    modal_export_titulo: 'Daten exportieren',
+    modal_gasto_cat_lbl: 'Kategorie',
+    modal_gasto_concepto_lbl: 'Beschreibung *',
+    modal_gasto_cuenta_lbl: 'Konto *',
+    modal_gasto_cuenta_sub: '(erforderlich)',
+    modal_gasto_fecha_lbl: 'Datum',
+    modal_gasto_importe_lbl: 'Betrag (€) *',
+    modal_gasto_notas_lbl: 'Notizen',
+    modal_gasto_nueva_cat_lbl: 'Neue Kategorie',
+    modal_ingreso_cat_lbl: 'Kategorie',
+    modal_ingreso_concepto_lbl: 'Beschreibung *',
+    modal_ingreso_cuenta_lbl: 'Konto *',
+    modal_ingreso_cuenta_sub: '(erforderlich)',
+    modal_ingreso_fecha_lbl: 'Datum',
+    modal_ingreso_importe_lbl: 'Betrag (€) *',
+    modal_ingreso_notas_lbl: 'Notizen',
+    modal_ingreso_nueva_cat_lbl: 'Neue Kategorie',
+    modal_inv_capital_lbl: 'Investiertes Kapital (€) *',
+    modal_inv_cat_lbl: 'Kategorie',
+    modal_inv_cuenta_lbl: 'Quellkonto *',
+    modal_inv_fecha_lbl: 'Eingabedatum',
+    modal_inv_nombre_lbl: 'Name *',
+    modal_inv_notas_lbl: 'Notizen',
+    modal_inv_nueva_cat_lbl: 'Neue Kategorie',
+    modal_inv_rentabilidad_hint: 'Nur für Assets mit vorhersehbarer Rendite',
+    modal_inv_rentabilidad_lbl: 'Erwartete Rendite (%)',
+    modal_liquidar_cuenta_lbl: 'Konto zum Einzahlen',
+    modal_liquidar_info: '✓ Kapital wird zurückgegeben · Gewinn als Einkommen erfasst · Verlust als Ausgabe erfasst',
+    modal_liquidar_rentabilidad_lbl: 'Oder tatsächliche Rendite (%)',
+    modal_liquidar_titulo: '💰 Investition liquidieren',
+    modal_liquidar_valor_lbl: 'Ausstiegswert (€)',
+    modal_monthly_titulo: '📋 Monatlicher Abschluss',
+    modal_obj_actual_lbl: 'Bisher gespart (€)',
+    modal_obj_cat_lbl: 'Kategorie',
+    modal_obj_color_lbl: 'Farbe',
+    modal_obj_fecha_lbl: 'Zieldatum',
+    modal_obj_imagen_sub: 'Optional · erscheint als Kartenhintergrund',
+    modal_obj_imagen_titulo: 'Zielimage',
+    modal_obj_meta_lbl: 'Ziel (€) *',
+    modal_obj_nombre_lbl: 'Name *',
+    modal_obj_notas_lbl: 'Notizen',
+    modal_obj_nueva_cat_lbl: 'Neue Kategorie',
+    modal_obj_quitar_btn: '✕ Entfernen',
+    modal_obj_subir_btn: '📷 Bild hochladen',
+    modal_pago_fecha_lbl: 'Zahlungsdatum',
+    modal_pago_importe_lbl: 'Zahlungsbetrag (€) *',
+    modal_pres_cat_lbl: 'Kategorie',
+    modal_pres_limite_lbl: 'Monatliches Limit (€) *',
+    modal_pres_nueva_cat_lbl: 'Neue Kategorie',
+    modal_pres_titulo: 'Budget festlegen',
+    modal_tax_autonomo: 'Freiberufler / Unabhängig',
+    modal_tax_custom: 'Benutzerdefiniert',
+    modal_tax_desc: 'Im Geschäftsmodus berechnet MoneyNest automatisch die Steuerrücklage.',
+    modal_tax_empresa: 'Unternehmen (ST 25%)',
+    modal_tax_irpf_hint: 'Quellensteuer / Unternehmenssteuer',
+    modal_tax_irpf_lbl: 'Einkommensteuer (%)',
+    modal_tax_iva_hint: 'MwSt.-Satz zum Berechnen',
+    modal_tax_iva_lbl: 'MwSt. (%)',
+    modal_tax_regimen_lbl: 'Steuerregime',
+    modal_tax_startup: 'Startup / Neues Unternehmen (ST 15%)',
+    modal_tax_titulo: '⚙️ Steuereinstellungen',
+    modal_trans_desde_lbl: 'Von',
+    modal_trans_hacia_lbl: 'Bis',
+    modal_trans_importe_lbl: 'Betrag (€) *',
+    modal_trans_titulo: 'Überweisung zwischen Konten',
+    nav_seccion_finanzas: 'Finanzen',
+    nav_seccion_patrimonio: 'Vermögen',
+    nav_seccion_planificacion: 'Planung',
+    nav_seccion_principal: 'Startseite',
+    nav_seccion_sistema: 'System',
+    nav_sub_analisis: 'Analysen & Trends',
+    nav_sub_cuentas: 'Konten',
+    nav_sub_dashboard: 'Übersicht',
+    nav_sub_deudas: 'Schulden',
+    nav_sub_faq: 'Hilfe',
+    nav_sub_gastos: 'Ausgaben',
+    nav_sub_ingresos: 'Einkommen',
+    nav_sub_inversiones: 'Investitionen',
+    nav_sub_objetivos: 'Ziele',
+    nav_sub_patrimonio: 'Dein Vermögen',
+    nav_sub_presupuestos: 'Budgets',
+    ob_skip: 'Überspringen',
+    quick_add_categoria: 'Kategorie',
+    quick_add_descripcion_ph: 'Beschreibung (optional)',
+    quick_add_gasto: '💸 Ausgabe',
+    quick_add_guardar: 'Speichern',
+    quick_add_ingreso: '💰 Einkommen',
+    quick_add_titulo: '⚡ Schnell hinzufügen',
+    story_cerrar: 'Schließen',
+    story_siguiente: 'Nächste →',
+    toast_aportado_ok: 'Zu Ziel beigetragen ✓',
+    toast_cat_añadida: 'Kategorie hinzugefügt ✓',
+    toast_cat_existe: 'Diese Kategorie existiert bereits',
+    toast_cuenta_eliminada: 'Konto gelöscht',
+    toast_cuenta_guardada: 'Konto gespeichert ✓',
+    toast_cuenta_min: 'Du brauchst mindestens ein Konto',
+    toast_datos_eliminados: 'Alle Daten gelöscht — Einstellungen zurückgesetzt',
+    toast_deuda_eliminada: 'Schulden gelöscht',
+    toast_deuda_guardada: 'Schulden gespeichert ✓',
+    toast_deudas_exportadas: 'Schulden exportiert ✓',
+    toast_drive_error: 'Drive nicht verfügbar — lokaler Download',
+    toast_drive_ok: '☁️ Sicherung auf Google Drive gespeichert ✓',
+    toast_espacio_insuficiente: '💾 Nicht genug Platz. Verwende ein kleineres Bild.',
+    toast_excel_exportado: 'Excel exportiert ✓',
+    toast_exportado: 'Exportiert ✓',
+    toast_gasto_eliminado: 'Ausgabe gelöscht',
+    toast_gasto_guardado: 'Ausgabe gespeichert ✓',
+    toast_gastos_exportados: 'Ausgaben exportiert ✓',
+    toast_guardado: 'Gespeichert ✓',
+    toast_imagen_actualizada: 'Bild aktualisiert ✓',
+    toast_imagen_eliminada: 'Bild entfernt',
+    toast_ingreso_eliminado: 'Einkommen gelöscht',
+    toast_ingreso_guardado: 'Einkommen gespeichert ✓',
+    toast_ingresos_exportados: 'Einkommen exportiert ✓',
+    toast_inversion_eliminada: 'Investition gelöscht',
+    toast_inversion_guardada: 'Investition erfasst ✓ · Saldo aktualisiert',
+    toast_inversiones_exportadas: 'Investitionen exportiert ✓',
+    toast_json_exportado: 'Sicherung exportiert ✓',
+    toast_json_importado: 'Daten importiert ✓',
+    toast_liquidado_ganancia: 'Investition geschlossen · Gewinn erfasst',
+    toast_liquidado_neutro: 'Investition geschlossen',
+    toast_liquidado_perdida: 'Investition geschlossen · Verlust erfasst',
+    toast_objetivo_eliminado: 'Ziel gelöscht',
+    toast_objetivo_guardado: 'Ziel gespeichert ✓',
+    toast_objetivos_exportados: 'Ziele exportiert ✓',
+    toast_pago_registrado: 'Zahlung erfasst ✓',
+    toast_pdf_exportado: 'PDF exportiert ✓',
+    toast_perfil_guardado: 'Profil gespeichert ✓',
+    toast_presupuesto_eliminado: 'Budget gelöscht',
+    toast_presupuesto_guardado: 'Budget gespeichert ✓',
+    toast_presupuestos_exportados: 'Budgets exportiert ✓',
+    toast_transferencia_ok: 'Überweisung abgeschlossen ✓',
+    topbar_activar_pro: '⚡ Pro aktivieren',
+    topbar_cambiar_tema: 'Design ändern',
+    topbar_disponible: 'Verfügbar',
+    topbar_exportar: '⬆ Exportieren',
+    tut_salir: '✕ Beenden',
+    tut_siguiente: 'Nächste →',
+    ver_movimientos_btn: '📋 Bewegungen anzeigen',
+    deuda_libertad_titulo: '🏁 Finanzielle Freiheitsplanung',
+    deuda_libertad_sub: 'Lege dein Ziel fest und berechne, wie viel du zahlen musst',
+    deuda_libertad_objetivo_lbl: 'Ich möchte schuldenfrei sein in',
+    deuda_libertad_calcular: 'Rate berechnen',
+    deuda_libertad_resultado_pre: 'Um in',
+    deuda_libertad_resultado_mid: 'schuldenfrei zu sein, musst du zahlen:',
+    deuda_libertad_mensual: 'Monatlich',
+    deuda_libertad_semanal: 'Wöchentlich',
+    deuda_libertad_diario: 'Täglich',
+    deuda_libertad_sin_deuda: 'Du bist bereits schuldenfrei! 🎉',
+    deuda_libertad_invalido: 'Bitte gib einen gültigen Zeitraum ein (Zahl größer als 0).',
+    anos: 'Jahre',
+    semanas: 'Wochen',
+    dias: 'Tage',
+    deuda_activar_estrategia: 'Diese Strategie aktivieren',
+    deuda_estrategia_activa: '✓ Aktive Strategie',
+    deuda_info_automatizacion: 'Deine Zahlungen werden gemäß diesem Betrag verteilt, um dein Ziel im vorgesehenen Zeitraum zu erreichen.',
+    topbar_prueba_termina_en: 'Testphase endet in:',
+    horas: 'h',
+    minutos: 'm',
+},
+  pt: {
+    nav_principal: 'Principal', nav_finanzas: 'Finanças',
+    nav_planificacion: 'Planeamento', nav_patrimonio_sec: 'Património',
+    nav_sistema: 'Sistema',
+    nav_dashboard: 'Dashboard', nav_ingresos: 'Receitas',
+    nav_gastos: 'Despesas', nav_inversiones: 'Investimentos',
+    nav_deudas: 'Dívidas', nav_objetivos: 'Objetivos',
+    nav_presupuestos: 'Orçamentos', nav_cuentas: 'Contas',
+    nav_patrimonio: 'Património', nav_analisis: 'Análise',
+    nav_configuracion: 'Configurações', nav_faq: 'FAQ', nav_sugerencias: 'Sugestões',
+    nav_billing: 'Plano & Faturação',
+    nav_cerrar_sesion: 'Terminar sessão',
+    disponible: 'Disponível', exportar: 'Exportar',
+    theme_dark: 'Modo escuro', theme_light: 'Modo claro',
+    patrimonio_neto: 'Património Líquido',
+    ingresos_mes: 'Receitas este mês', gastos_mes: 'Despesas este mês',
+    cash_flow: 'Fluxo de caixa', ahorro_mes: 'Poupança este mês',
+    sin_movimientos: 'Sem transações registadas',
+    actividad_reciente: 'Atividade recente', ultimas_transacciones: 'Últimas transações',
+    ver_todo: 'Ver tudo →', evolucion_patrimonio: 'Evolução do património',
+    ultimos_6_meses: 'Últimos 6 meses', gastos_categoria: 'Despesas por categoria',
+    insights: 'Insights', basado_datos: 'Baseado nos seus dados reais',
+    todo_orden: 'Tudo em ordem este mês!', sigue_registrando: 'Continue a registar as suas transações.',
+    primer_mes: 'Primeiro mês', ingresos_año: 'Receitas', gastos_año: 'Despesas',
+    resumen_financiero: 'Resumo financeiro', hola: 'Olá,',
+    btn_guardar: 'Guardar', btn_cancelar: 'Cancelar', btn_eliminar: 'Eliminar',
+    btn_editar: 'Editar', btn_nuevo: 'Novo', btn_exportar: '⬆ Exportar',
+    btn_nuevo_ingreso: '+ Nova receita', btn_nuevo_gasto: '+ Nova despesa',
+    btn_nueva_inversion: '+ Novo investimento', btn_nueva_deuda: '+ Nova dívida',
+    btn_nuevo_objetivo: '+ Novo objetivo',
+    page_ingresos: 'Receitas', sub_ingresos: 'Todas as suas receitas',
+    page_gastos: 'Despesas', sub_gastos: 'Todas as suas despesas',
+    page_inversiones: 'Investimentos', page_cuentas: 'Contas',
+    page_deudas: 'Dívidas', page_objetivos: 'Objetivos',
+    page_presupuestos: 'Orçamentos', page_analisis: 'Análise',
+    page_configuracion: 'Configurações',
+    page_faq: 'Perguntas frequentes', page_sugerencias: 'Sugestões',
+    sug_tipo_sug: 'Sugestão', sug_tipo_preg: 'Pergunta',
+    sug_placeholder: 'Descreva a sua ideia ou pergunta...', sug_enviar_email: '📧 Enviar por email', sug_guardar: '💾 Guardar localmente',
+    ob_bienvenida: 'Bem-vindo ao MoneyNest! 🪺',
+    ob_bienvenida_sub: 'Qual é o seu nome?',
+    ob_idioma: 'Escolha o seu idioma', ob_idioma_sub: 'Selecione o idioma que prefere.',
+    ob_tema: 'Escolha o seu tema', ob_tema_sub: 'Pode alterá-lo a qualquer momento.',
+    ob_listo: 'Tudo configurado!',
+    ob_listo_sub: 'Quer ver um tour interativo?',
+    ob_continuar: 'Continuar →', ob_empezar: 'Começar!',
+    ob_omitir: 'Saltar', ob_atras: '← Anterior',
+    ob_ver_tutorial: 'Ver tutorial', ob_ir_directo: 'Ir direto',
+    ob_3min: '~3 minutos', ob_exploro: 'Vou explorar',
+    ob_oscuro: 'Escuro', ob_claro: 'Claro',
+    ob_nombre_placeholder: 'O seu nome...',
+    ob_s1_pill: 'Passo 1 de 3 · Boas-vindas',
+    ob_s1_h1: 'O seu dinheiro,', ob_s1_h2: 'finalmente <span>sob controlo.</span>',
+    ob_s1_lead: 'MoneyNest é o seu painel financeiro pessoal. Receitas, despesas, investimentos e objetivos — tudo num só lugar.',
+    ob_s1_placeholder: 'Qual é o seu nome?', ob_s1_hint: 'Só para personalizar — sem conta, sem email',
+    ob_s1_cta: 'Começar',
+    ob_s2_pill: 'Passo 2 de 3 · Personalizar',
+    ob_s2_h1: 'O seu estilo,', ob_s2_h2: 'as suas <span>regras.</span>',
+    ob_s2_lead: 'Escolha idioma e tema. Pode alterá-lo em qualquer momento nas Definições.',
+    ob_s2_idioma_lbl: 'Idioma', ob_s2_tema_lbl: 'Aparência',
+    ob_s2_siguiente: 'Seguinte',
+    ob_s3_pill: 'Passo 3 de 3 · Arrancar',
+    ob_s3_h1: 'Por onde', ob_s3_h2: '<span>começamos?</span>',
+    ob_s3_lead: 'O seu painel está pronto. Escolha como quer começar a sua experiência com o MoneyNest.',
+    ob_s3_greeting: 'Tudo pronto',
+    ob_opt_tutorial_lbl: 'Tour guiado', ob_opt_tutorial_sub: 'Mostramos-lhe tudo passo a passo com exemplos reais (~3 min)',
+    ob_opt_demo_lbl: 'Explorar com dados de exemplo', ob_opt_demo_sub: 'Veja a app completa antes de adicionar os seus dados',
+    ob_opt_direct_lbl: 'Começar diretamente', ob_opt_direct_sub: 'Exploro sozinho, já sei o que preciso',
+    ob_s3_cta: 'Vamos lá! 🚀',
+    ob_left2_title: 'Desenhada para si,', ob_left2_sub: 'desde o primeiro dia.',
+    ob_left2_desc: 'Escolha o idioma e o tema que melhor se adapta à sua forma de trabalhar.',
+    ob_left2_idioma_lbl: '🌍 Idioma ativo', ob_left2_tema_lbl: '🎨 Tema',
+    ob_feat_ingresos: 'Receitas & Despesas', ob_feat_ingresos_sub: 'Controlo total do seu fluxo',
+    ob_feat_inv: 'Investimentos', ob_feat_inv_sub: 'Acompanhe o seu portfólio',
+    ob_feat_obj: 'Objetivos', ob_feat_obj_sub: 'Alcance as suas metas financeiras',
+    ob_feat_priv: '100% privado', ob_feat_priv_sub: 'Os seus dados apenas no seu dispositivo',
+    ob_feat_gratis: 'Sem subscrição', ob_feat_gratis_sub: 'Tudo grátis, sem limites',
+    ob_left3_ready: '✨ O seu painel está pronto — comece a adicionar os seus dados',
+    sin_datos: 'Dados insuficientes', buscar: 'Pesquisar...',
+    todas_cats: 'Todas as categorias', periodo: 'Período:',
+    este_mes: 'Este mês', mes_anterior: 'Mês anterior',
+    este_año: 'Este ano', todo: 'Tudo', personalizado: 'Personalizado',
+    cfg_perfil: 'O seu perfil', cfg_nombre: 'Nome', cfg_guardar: '💾 Guardar',
+    cfg_idioma: 'Idioma', cfg_apariencia: 'Aparência',
+    cfg_oscuro: 'Escuro', cfg_claro: 'Claro', cfg_activo: '✓ Ativo',
+    cfg_apariencia_tip: 'Também pode alterá-lo a partir da barra lateral.',
+    cfg_datos: 'Importar / Exportar dados',
+    cfg_exportar_pdf: '📊 Exportar relatório completo (PDF / Excel)',
+    cfg_backup_json: '📤 Cópia de segurança (JSON)',
+    cfg_drive: '☁️ Guardar no Google Drive',
+    cfg_importar: '📥 Importar cópia de segurança',
+    cfg_borrar_todo: '🗑 Apagar todos os dados',
+    cfg_demo_titulo: 'Modo demo',
+    cfg_demo_activo_lbl: '● Ativo · dados de exemplo carregados',
+    cfg_demo_inactivo_lbl: 'Explorar a app com dados de exemplo',
+    cfg_demo_desc_on: 'Os dados são de exemplo. Use o botão flutuante 🟡 Modo demo (canto inferior direito) para alterar o perfil ou sair.',
+    cfg_demo_desc_off: 'Explore todas as funções sem introduzir os seus próprios dados. Escolha um perfil e carregue dados realistas instantaneamente.',
+    cfg_demo_salir: '🏁 Sair para o modo real', cfg_demo_recargar: '🔄 Recarregar com perfil padrão',
+    cfg_demo_activar: '🚀 Ativar modo demo',
+    cfg_info: 'Informações da app', cfg_version_lbl: 'Versão',
+    cfg_ver_tutorial: '🎓 Ver tutorial',
+    cfg_cats_titulo: 'Categorias personalizadas',
+    cfg_cats_sub: 'Os emojis são atribuídos automaticamente',
+    cfg_nueva_cat: 'Nova categoria...',
+    cfg_emoji_tip: 'Toque no emoji para escolher, depois escreva o nome',
+    cfg_anadir: '+ Adicionar', cfg_personaliza_sub: 'Personalize a sua experiência MoneyNest',
+    cat_type_ingreso: 'Receitas', cat_type_gasto: 'Despesas',
+    cat_type_inversion: 'Investimentos', cat_type_deuda: 'Dívidas', cat_type_objetivo: 'Objetivos',
+    trial_pill: 'Avaliação gratuita', trial_days_left: 'dias restantes',
+    guest_gate_title: 'Crie a sua conta para continuar',
+    guest_gate_desc: 'Para adicionar movimentos precisa de uma conta gratuita. Comece com 7 dias de avaliação completa.',
+      bn_analisis: 'Análises',
+    bn_config: 'Configurações',
+    bn_gastos: 'Despesas',
+    bn_inicio: 'Início',
+    btn_aportar_confirm: 'Contribuir',
+    btn_cuenta_cancelar: 'Cancelar',
+    btn_cuenta_guardar: 'Salvar',
+    btn_liquidar_confirm: 'Liquidar',
+    btn_monthly_cerrar: 'Fechar',
+    btn_monthly_pdf: '📄 Exportar PDF',
+    btn_presupuesto_cancelar: 'Cancelar',
+    btn_presupuesto_guardar: 'Salvar',
+    btn_registrar_pago: 'Registrar pagamento',
+    btn_tax_cancelar: 'Cancelar',
+    btn_tax_guardar: 'Salvar',
+    btn_trans_cancelar: 'Cancelar',
+    btn_trans_transferir: 'Transferir',
+    cliente_editar: 'Editar Cliente',
+    cliente_nuevo: 'Novo Cliente',
+    cobrado_btn: '✓ Coletado',
+    confirm_borrar_todo: 'Excluir TODOS os dados? Esta ação não pode ser desfeita.',
+    confirm_borrar_todo_btn: 'Excluir tudo',
+    confirm_borrar_todo_titulo: 'Excluir todos os dados',
+    confirm_btn_cancelar: 'Cancelar',
+    confirm_btn_eliminar: 'Excluir',
+    confirm_cerrar_sesion: 'Sair? Seu plano e dados financeiros permanecerão neste dispositivo.',
+    confirm_cerrar_sesion_btn: 'Sair',
+    confirm_cerrar_sesion_titulo: 'Sair',
+    confirm_eliminar_cliente: 'Excluir este cliente?',
+    confirm_eliminar_cliente_titulo: 'Excluir cliente',
+    confirm_eliminar_cuenta: 'Excluir esta conta?',
+    confirm_eliminar_cuenta_titulo: 'Excluir conta',
+    confirm_eliminar_deuda: 'Excluir esta dívida?',
+    confirm_eliminar_deuda_titulo: 'Excluir dívida',
+    confirm_eliminar_gasto: 'Excluir esta despesa?',
+    confirm_eliminar_gasto_titulo: 'Excluir despesa',
+    confirm_eliminar_ingreso: 'Excluir esta receita? Esta ação não pode ser desfeita.',
+    confirm_eliminar_ingreso_titulo: 'Excluir receita',
+    confirm_eliminar_inversion: 'Excluir este investimento?',
+    confirm_eliminar_inversion_titulo: 'Excluir investimento',
+    confirm_eliminar_objetivo: 'Excluir este objetivo?',
+    confirm_eliminar_objetivo_titulo: 'Excluir objetivo',
+    confirm_eliminar_presupuesto: 'Excluir o orçamento para',
+    confirm_eliminar_presupuesto_titulo: 'Excluir orçamento',
+    confirm_importar: 'Importar dados? Todos os dados atuais serão substituídos.',
+    confirm_importar_btn: 'Importar',
+    confirm_importar_titulo: 'Importar dados',
+    confirm_saldo_neg: 'deixará a conta com saldo negativo. Continuar?',
+    confirm_saldo_neg_btn: 'Continuar mesmo assim',
+    confirm_saldo_neg_titulo: '⚠️ Saldo insuficiente',
+    confirm_salir_demo: 'Sair do modo demo e excluir dados de exemplo?',
+    confirm_salir_demo_btn: 'Sair para modo real',
+    confirm_salir_demo_titulo: 'Sair da demo',
+    confirm_titulo_def: 'Tem certeza?',
+    cuenta_nombre_ph: 'Conta corrente Santander...',
+    cuenta_sin_cuenta: 'Sem conta',
+    deuda_calculadora_ph: 'Quanto você pode pagar por mês? (€)',
+    deuda_calcular_btn: 'Calcular',
+    deuda_input_invalido: 'Insira um valor mensal válido.',
+    deuda_libre_pagar: 'Pagando por mês você estaria sem dívidas em aprox.',
+    deuda_sin_pendientes: '✅ Você não tem dívidas pendentes!',
+    drive_guardado: '✓ Salvo',
+    drive_guardando: '⏳ Salvando...',
+    drive_local: '(download local)',
+    err_concepto_importe: 'Descrição e valor necessários',
+    err_cuenta_no_encontrada: 'Conta não encontrada',
+    err_cuenta_origen: 'Selecione a conta para receber o capital',
+    err_cuentas_distintas: 'Selecione contas diferentes',
+    err_excel: 'Erro ao gerar Excel',
+    err_exportar: 'Erro de exportação',
+    err_importe_aportar: 'Insira o valor',
+    err_importe_pago: 'Insira o valor do pagamento',
+    err_importe_valido: 'Insira um valor válido',
+    err_inversion_no_encontrada: 'Investimento não encontrado',
+    err_leer_archivo: 'Erro ao ler arquivo',
+    err_limite_valido: 'Insira um limite válido',
+    err_nombre_importe: 'Nome e valor necessários',
+    err_nombre_meta: 'Nome e objetivo necessários',
+    err_nombre_requerido: 'Nome necessário',
+    err_pdf: 'Erro ao gerar PDF',
+    err_selecciona_cat: 'Selecione uma categoria',
+    err_selecciona_cuenta: 'Selecione uma conta',
+    err_valor_salida: 'Insira o valor de saída',
+    gc_ahora_no: 'Agora não',
+    gc_crear: 'Criar objetivo 🎯',
+    gc_sub: 'Definir uma meta de poupança é o primeiro passo. Vamos ajudar você a rastreá-la.',
+    gc_titulo: 'Qual é seu objetivo este mês?',
+    guardando: '⏳ Salvando…',
+    intro_tagline: 'Suas finanças, em ordem',
+    inversion_saldo_hint: 'Selecione uma conta para ver o saldo disponível',
+    inversion_ya_liquidada: 'Este investimento foi fechado em',
+    libre: 'Livre',
+    meses: 'meses',
+    mini_intro_tagline: 'Suas finanças, em ordem',
+    mission_bar_sub: 'Adicione sua primeira receita para começar',
+    mission_bar_titulo: 'Complete sua primeira missão',
+    mission_modal_cerrar: 'Fechar',
+    mission_modal_sub: 'Conclua essas ações para descobrir MoneyNest em 5 minutos.',
+    mission_modal_titulo: '🚀 Suas missões iniciais',
+    modal_aportar_cuenta_lbl: 'Conta de origem',
+    modal_aportar_existente_lbl: '🏦 Dinheiro existente',
+    modal_aportar_existente_sub: 'Deduzido do disponível',
+    modal_aportar_fuente: 'De onde vem esse dinheiro?',
+    modal_aportar_importe_lbl: 'Valor a contribuir (€) *',
+    modal_aportar_nuevo_lbl: '💸 Dinheiro novo',
+    modal_aportar_nuevo_sub: 'Não afeta o disponível',
+    modal_cuenta_color_lbl: 'Cor identificatória',
+    modal_cuenta_nombre_lbl: 'Nome da conta *',
+    modal_cuenta_nombre_ph: 'Conta corrente Santander...',
+    modal_cuenta_notas_lbl: 'Instituição / Notas',
+    modal_cuenta_notas_ph: 'Santander, ING...',
+    modal_cuenta_saldo_hint: 'Livre para usar agora',
+    modal_cuenta_saldo_lbl: 'Dinheiro disponível (€)',
+    modal_cuenta_tipo_ahorro: '💰 Poupança',
+    modal_cuenta_tipo_banco: '🏦 Banco',
+    modal_cuenta_tipo_cripto: '₿ Cripto',
+    modal_cuenta_tipo_efectivo: '💵 Dinheiro',
+    modal_cuenta_tipo_inversion: '📈 Investimento',
+    modal_cuenta_tipo_lbl: 'Tipo',
+    modal_cuenta_tipo_otro: '📁 Outro',
+    modal_cuenta_titulo: 'Nova Conta',
+    modal_cuenta_titulo_editar: 'Editar Conta',
+    modal_cuenta_valor_hint: 'Saldo total incluindo ativos',
+    modal_cuenta_valor_lbl: 'Valor total da conta (€)',
+    modal_deuda_cat_lbl: 'Categoria',
+    modal_deuda_interes_lbl: 'Juros anuais (%)',
+    modal_deuda_nombre_lbl: 'Nome *',
+    modal_deuda_notas_lbl: 'Notas',
+    modal_deuda_nueva_cat_lbl: 'Nova categoria',
+    modal_deuda_pagado_lbl: 'Já pago (€)',
+    modal_deuda_total_lbl: 'Dívida total (€) *',
+    modal_deuda_vencimiento_lbl: 'Vencimento',
+    modal_export_desc: 'Exporte seus dados financeiros no formato preferido.',
+    modal_export_excel_sub: 'Receita, despesas, investimentos, dívidas, objetivos, clientes',
+    modal_export_excel_titulo: 'Excel completo (todas as abas)',
+    modal_export_json_sub: 'Todos os dados · Para restaurar depois',
+    modal_export_json_titulo: 'Backup (JSON)',
+    modal_export_pdf_sub: 'Resumo visual com todas as seções',
+    modal_export_pdf_titulo: 'Relatório PDF completo',
+    modal_export_seccion: 'Exportar por seção',
+    modal_export_titulo: 'Exportar dados',
+    modal_gasto_cat_lbl: 'Categoria',
+    modal_gasto_concepto_lbl: 'Descrição *',
+    modal_gasto_cuenta_lbl: 'Conta *',
+    modal_gasto_cuenta_sub: '(obrigatória)',
+    modal_gasto_fecha_lbl: 'Data',
+    modal_gasto_importe_lbl: 'Valor (€) *',
+    modal_gasto_notas_lbl: 'Notas',
+    modal_gasto_nueva_cat_lbl: 'Nova categoria',
+    modal_ingreso_cat_lbl: 'Categoria',
+    modal_ingreso_concepto_lbl: 'Descrição *',
+    modal_ingreso_cuenta_lbl: 'Conta *',
+    modal_ingreso_cuenta_sub: '(obrigatória)',
+    modal_ingreso_fecha_lbl: 'Data',
+    modal_ingreso_importe_lbl: 'Valor (€) *',
+    modal_ingreso_notas_lbl: 'Notas',
+    modal_ingreso_nueva_cat_lbl: 'Nova categoria',
+    modal_inv_capital_lbl: 'Capital investido (€) *',
+    modal_inv_cat_lbl: 'Categoria',
+    modal_inv_cuenta_lbl: 'Conta de origem *',
+    modal_inv_fecha_lbl: 'Data de entrada',
+    modal_inv_nombre_lbl: 'Nome *',
+    modal_inv_notas_lbl: 'Notas',
+    modal_inv_nueva_cat_lbl: 'Nova categoria',
+    modal_inv_rentabilidad_hint: 'Apenas para ativos com retorno previsível',
+    modal_inv_rentabilidad_lbl: 'Retorno esperado (%)',
+    modal_liquidar_cuenta_lbl: 'Conta para depositar',
+    modal_liquidar_info: '✓ Capital será devolvido · Ganho registrado como receita · Perda registrada como despesa',
+    modal_liquidar_rentabilidad_lbl: 'Ou retorno real (%)',
+    modal_liquidar_titulo: '💰 Liquidar investimento',
+    modal_liquidar_valor_lbl: 'Valor de saída (€)',
+    modal_monthly_titulo: '📋 Fechamento mensal',
+    modal_obj_actual_lbl: 'Poupado até agora (€)',
+    modal_obj_cat_lbl: 'Categoria',
+    modal_obj_color_lbl: 'Cor',
+    modal_obj_fecha_lbl: 'Data do objetivo',
+    modal_obj_imagen_sub: 'Opcional · aparece como fundo do cartão',
+    modal_obj_imagen_titulo: 'Imagem do objetivo',
+    modal_obj_meta_lbl: 'Objetivo (€) *',
+    modal_obj_nombre_lbl: 'Nome *',
+    modal_obj_notas_lbl: 'Notas',
+    modal_obj_nueva_cat_lbl: 'Nova categoria',
+    modal_obj_quitar_btn: '✕ Remover',
+    modal_obj_subir_btn: '📷 Enviar imagem',
+    modal_pago_fecha_lbl: 'Data do pagamento',
+    modal_pago_importe_lbl: 'Valor do pagamento (€) *',
+    modal_pres_cat_lbl: 'Categoria',
+    modal_pres_limite_lbl: 'Limite mensal (€) *',
+    modal_pres_nueva_cat_lbl: 'Nova categoria',
+    modal_pres_titulo: 'Definir Orçamento',
+    modal_tax_autonomo: 'Autônomo / Freelancer',
+    modal_tax_custom: 'Personalizado',
+    modal_tax_desc: 'No modo empresarial, MoneyNest calculará automaticamente a reserva fiscal.',
+    modal_tax_empresa: 'Empresa (IR 25%)',
+    modal_tax_irpf_hint: 'Retenção / Imposto corporativo',
+    modal_tax_irpf_lbl: 'Imposto de Renda (%)',
+    modal_tax_iva_hint: 'Percentual de IVA a cobrar',
+    modal_tax_iva_lbl: 'IVA (%)',
+    modal_tax_regimen_lbl: 'Regime fiscal',
+    modal_tax_startup: 'Startup / Empresa nova (IR 15%)',
+    modal_tax_titulo: '⚙️ Configurações fiscais',
+    modal_trans_desde_lbl: 'De',
+    modal_trans_hacia_lbl: 'Para',
+    modal_trans_importe_lbl: 'Valor (€) *',
+    modal_trans_titulo: 'Transferência entre contas',
+    nav_seccion_finanzas: 'Finanças',
+    nav_seccion_patrimonio: 'Patrimônio Líquido',
+    nav_seccion_planificacion: 'Planejamento',
+    nav_seccion_principal: 'Início',
+    nav_seccion_sistema: 'Sistema',
+    nav_sub_analisis: 'Análises & Tendências',
+    nav_sub_cuentas: 'Contas',
+    nav_sub_dashboard: 'Visão Geral',
+    nav_sub_deudas: 'Dívidas',
+    nav_sub_faq: 'Ajuda',
+    nav_sub_gastos: 'Despesas',
+    nav_sub_ingresos: 'Receita',
+    nav_sub_inversiones: 'Investimentos',
+    nav_sub_objetivos: 'Objetivos',
+    nav_sub_patrimonio: 'Sua riqueza',
+    nav_sub_presupuestos: 'Orçamentos',
+    ob_skip: 'Pular',
+    quick_add_categoria: 'Categoria',
+    quick_add_descripcion_ph: 'Descrição (opcional)',
+    quick_add_gasto: '💸 Despesa',
+    quick_add_guardar: 'Salvar',
+    quick_add_ingreso: '💰 Receita',
+    quick_add_titulo: '⚡ Adicionar rápido',
+    story_cerrar: 'Fechar',
+    story_siguiente: 'Próximo →',
+    toast_aportado_ok: 'Contribuído para objetivo ✓',
+    toast_cat_añadida: 'Categoria adicionada ✓',
+    toast_cat_existe: 'Esta categoria já existe',
+    toast_cuenta_eliminada: 'Conta excluída',
+    toast_cuenta_guardada: 'Conta salva ✓',
+    toast_cuenta_min: 'Você precisa de pelo menos uma conta',
+    toast_datos_eliminados: 'Todos os dados excluídos — configurações redefinidas',
+    toast_deuda_eliminada: 'Dívida excluída',
+    toast_deuda_guardada: 'Dívida salva ✓',
+    toast_deudas_exportadas: 'Dívidas exportadas ✓',
+    toast_drive_error: 'Drive indisponível — download local',
+    toast_drive_ok: '☁️ Backup salvo no Google Drive ✓',
+    toast_espacio_insuficiente: '💾 Espaço insuficiente. Use uma imagem menor.',
+    toast_excel_exportado: 'Excel exportado ✓',
+    toast_exportado: 'Exportado ✓',
+    toast_gasto_eliminado: 'Despesa excluída',
+    toast_gasto_guardado: 'Despesa salva ✓',
+    toast_gastos_exportados: 'Despesas exportadas ✓',
+    toast_guardado: 'Salvo ✓',
+    toast_imagen_actualizada: 'Imagem atualizada ✓',
+    toast_imagen_eliminada: 'Imagem removida',
+    toast_ingreso_eliminado: 'Receita excluída',
+    toast_ingreso_guardado: 'Receita salva ✓',
+    toast_ingresos_exportados: 'Receita exportada ✓',
+    toast_inversion_eliminada: 'Investimento excluído',
+    toast_inversion_guardada: 'Investimento registrado ✓ · Saldo atualizado',
+    toast_inversiones_exportadas: 'Investimentos exportados ✓',
+    toast_json_exportado: 'Backup exportado ✓',
+    toast_json_importado: 'Dados importados ✓',
+    toast_liquidado_ganancia: 'Investimento fechado · Ganho registrado',
+    toast_liquidado_neutro: 'Investimento fechado',
+    toast_liquidado_perdida: 'Investimento fechado · Perda registrada',
+    toast_objetivo_eliminado: 'Objetivo excluído',
+    toast_objetivo_guardado: 'Objetivo salvo ✓',
+    toast_objetivos_exportados: 'Objetivos exportados ✓',
+    toast_pago_registrado: 'Pagamento registrado ✓',
+    toast_pdf_exportado: 'PDF exportado ✓',
+    toast_perfil_guardado: 'Perfil salvo ✓',
+    toast_presupuesto_eliminado: 'Orçamento excluído',
+    toast_presupuesto_guardado: 'Orçamento salvo ✓',
+    toast_presupuestos_exportados: 'Orçamentos exportados ✓',
+    toast_transferencia_ok: 'Transferência concluída ✓',
+    topbar_activar_pro: '⚡ Ativar Pro',
+    topbar_cambiar_tema: 'Mudar tema',
+    topbar_disponible: 'Disponível',
+    topbar_exportar: '⬆ Exportar',
+    tut_salir: '✕ Sair',
+    tut_siguiente: 'Próximo →',
+    ver_movimientos_btn: '📋 Ver movimentos',
+    deuda_libertad_titulo: '🏁 Planejamento de Liberdade Financeira',
+    deuda_libertad_sub: 'Defina seu objetivo e calcule quanto precisa pagar',
+    deuda_libertad_objetivo_lbl: 'Quero ficar livre de dívidas em',
+    deuda_libertad_calcular: 'Calcular prestação',
+    deuda_libertad_resultado_pre: 'Para ser livre em',
+    deuda_libertad_resultado_mid: 'você precisa pagar:',
+    deuda_libertad_mensual: 'Mensal',
+    deuda_libertad_semanal: 'Semanal',
+    deuda_libertad_diario: 'Diário',
+    deuda_libertad_sin_deuda: 'Você já está livre de dívidas! 🎉',
+    deuda_libertad_invalido: 'Insira um período válido (número maior que 0).',
+    anos: 'anos',
+    semanas: 'semanas',
+    dias: 'dias',
+    deuda_activar_estrategia: 'Ativar esta estratégia',
+    deuda_estrategia_activa: '✓ Estratégia Ativa',
+    deuda_info_automatizacion: 'Seus pagamentos serão distribuídos de acordo com este valor para cumprir seu objetivo no prazo previsto.',
+    topbar_prueba_termina_en: 'Avaliação termina em:',
+    horas: 'h',
+    minutos: 'm',
+}
+}
+
+let _currentLang = 'es'
+
+function t(key) {
+  const lang = TRANSLATIONS[_currentLang] || TRANSLATIONS['es']
+  return lang[key] !== undefined ? lang[key] : (TRANSLATIONS['es'][key] || key)
+}
+
+// ════════════════════════════════════════════════════════════════
+// ─── TRADUCCIONES EXTENDIDAS (PASO 1 + PASO 5) ───────────────
+// Cubre el 100% de textos visibles: Dashboard, Ingresos, Gastos,
+// Inversiones, Deudas, Objetivos, Cuentas, Modales, Patrimonio,
+// Análisis, Health Score, filtros, tablas, vacíos y más.
+// También corrige el bug del saludo (Paso 5): hola_nombre
+// ════════════════════════════════════════════════════════════════
+;(function _extendTranslations() {
+  const EXT = {
+    es: {
+      // ── Saludo Dashboard (bug fix: sin doble coma) ──────────
+      hola_sin_coma: 'Hola',          // usado internamente
+      dias_streak: 'días',
+
+      // ── Dashboard – textos extra ────────────────────────────
+      salud_financiera: 'Salud financiera',
+      fin_de_mes: 'Fin de mes',
+      estimado: 'estimado',
+      posible_deficit: 'posible déficit',
+      liquidez: 'Liquidez',
+      invertido: 'Invertido',
+      activos: 'Activos',
+      deudas_lbl: 'Deudas',
+      sin_deudas: 'Sin deudas ✅',
+      cuentas_lbl: 'Cuentas',
+      superavit: 'Superávit',
+      deficit: 'Déficit',
+      vs_mes_ant: 'vs. mes ant.',
+      vs_ant: 'vs. ant.',
+      primer_mes_lbl: 'Primer mes',
+      entradas: 'entradas',
+      salidas: 'salidas',
+      ahorro_rate: 'Ahorro:',
+      mas_ver_todo: 'más →',
+      generados_tus_datos: 'Generados desde tus datos',
+      aun_sin_datos: 'Aún no hay suficientes datos',
+      anadir_movs: 'Añade algunos movimientos para ver insights personalizados.',
+      todo_orden_mes: 'Todo en orden este mes',
+      sigue_mas_detalle: 'Sigue registrando para obtener análisis más detallados.',
+      sin_movimientos_aun: 'Sin movimientos registrados aún',
+
+      // ── Ingresos ────────────────────────────────────────────
+      cobrado_este_mes: 'Cobrado este mes',
+      pendiente_cobro: 'Pendiente de cobro',
+      top_categoria: 'Top categoría',
+      mes_anterior_lbl: 'Mes anterior',
+      por_categoria_mes: 'Por categoría (mes actual)',
+      evolucion_6m: 'Evolución 6 meses',
+      pendientes_cobro_titulo: 'Pendientes de cobro',
+      ingresos_cobrados: 'Ingresos cobrados',
+      cobrar_btn: '✓ Cobrado',
+      estado_pendiente: '⏳ Pendiente',
+      estado_recurrente: '↻ Recurrente',
+      concepto: 'Concepto',
+      importe: 'Importe',
+      categoria: 'Categoría',
+      fecha: 'Fecha',
+      cuenta_destino: 'Cuenta destino',
+      cuenta_lbl: 'Cuenta',
+      estado: 'Estado',
+      acciones: 'Acciones',
+      buscar_concepto: '🔍 Buscar por concepto...',
+      todas_categorias: 'Todas las categorías',
+      todos_sin_filtro: 'Todos (sin filtro)',
+      limpiar_filtros: '✕ Limpiar',
+      ver_todos_ingresos: '🔍 Ver todos los ingresos',
+      sin_resultados_periodo: 'Sin resultados en este período',
+      sin_ingresos_cobrados: 'Aún no tienes ingresos cobrados',
+      cambiar_periodo: 'Cambia el período o limpia los filtros para ver tus ingresos',
+      primer_ingreso: 'Añade tu primer ingreso con el botón + Nuevo ingreso',
+      cobrados_lbl: 'cobrado',
+      cobrados_lbl_pl: 'cobrados',
+      factura_lbl: 'factura',
+      facturas_lbl: 'facturas',
+      pendiente_lbl: 'pendiente',
+      pendientes_lbl: 'pendientes',
+      entrada_lbl: 'entrada',
+      entradas_lbl: 'entradas',
+      por_cobrar: 'por cobrar',
+
+      // ── Gastos ──────────────────────────────────────────────
+      total_este_mes_g: 'Total este mes',
+      total_este_anio_g: 'Total este año',
+      total_periodo_g: 'Total período',
+      mayor_categoria: 'Mayor categoría',
+      media_mensual_3m: 'Media mensual (3 m)',
+      por_encima: '⬆ Por encima',
+      por_debajo: '⬇ Por debajo',
+      por_categoria: 'Por categoría',
+      todos_gastos: 'Todos los gastos',
+      sin_resultados: 'Sin resultados',
+      ajusta_aniade: 'Ajusta el período o añade un gasto',
+      control_salidas: 'Control de tus salidas de dinero',
+      resultado_lbl: 'resultado',
+      resultados_lbl: 'resultados',
+
+      // ── Inversiones ─────────────────────────────────────────
+      cartera_activa: 'Cartera activa',
+      ganancia_realizada: 'Ganancia realizada',
+      ganancia_latente: 'Ganancia latente',
+      tasa_exito: 'Tasa de éxito',
+      abiertas: 'abiertas',
+      cerradas: 'cerradas',
+      sin_inversiones: 'Aún no tienes inversiones',
+      anadir_primera_inv: 'Añade tu primera inversión para ver el rendimiento de tu cartera.',
+      sin_inversiones_cerradas: 'Sin inversiones cerradas',
+      liquidar_btn: 'Liquidar',
+      roi_real: 'ROI real',
+      roi_esp: 'ROI esp.',
+      capital_inv: 'Capital',
+      valor_actual: 'Valor actual',
+      ganancia_lbl: 'Ganancia',
+      rentabilidad_lbl: 'Rentabilidad',
+      abiertas_lbl: 'Abiertas',
+      cerradas_lbl: 'Cerradas',
+      inv_activas: 'Inversiones activas',
+      inv_cerradas_titulo: 'Historial de inversiones cerradas',
+
+      // ── Deudas ──────────────────────────────────────────────
+      deuda_total: 'Deuda total',
+      pagado_total: 'Pagado total',
+      pendiente_total: 'Pendiente total',
+      interes_medio: 'Interés medio',
+      sin_deudas_titulo: 'Sin deudas registradas',
+      sin_deudas_sub: '¡Enhorabuena! No tienes deudas registradas, o añade una para hacer seguimiento.',
+      pagar_btn: 'Pagar',
+      pagado_lbl: 'Pagado',
+      pendiente_d: 'Pendiente',
+      vence: 'Vence',
+      interes: 'Interés',
+      progreso: 'Progreso',
+      cuota_mens: 'Cuota mensual',
+      nombre_lbl: 'Nombre',
+
+      // ── Objetivos ───────────────────────────────────────────
+      ahorro_total_obj: 'Ahorro total',
+      objetivo_mas_cercano: 'Más cercano',
+      sin_objetivos: 'Aún no tienes objetivos',
+      sin_objetivos_sub: 'Crea tu primer objetivo para empezar a ahorrar de forma organizada.',
+      aportar_btn: 'Aportar',
+      completado: 'Completado ✓',
+      meta_lbl: 'Meta',
+      ahorrado_lbl: 'Ahorrado',
+      faltan_lbl: 'Faltan',
+      dias_lbl: 'días',
+      objetivo_alcanzado: '¡Objetivo alcanzado! 🎉',
+      aportar_titulo: 'Añadir dinero al objetivo',
+      dinero_nuevo: '💸 Dinero nuevo',
+      no_afecta_disponible: 'No afecta al disponible',
+      dinero_existente: '🏦 Dinero existente',
+      resta_disponible: 'Se resta del disponible',
+
+      // ── Cuentas ─────────────────────────────────────────────
+      total_disponible: 'Total disponible',
+      saldo_lbl: 'Saldo',
+      tipo_cuenta: 'Tipo',
+      banco_lbl: 'Banco',
+      efectivo_lbl: 'Efectivo',
+      ahorro_lbl: 'Ahorro',
+      sin_cuentas: 'Sin cuentas registradas',
+      nueva_cuenta_btn: '+ Nueva cuenta',
+      editar_saldo: 'Editar saldo',
+      ajuste_saldo: 'Ajuste de saldo',
+      cuenta_principal: 'Cuenta Principal',
+
+      // ── Presupuestos ─────────────────────────────────────────
+      presupuesto_mensual: 'Presupuesto mensual',
+      gasto_real: 'Gasto real',
+      disponible_pres: 'Disponible',
+      sin_presupuesto: 'Sin presupuesto definido',
+      define_presupuesto: 'Define un presupuesto para esta categoría',
+      presupuesto_lbl: 'Presupuesto',
+      sobre_pres: 'sobre presupuesto',
+      bajo_pres: 'bajo presupuesto',
+      distribucion_503020: 'Distribución 50/30/20',
+      necesidades: 'Necesidades',
+      deseos: 'Deseos',
+      ahorro_inv: 'Ahorro/Inv.',
+      recomendado: 'recomendado',
+      real_lbl: 'real',
+
+      // ── Patrimonio ───────────────────────────────────────────
+      patrimonio_lbl: 'Patrimonio',
+      evolucion_pat: 'Evolución del patrimonio',
+      activos_fisicos: 'Activos físicos',
+      sin_activos: 'Sin activos físicos',
+      anadir_activo: '+ Añadir activo',
+      valor_actual_pat: 'Valor actual',
+      depreciacion_lbl: 'Depreciación',
+      valor_compra: 'Valor de compra',
+      tipo_activo: 'Tipo de activo',
+
+      // ── Análisis ─────────────────────────────────────────────
+      ingvsgastos: 'Ingresos vs Gastos',
+      tasa_ahorro: 'Tasa de ahorro',
+      cashflow_mensual: 'Cash flow mensual',
+      top_categorias_g: 'Top categorías de gasto',
+      balance_mensual: 'Balance mensual',
+      comparativa_anual: 'Comparativa anual',
+
+      // ── Health Score factors ──────────────────────────────────
+      hs_ahorro: 'Tasa de ahorro positiva',
+      hs_gastos: 'Gastos controlados',
+      hs_objetivos: 'Objetivos activos',
+      hs_deudas: 'Sin deudas críticas',
+      hs_ingresos: 'Ingresos regulares',
+
+      // ── Modales estáticos ────────────────────────────────────
+      modal_nuevo_ingreso: 'Nuevo Ingreso',
+      modal_nuevo_gasto: 'Nuevo Gasto',
+      modal_nueva_inv: 'Nueva Inversión',
+      modal_nueva_deuda: 'Nueva Deuda',
+      modal_nuevo_obj: 'Nuevo Objetivo',
+      modal_liquidar: '💰 Liquidar inversión',
+      modal_registrar_pago: 'Registrar pago',
+      modal_aportar: 'Añadir dinero al objetivo',
+      lbl_concepto: 'Concepto *',
+      lbl_importe_eur: 'Importe (€) *',
+      lbl_categoria: 'Categoría',
+      lbl_fecha: 'Fecha',
+      lbl_nueva_cat: 'Nueva categoría',
+      lbl_cuenta_obl: 'Cuenta *',
+      lbl_cuenta_obl_sub: '(obligatoria)',
+      lbl_notas: 'Notas',
+      lbl_notas_ph: 'Notas opcionales...',
+      lbl_recurrente_ing: 'Ingreso recurrente (mensual)',
+      lbl_pendiente_cobro: 'Pendiente de cobro (no ingresado aún)',
+      lbl_actualizar_saldo: 'Actualizar saldo de cuenta',
+      lbl_recurrente_gas: 'Gasto recurrente',
+      lbl_descontar_saldo: 'Descontar del saldo de cuenta',
+      lbl_nombre_obl: 'Nombre *',
+      lbl_capital_inv: 'Capital invertido (€) *',
+      lbl_rentabilidad_esp: 'Rentabilidad esperada (%)',
+      lbl_rentabilidad_hint: 'Solo para activos con retorno predecible',
+      lbl_fecha_entrada: 'Fecha entrada',
+      lbl_cuenta_origen: 'Cuenta de origen *',
+      lbl_estrategia_ph: 'Estrategia, plataforma...',
+      lbl_total_deuda: 'Total deuda (€) *',
+      lbl_ya_pagado: 'Ya pagado (€)',
+      lbl_interes_anual: 'Interés anual (%)',
+      lbl_vencimiento: 'Vencimiento',
+      lbl_banco_cond: 'Banco, condiciones...',
+      lbl_meta_eur: 'Meta (€) *',
+      lbl_ahorrado_hasta: 'Ahorrado hasta ahora (€)',
+      lbl_fecha_objetivo: 'Fecha objetivo',
+      lbl_color_lbl: 'Color',
+      lbl_para_que: 'Para qué es este objetivo...',
+      lbl_imagen_obj: 'Imagen del objetivo',
+      lbl_imagen_opcional: 'Opcional · aparece como fondo de la tarjeta',
+      lbl_subir_imagen: '📷 Subir imagen',
+      lbl_quitar: '✕ Quitar',
+      ph_concepto_ing: 'Salario enero...',
+      ph_concepto_gas: 'Supermercado...',
+      ph_nombre_inv: 'Tesla, BTC, ETF World...',
+      ph_hipoteca: 'Hipoteca, tarjeta...',
+      ph_fondo_emerg: 'Fondo de emergencia...',
+      ph_cat_custom: 'Nombre de la categoría',
+      ph_estrategia: 'Estrategia, plataforma...',
+      cat_custom_lbl: '+ Categoría personalizada',
+      btn_cobrado: '✓ Cobrado',
+      btn_liquidar: 'Liquidar',
+      btn_registrar_pago: 'Registrar pago',
+      btn_aportar: 'Aportar',
+      lbl_valor_salida: 'Valor de salida (€)',
+      lbl_o_rentabilidad: 'O rentabilidad real (%)',
+      lbl_cuenta_ingresar: 'Cuenta donde ingresar',
+      liq_info: '✓ El capital se devolverá a la cuenta · La ganancia se registrará como ingreso · La pérdida se registrará como gasto',
+      lbl_importe_pago: 'Importe del pago (€) *',
+      lbl_fecha_pago: 'Fecha del pago',
+      lbl_fuente_dinero: '¿De dónde viene este dinero?',
+      lbl_importe_aportar: 'Importe a aportar (€) *',
+      lbl_seleccionar_cuenta: 'Selecciona una cuenta para ver el saldo disponible',
+    },
+    en: {
+      hola_sin_coma: 'Hello',
+      dias_streak: 'days',
+      salud_financiera: 'Financial Health',
+      fin_de_mes: 'End of month',
+      estimado: 'estimated',
+      posible_deficit: 'possible deficit',
+      liquidez: 'Liquidity',
+      invertido: 'Invested',
+      activos: 'Assets',
+      deudas_lbl: 'Debts',
+      sin_deudas: 'No debts ✅',
+      cuentas_lbl: 'Accounts',
+      superavit: 'Surplus',
+      deficit: 'Deficit',
+      vs_mes_ant: 'vs. prev. month',
+      vs_ant: 'vs. prev.',
+      primer_mes_lbl: 'First month',
+      entradas: 'entries',
+      salidas: 'exits',
+      ahorro_rate: 'Savings:',
+      mas_ver_todo: 'more →',
+      generados_tus_datos: 'Generated from your data',
+      aun_sin_datos: 'Not enough data yet',
+      anadir_movs: 'Add some transactions to see personalized insights.',
+      todo_orden_mes: 'All on track this month',
+      sigue_mas_detalle: 'Keep recording to get more detailed analysis.',
+      sin_movimientos_aun: 'No transactions recorded yet',
+
+      cobrado_este_mes: 'Collected this month',
+      pendiente_cobro: 'Pending collection',
+      top_categoria: 'Top category',
+      mes_anterior_lbl: 'Previous month',
+      por_categoria_mes: 'By category (current month)',
+      evolucion_6m: 'Evolution 6 months',
+      pendientes_cobro_titulo: 'Pending collection',
+      ingresos_cobrados: 'Collected income',
+      cobrar_btn: '✓ Collected',
+      estado_pendiente: '⏳ Pending',
+      estado_recurrente: '↻ Recurring',
+      concepto: 'Description',
+      importe: 'Amount',
+      categoria: 'Category',
+      fecha: 'Date',
+      cuenta_destino: 'Target account',
+      cuenta_lbl: 'Account',
+      estado: 'Status',
+      acciones: 'Actions',
+      buscar_concepto: '🔍 Search by description...',
+      todas_categorias: 'All categories',
+      todos_sin_filtro: 'All (no filter)',
+      limpiar_filtros: '✕ Clear',
+      ver_todos_ingresos: '🔍 View all income',
+      sin_resultados_periodo: 'No results for this period',
+      sin_ingresos_cobrados: 'You have no collected income yet',
+      cambiar_periodo: 'Change the period or clear filters to see your income',
+      primer_ingreso: 'Add your first income with the + New income button',
+      cobrados_lbl: 'collected',
+      cobrados_lbl_pl: 'collected',
+      factura_lbl: 'invoice',
+      facturas_lbl: 'invoices',
+      pendiente_lbl: 'pending',
+      pendientes_lbl: 'pending',
+      entrada_lbl: 'entry',
+      entradas_lbl: 'entries',
+      por_cobrar: 'to collect',
+
+      total_este_mes_g: 'Total this month',
+      total_este_anio_g: 'Total this year',
+      total_periodo_g: 'Total period',
+      mayor_categoria: 'Top category',
+      media_mensual_3m: 'Monthly average (3 m)',
+      por_encima: '⬆ Above average',
+      por_debajo: '⬇ Below average',
+      por_categoria: 'By category',
+      todos_gastos: 'All expenses',
+      sin_resultados: 'No results',
+      ajusta_aniade: 'Adjust the period or add an expense',
+      control_salidas: 'Track your outgoing money',
+      resultado_lbl: 'result',
+      resultados_lbl: 'results',
+
+      cartera_activa: 'Active portfolio',
+      ganancia_realizada: 'Realized gain',
+      ganancia_latente: 'Unrealized gain',
+      tasa_exito: 'Success rate',
+      abiertas: 'open',
+      cerradas: 'closed',
+      sin_inversiones: 'No investments yet',
+      anadir_primera_inv: 'Add your first investment to track your portfolio performance.',
+      sin_inversiones_cerradas: 'No closed investments',
+      liquidar_btn: 'Close',
+      roi_real: 'Real ROI',
+      roi_esp: 'Exp. ROI',
+      capital_inv: 'Capital',
+      valor_actual: 'Current value',
+      ganancia_lbl: 'Gain',
+      rentabilidad_lbl: 'Return',
+      abiertas_lbl: 'Open',
+      cerradas_lbl: 'Closed',
+      inv_activas: 'Active investments',
+      inv_cerradas_titulo: 'Closed investments history',
+
+      deuda_total: 'Total debt',
+      pagado_total: 'Total paid',
+      pendiente_total: 'Total pending',
+      interes_medio: 'Average interest',
+      sin_deudas_titulo: 'No debts recorded',
+      sin_deudas_sub: 'Congratulations! You have no debts, or add one to track it.',
+      pagar_btn: 'Pay',
+      pagado_lbl: 'Paid',
+      pendiente_d: 'Pending',
+      vence: 'Due',
+      interes: 'Interest',
+      progreso: 'Progress',
+      cuota_mens: 'Monthly payment',
+      nombre_lbl: 'Name',
+
+      ahorro_total_obj: 'Total savings',
+      objetivo_mas_cercano: 'Closest',
+      sin_objetivos: 'No goals yet',
+      sin_objetivos_sub: 'Create your first goal to start saving in an organized way.',
+      aportar_btn: 'Contribute',
+      completado: 'Completed ✓',
+      meta_lbl: 'Goal',
+      ahorrado_lbl: 'Saved',
+      faltan_lbl: 'Remaining',
+      dias_lbl: 'days',
+      objetivo_alcanzado: 'Goal reached! 🎉',
+      aportar_titulo: 'Add money to goal',
+      dinero_nuevo: '💸 New money',
+      no_afecta_disponible: 'Does not affect balance',
+      dinero_existente: '🏦 Existing money',
+      resta_disponible: 'Deducted from balance',
+
+      total_disponible: 'Total available',
+      saldo_lbl: 'Balance',
+      tipo_cuenta: 'Type',
+      banco_lbl: 'Bank',
+      efectivo_lbl: 'Cash',
+      ahorro_lbl: 'Savings',
+      sin_cuentas: 'No accounts recorded',
+      nueva_cuenta_btn: '+ New account',
+      editar_saldo: 'Edit balance',
+      ajuste_saldo: 'Balance adjustment',
+      cuenta_principal: 'Main Account',
+
+      presupuesto_mensual: 'Monthly budget',
+      gasto_real: 'Actual spending',
+      disponible_pres: 'Available',
+      sin_presupuesto: 'No budget defined',
+      define_presupuesto: 'Define a budget for this category',
+      presupuesto_lbl: 'Budget',
+      sobre_pres: 'over budget',
+      bajo_pres: 'under budget',
+      distribucion_503020: '50/30/20 Distribution',
+      necesidades: 'Needs',
+      deseos: 'Wants',
+      ahorro_inv: 'Savings/Inv.',
+      recomendado: 'recommended',
+      real_lbl: 'actual',
+
+      patrimonio_lbl: 'Net Worth',
+      evolucion_pat: 'Net Worth evolution',
+      activos_fisicos: 'Physical assets',
+      sin_activos: 'No physical assets',
+      anadir_activo: '+ Add asset',
+      valor_actual_pat: 'Current value',
+      depreciacion_lbl: 'Depreciation',
+      valor_compra: 'Purchase value',
+      tipo_activo: 'Asset type',
+
+      ingvsgastos: 'Income vs Expenses',
+      tasa_ahorro: 'Savings rate',
+      cashflow_mensual: 'Monthly cash flow',
+      top_categorias_g: 'Top expense categories',
+      balance_mensual: 'Monthly balance',
+      comparativa_anual: 'Annual comparison',
+
+      hs_ahorro: 'Positive savings rate',
+      hs_gastos: 'Controlled expenses',
+      hs_objetivos: 'Active goals',
+      hs_deudas: 'No critical debts',
+      hs_ingresos: 'Regular income',
+
+      modal_nuevo_ingreso: 'New Income',
+      modal_nuevo_gasto: 'New Expense',
+      modal_nueva_inv: 'New Investment',
+      modal_nueva_deuda: 'New Debt',
+      modal_nuevo_obj: 'New Goal',
+      modal_liquidar: '💰 Close investment',
+      modal_registrar_pago: 'Record payment',
+      modal_aportar: 'Add money to goal',
+      lbl_concepto: 'Description *',
+      lbl_importe_eur: 'Amount (€) *',
+      lbl_categoria: 'Category',
+      lbl_fecha: 'Date',
+      lbl_nueva_cat: 'New category',
+      lbl_cuenta_obl: 'Account *',
+      lbl_cuenta_obl_sub: '(required)',
+      lbl_notas: 'Notes',
+      lbl_notas_ph: 'Optional notes...',
+      lbl_recurrente_ing: 'Recurring income (monthly)',
+      lbl_pendiente_cobro: 'Pending collection (not yet received)',
+      lbl_actualizar_saldo: 'Update account balance',
+      lbl_recurrente_gas: 'Recurring expense',
+      lbl_descontar_saldo: 'Deduct from account balance',
+      lbl_nombre_obl: 'Name *',
+      lbl_capital_inv: 'Invested capital (€) *',
+      lbl_rentabilidad_esp: 'Expected return (%)',
+      lbl_rentabilidad_hint: 'Only for assets with predictable returns',
+      lbl_fecha_entrada: 'Entry date',
+      lbl_cuenta_origen: 'Source account *',
+      lbl_estrategia_ph: 'Strategy, platform...',
+      lbl_total_deuda: 'Total debt (€) *',
+      lbl_ya_pagado: 'Already paid (€)',
+      lbl_interes_anual: 'Annual interest (%)',
+      lbl_vencimiento: 'Due date',
+      lbl_banco_cond: 'Bank, conditions...',
+      lbl_meta_eur: 'Goal (€) *',
+      lbl_ahorrado_hasta: 'Saved so far (€)',
+      lbl_fecha_objetivo: 'Target date',
+      lbl_color_lbl: 'Color',
+      lbl_para_que: 'What is this goal for...',
+      lbl_imagen_obj: 'Goal image',
+      lbl_imagen_opcional: 'Optional · appears as card background',
+      lbl_subir_imagen: '📷 Upload image',
+      lbl_quitar: '✕ Remove',
+      ph_concepto_ing: 'January salary...',
+      ph_concepto_gas: 'Supermarket...',
+      ph_nombre_inv: 'Tesla, BTC, ETF World...',
+      ph_hipoteca: 'Mortgage, credit card...',
+      ph_fondo_emerg: 'Emergency fund...',
+      ph_cat_custom: 'Category name',
+      ph_estrategia: 'Strategy, platform...',
+      cat_custom_lbl: '+ Custom category',
+      btn_cobrado: '✓ Collected',
+      btn_liquidar: 'Close',
+      btn_registrar_pago: 'Record payment',
+      btn_aportar: 'Contribute',
+      lbl_valor_salida: 'Exit value (€)',
+      lbl_o_rentabilidad: 'Or actual return (%)',
+      lbl_cuenta_ingresar: 'Account to receive',
+      liq_info: '✓ Capital returned to account · Gain recorded as income · Loss recorded as expense',
+      lbl_importe_pago: 'Payment amount (€) *',
+      lbl_fecha_pago: 'Payment date',
+      lbl_fuente_dinero: 'Where does this money come from?',
+      lbl_importe_aportar: 'Amount to contribute (€) *',
+      lbl_seleccionar_cuenta: 'Select an account to see available balance',
+    },
+  }
+  // Copy ES keys to IT/FR/DE/PT with fallback to ES (only keys not yet defined)
+  const FALLBACK_LANGS = ['it','fr','de','pt']
+  Object.keys(EXT.es).forEach(key => {
+    FALLBACK_LANGS.forEach(lang => {
+      if (!EXT[lang]) EXT[lang] = {}
+      if (EXT[lang][key] === undefined) EXT[lang][key] = EXT.es[key]
+    })
+  })
+  // Merge into TRANSLATIONS
+  Object.keys(EXT).forEach(lang => {
+    if (!TRANSLATIONS[lang]) TRANSLATIONS[lang] = {}
+    Object.assign(TRANSLATIONS[lang], EXT[lang])
+  })
+})()
+
+
+// ─── CATEGORY TRANSLATIONS ─────────────────────────────────────
+// Default category names keyed by ES name → per-language translation
+// Custom categories (not in this map) are always shown as-is.
+const CAT_TRANSLATIONS = {
+  // Ingresos
+  'Salario':        { en:'Salary',      it:'Stipendio',    fr:'Salaire',    de:'Gehalt',    pt:'Salário'    },
+  'Freelance':      { en:'Freelance',   it:'Freelance',    fr:'Freelance',  de:'Freelance', pt:'Freelance'  },
+  'Alquiler':       { en:'Rent',        it:'Affitto',      fr:'Loyer',      de:'Miete',     pt:'Aluguel'    },
+  'Dividendos':     { en:'Dividends',   it:'Dividendi',    fr:'Dividendes', de:'Dividenden',pt:'Dividendos' },
+  'Venta':          { en:'Sale',        it:'Vendita',      fr:'Vente',      de:'Verkauf',   pt:'Venda'      },
+  'Bono':           { en:'Bonus',       it:'Bonus',        fr:'Prime',      de:'Bonus',     pt:'Bónus'      },
+  // Gastos
+  'Vivienda':       { en:'Housing',     it:'Abitazione',   fr:'Logement',   de:'Wohnen',    pt:'Habitação'  },
+  'Alimentación':   { en:'Food',        it:'Alimentazione',fr:'Alimentation',de:'Ernährung',pt:'Alimentação'},
+  'Transporte':     { en:'Transport',   it:'Trasporto',    fr:'Transport',  de:'Transport', pt:'Transporte' },
+  'Salud':          { en:'Health',      it:'Salute',       fr:'Santé',      de:'Gesundheit',pt:'Saúde'      },
+  'Ocio':           { en:'Leisure',     it:'Svago',        fr:'Loisirs',    de:'Freizeit',  pt:'Lazer'      },
+  'Ropa':           { en:'Clothing',    it:'Abbigliamento',fr:'Vêtements',  de:'Kleidung',  pt:'Roupa'      },
+  'Educación':      { en:'Education',   it:'Istruzione',   fr:'Éducation',  de:'Bildung',   pt:'Educação'   },
+  'Suscripciones':  { en:'Subscriptions',it:'Abbonamenti', fr:'Abonnements',de:'Abonnements',pt:'Assinaturas'},
+  'Restaurantes':   { en:'Restaurants', it:'Ristoranti',   fr:'Restaurants',de:'Restaurants',pt:'Restaurantes'},
+  'Tecnología':     { en:'Technology',  it:'Tecnologia',   fr:'Technologie',de:'Technologie',pt:'Tecnologia' },
+  'Seguros':        { en:'Insurance',   it:'Assicurazioni',fr:'Assurances', de:'Versicherungen',pt:'Seguros' },
+  // Inversiones
+  'Acciones':       { en:'Stocks',      it:'Azioni',       fr:'Actions',    de:'Aktien',    pt:'Ações'      },
+  'ETF':            { en:'ETF',         it:'ETF',          fr:'ETF',        de:'ETF',       pt:'ETF'        },
+  'Cripto':         { en:'Crypto',      it:'Cripto',       fr:'Crypto',     de:'Krypto',    pt:'Cripto'     },
+  'Inmuebles':      { en:'Real Estate', it:'Immobili',     fr:'Immobilier', de:'Immobilien',pt:'Imóveis'    },
+  'Bonos':          { en:'Bonds',       it:'Obbligazioni', fr:'Obligations',de:'Anleihen',  pt:'Obrigações' },
+  'Fondo indexado': { en:'Index Fund',  it:'Fondo indicizzato',fr:'Fonds indiciel',de:'Indexfonds',pt:'Fundo índice'},
+  'Startups':       { en:'Startups',    it:'Startup',      fr:'Startups',   de:'Startups',  pt:'Startups'   },
+  // Deudas
+  'Hipoteca':       { en:'Mortgage',    it:'Mutuo',        fr:'Hypothèque', de:'Hypothek',  pt:'Hipoteca'   },
+  'Préstamo personal':{ en:'Personal Loan',it:'Prestito personale',fr:'Prêt personnel',de:'Privatkredit',pt:'Empréstimo pessoal'},
+  'Tarjeta crédito':{ en:'Credit Card', it:'Carta di credito',fr:'Carte de crédit',de:'Kreditkarte',pt:'Cartão crédito'},
+  'Préstamo coche': { en:'Car Loan',    it:'Prestito auto', fr:'Prêt voiture',de:'Autokredit',pt:'Empréstimo carro'},
+  // Objetivos
+  'Emergencia':     { en:'Emergency',   it:'Emergenza',    fr:'Urgence',    de:'Notfall',   pt:'Emergência' },
+  'Viaje':          { en:'Travel',      it:'Viaggio',      fr:'Voyage',     de:'Reise',     pt:'Viagem'     },
+  'Coche':          { en:'Car',         it:'Auto',         fr:'Voiture',    de:'Auto',      pt:'Carro'      },
+  'Casa':           { en:'Home',        it:'Casa',         fr:'Maison',     de:'Haus',      pt:'Casa'       },
+  'Jubilación':     { en:'Retirement',  it:'Pensione',     fr:'Retraite',   de:'Rente',     pt:'Reforma'    },
+  // Shared
+  'Otro':           { en:'Other',       it:'Altro',        fr:'Autre',      de:'Andere',    pt:'Outro'      },
+}
+
+/** Translate a category name respecting user-created custom ones */
+function tCat(name) {
+  if (_currentLang === 'es') return name
+  const tr = CAT_TRANSLATIONS[name]
+  return (tr && tr[_currentLang]) ? tr[_currentLang] : name
+}
+
+function setLang(code) {
+  _currentLang = code
+  try { localStorage.setItem(LANG_STORAGE_KEY, code) } catch(e) {}
+  document.documentElement.setAttribute('lang', code)
+  // Brief fade transition
+  const contentEl = document.getElementById('content')
+  if (contentEl) {
+    contentEl.style.transition = 'opacity .15s ease'
+    contentEl.style.opacity = '0'
+    setTimeout(() => {
+      _updateSidebarLang()
+      render()
+      translateDOM()          // PASO 3: traducir modales estáticos del HTML
+      contentEl.style.opacity = '1'
+      setTimeout(() => { contentEl.style.transition = '' }, 200)
+    }, 150)
+  } else {
+    _updateSidebarLang()
+    render()
+  }
+}
+
+function loadLang() {
+  try {
+    const saved = localStorage.getItem(LANG_STORAGE_KEY)
+    if (saved && TRANSLATIONS[saved]) { _currentLang = saved; return }
+    // Auto-detect from browser if no saved preference
+    const nav = (navigator.language || navigator.userLanguage || 'es').toLowerCase().slice(0,2)
+    if (TRANSLATIONS[nav]) _currentLang = nav
+  } catch(e) {}
+}
+
+// ════════════════════════════════════════════════════════════════
+// ─── PASO 3: translateDOM() ───────────────────────────────────
+// Recorre el DOM buscando atributos data-i18n y data-i18n-placeholder
+// y aplica la traducción correcta según _currentLang.
+// Llamar tras setLang() y en init() para modales estáticos de index.html
+// ════════════════════════════════════════════════════════════════
+function translateDOM(root) {
+  const el = root || document
+  // Text content
+  el.querySelectorAll('[data-i18n]').forEach(node => {
+    const key = node.getAttribute('data-i18n')
+    const tr  = t(key)
+    if (tr) node.textContent = tr
+  })
+  // Placeholder
+  el.querySelectorAll('[data-i18n-placeholder]').forEach(node => {
+    const key = node.getAttribute('data-i18n-placeholder')
+    const tr  = t(key)
+    if (tr) node.placeholder = tr
+  })
+  // Title attr (tooltips)
+  el.querySelectorAll('[data-i18n-title]').forEach(node => {
+    const key = node.getAttribute('data-i18n-title')
+    const tr  = t(key)
+    if (tr) node.title = tr
+  })
+  // Modal titles via innerHTML (allows emoji + translated text safely)
+  el.querySelectorAll('[data-i18n-html]').forEach(node => {
+    const key = node.getAttribute('data-i18n-html')
+    const tr  = t(key)
+    if (tr) node.innerHTML = tr
+  })
+}
+
+function _updateSidebarLang() {
+  if (typeof S === 'undefined') return
+  const navMap = {
+    'nav-dashboard':     'nav_dashboard',
+    'nav-ingresos':      'nav_ingresos',
+    'nav-gastos':        'nav_gastos',
+    'nav-inversiones':   'nav_inversiones',
+    'nav-deudas':        'nav_deudas',
+    'nav-objetivos':     'nav_objetivos',
+    'nav-presupuestos':  'nav_presupuestos',
+    'nav-cuentas':       'nav_cuentas',
+    'nav-patrimonio':    'nav_patrimonio',
+    'nav-analisis':      'nav_analisis',
+    'nav-configuracion': 'nav_configuracion',
+    'nav-billing':       'nav_billing',
+    'nav-faq':           'nav_faq',
+    'nav-sugerencias':   'nav_sugerencias',
+    'nav-cerrar-sesion': 'nav_cerrar_sesion',
+  }
+  Object.entries(navMap).forEach(([id, key]) => {
+    const el = document.getElementById(id)
+    if (el) {
+      const icon = el.querySelector('.nav-icon')
+      if (icon) {
+        // Keep only the icon span, replace text
+        el.textContent = ''
+        el.appendChild(icon)
+        el.appendChild(document.createTextNode(t(key)))
+        // Re-add badge if deudas
+        if (id === 'nav-deudas') {
+          const badge = document.createElement('span')
+          badge.className = 'nav-badge'
+          badge.id = 'deudas-badge'
+          badge.style.display = 'none'
+          el.appendChild(badge)
+        }
+      }
+    }
+  })
+  // Section labels
+  const sections = document.querySelectorAll('.nav-section')
+  const sectionKeys = ['nav_principal','nav_finanzas','nav_planificacion','nav_patrimonio_sec','nav_sistema']
+  sections.forEach((el, i) => { if (sectionKeys[i]) el.textContent = t(sectionKeys[i]) })
+  // Theme toggle
+  const themeLabel = document.getElementById('theme-label')
+  if (themeLabel) {
+    const isDark = S.theme !== 'light'
+    themeLabel.textContent = isDark ? t('theme_dark') : t('theme_light')
+  }
+  // Topbar
+  const dineroLabel = document.querySelector('.dinero-label')
+  if (dineroLabel) dineroLabel.textContent = t('disponible')
+  updateBadges()
+}
+
+
+// Activos volátiles — no mostrar rentabilidad esperada
+const VOLATILE_CATS = ['Acciones','Cripto','Startups','ETF']
+
+// Emojis por categoría para UI más visual
+const CAT_EMOJIS = {
+  // ingresos
+  'Salario':'💼','Freelance':'💻','Alquiler':'🏠','Dividendos':'📈',
+  'Venta':'🛒','Bono':'🎁','Otro':'✨',
+  // gastos
+  'Vivienda':'🏠','Alimentación':'🍔','Transporte':'🚗','Salud':'🏥',
+  'Ocio':'🎮','Ropa':'👕','Educación':'🎓','Suscripciones':'📱',
+  'Restaurantes':'🍽️','Tecnología':'💻','Seguros':'🛡️','Impuestos':'📋',
+  // inversiones
+  'Acciones':'📊','ETF':'🌐','Cripto':'₿','Inmuebles':'🏢',
+  'Bonos':'📜','Fondo indexado':'🌍','Startups':'🚀',
+  // deudas
+  'Hipoteca':'🏦','Préstamo personal':'👤','Tarjeta crédito':'💳',
+  'Préstamo coche':'🚗',
+  // objetivos
+  'Emergencia':'🛡️','Viaje':'✈️','Coche':'🚗','Casa':'🏠',
+  'Jubilación':'🌅','Educación':'🎓',
+}
+
+function catEmoji(cat) { return CAT_EMOJIS[cat] || '📌' }
+
+// ─── DEFAULT STATE ─────────────────────────────────────────────
+function defaultState() {
+  return {
+    usuario: { nombre: 'Usuario', empresa: '' },
+    cuentas: [
+      { id: 'c1', nombre: 'Cuenta Principal', tipo: 'banco', saldo: 0, valorTotal: 0, color: '#00D4AA' },
+      { id: 'c2', nombre: 'Efectivo', tipo: 'efectivo', saldo: 0, valorTotal: 0, color: '#F59E0B' }
+    ],
+    ingresos: [],
+    gastos: [],
+    inversiones: [],
+    deudas: [],
+    objetivos: [],
+    presupuestos: {},
+    clientes: [],
+    proveedores: [],
+    devengos: [],
+    assets: [],
+    categorias: {
+      ingreso: ['Salario','Freelance','Alquiler','Dividendos','Venta','Bono','Otro'],
+      gasto: ['Vivienda','Alimentación','Transporte','Salud','Ocio','Ropa','Educación','Suscripciones','Restaurantes','Tecnología','Seguros','Otro'],
+      inversion: ['Acciones','ETF','Cripto','Inmuebles','Bonos','Fondo indexado','Startups','Otro'],
+      deuda: ['Hipoteca','Préstamo personal','Tarjeta crédito','Préstamo coche','Otro'],
+      objetivo: ['Emergencia','Viaje','Coche','Casa','Jubilación','Educación','Otro']
+    },
+    patrimonio_hist: [],
+    theme: 'dark'
+  }
+}
+
+// ─── GLOBAL TIME FILTER ────────────────────────────────────────
+// preset: 'month' | 'lastmonth' | 'year' | 'all' | 'custom'
+// ─── FORM SUBMISSION GUARD (prevent duplicate submissions) ──────
+const _formGuard = {
+  _active: new Set(),
+  lock(id) {
+    if (this._active.has(id)) return false
+    this._active.add(id)
+    const btn = document.querySelector(`#${id} .btn-primary`)
+    if (btn) { btn.disabled = true; btn.dataset._origText = btn.textContent; btn.textContent = t('guardando') }
+    return true
+  },
+  unlock(id) {
+    this._active.delete(id)
+    const btn = document.querySelector(`#${id} .btn-primary`)
+    if (btn) { btn.disabled = false; if (btn.dataset._origText) btn.textContent = btn.dataset._origText }
+  }
+}
+
+let _gTimePeriod = 'month'   // default: this month
+let _gDateFrom   = ''        // ISO date string (for custom)
+let _gDateTo     = ''        // ISO date string (for custom)
+
+function _gPeriodLabel() {
+  const m = currentMonth()
+  if (_gTimePeriod === 'month')     return monthLabel(m)
+  if (_gTimePeriod === 'lastmonth') return monthLabel(prevMonth(m))
+  if (_gTimePeriod === 'year')      return new Date().getFullYear() + ''
+  if (_gTimePeriod === 'all')       return t('todo')
+  if (_gTimePeriod === 'custom')    return (_gDateFrom||'') + ' → ' + (_gDateTo||'')
+  return monthLabel(m)
+}
+
+function _gDateInPeriod(dateStr) {
+  if (!dateStr) return false
+  const m = currentMonth()
+  if (_gTimePeriod === 'month')     return dateStr.startsWith(m)
+  if (_gTimePeriod === 'lastmonth') return dateStr.startsWith(prevMonth(m))
+  if (_gTimePeriod === 'year')      return dateStr.startsWith(new Date().getFullYear()+'')
+  if (_gTimePeriod === 'all')       return true
+  if (_gTimePeriod === 'custom') {
+    if (_gDateFrom && dateStr < _gDateFrom) return false
+    if (_gDateTo   && dateStr > _gDateTo)   return false
+    return true
+  }
+  return dateStr.startsWith(m)
+}
+
+function _gFilterBar(onChangeFn) {
+  const m = currentMonth()
+  const yr = new Date().getFullYear()
+  return `<div class="time-filter-bar">
+    <span class="time-filter-label">${t('periodo')}</span>
+    <button class="time-pill ${_gTimePeriod==='month'?'active':''}"     onclick="_gTimePeriod='month';${onChangeFn}">${t('este_mes')}</button>
+    <button class="time-pill ${_gTimePeriod==='lastmonth'?'active':''}" onclick="_gTimePeriod='lastmonth';${onChangeFn}">${t('mes_anterior')}</button>
+    <button class="time-pill ${_gTimePeriod==='year'?'active':''}"      onclick="_gTimePeriod='year';${onChangeFn}">${t('este_año')}</button>
+    <button class="time-pill ${_gTimePeriod==='all'?'active':''}"       onclick="_gTimePeriod='all';${onChangeFn}">${t('todo')}</button>
+    <button class="time-pill ${_gTimePeriod==='custom'?'active':''}"    onclick="_gTimePeriod='custom';${onChangeFn}">${t('personalizado')}</button>
+    ${_gTimePeriod==='custom'?`
+      <input type="date" value="${_gDateFrom}" onchange="_gDateFrom=this.value;${onChangeFn}"
+        style="padding:4px 8px;background:var(--bg);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);font-size:.78rem">
+      <span style="color:var(--text2);font-size:.78rem">→</span>
+      <input type="date" value="${_gDateTo}" onchange="_gDateTo=this.value;${onChangeFn}"
+        style="padding:4px 8px;background:var(--bg);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);font-size:.78rem">
+    `:''}
+  </div>`
+}
+
+// Filtered calc helpers using global period
+function calcIngresosperiodo() {
+  return S.ingresos.filter(i=>i.status!=='pending'&&_gDateInPeriod(i.fecha)).reduce((a,i)=>a+(Number(i.importe)||0),0)
+}
+function calcGastosperiodo() {
+  return S.gastos.filter(g=>_gDateInPeriod(g.fecha)&&g.tipo!==TX_TYPES.GOAL_TRANSFER).reduce((a,g)=>a+(Number(g.importe)||0),0)
+}
+// Global app state — populated by load() in init()
+let S = null
+
+let currentPage = 'dashboard'
+let charts = {}
+let aportarTipo = 'nuevo'
+
+// ─── STORAGE ───────────────────────────────────────────────────
+function save() {
+  try { localStorage.setItem(SK, JSON.stringify(S)) } catch(e) {}
+  // Keep browser title in sync with available balance
+  try { updateDocTitle() } catch(e) {}
+  // Notify mission tracker and other listeners
+  try { document.dispatchEvent(new CustomEvent('mn:saved')) } catch(e) {}
+}
+function load() {
+  S = defaultState() // always start from clean default
+  try {
+    const raw = localStorage.getItem(SK)
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      S = Object.assign(defaultState(), parsed)
+      S.categorias = Object.assign(defaultState().categorias, parsed.categorias || {})
+      S.usuario = Object.assign(defaultState().usuario, parsed.usuario || {})
+    }
+    // Defensive initialization — never crash on missing/corrupt data
+    if (!Array.isArray(S.ingresos)) S.ingresos = []
+    if (!Array.isArray(S.gastos)) S.gastos = []
+    if (!Array.isArray(S.inversiones)) S.inversiones = []
+    if (!Array.isArray(S.deudas)) S.deudas = []
+    if (!Array.isArray(S.objetivos)) S.objetivos = []
+    if (!Array.isArray(S.cuentas) || !S.cuentas.length) S.cuentas = defaultState().cuentas
+    if (!Array.isArray(S.assets)) S.assets = []
+    if (!Array.isArray(S.patrimonio_hist)) S.patrimonio_hist = []
+    if (!S.presupuestos || typeof S.presupuestos !== 'object') S.presupuestos = {}
+    if (!Array.isArray(S.clientes)) S.clientes = []
+    if (!Array.isArray(S.proveedores)) S.proveedores = []
+    if (!Array.isArray(S.devengos)) S.devengos = []
+    // Guard categorias — each sub-array must exist
+    const defCats = defaultState().categorias
+    if (!S.categorias || typeof S.categorias !== 'object') S.categorias = defCats
+    for (const k of Object.keys(defCats)) {
+      if (!Array.isArray(S.categorias[k])) S.categorias[k] = defCats[k]
+    }
+    // Guard usuario
+    if (!S.usuario || typeof S.usuario !== 'object') S.usuario = defaultState().usuario
+    S.cuentas = S.cuentas.map(c => ({...c, valorTotal: c.valorTotal !== undefined ? c.valorTotal : c.saldo}))
+    migrateOldData()
+  } catch(e) { S = defaultState() }
+}
+function migrateOldData() {
+  const keys = ['mn_ingresos','mn_gastos','mn_inversiones','mn_deudas','mn_objetivos']
+  for (const k of keys) {
+    const v = localStorage.getItem(k)
+    if (v) {
+      try {
+        const arr = JSON.parse(v)
+        const section = k.replace('mn_','')
+        if (arr.length && S[section] && S[section].length === 0) {
+          S[section] = arr
+        }
+      } catch(e) {}
+    }
+  }
+}
+
+// ─── UTILS ─────────────────────────────────────────────────────
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6) }
+function fmt(n, d=2) { return new Intl.NumberFormat('es-ES',{minimumFractionDigits:d,maximumFractionDigits:d}).format(Number(n)||0) }
+function eur(n) { return fmt(n) + '\u00A0€' }
+function pct(n, d=1) { return fmt(n,d) + '%' }
+function fmtDate(d) { if(!d) return '—'; const locale = {'es':'es-ES','en':'en-GB','it':'it-IT','fr':'fr-FR','de':'de-DE','pt':'pt-PT'}[_currentLang]||'es-ES'; return new Date(d+'T12:00:00').toLocaleDateString(locale,{day:'2-digit',month:'short',year:'numeric'}) }
+function todayISO() { return new Date().toISOString().slice(0,10) }
+function currentMonth() { return new Date().toISOString().slice(0,7) }
+function monthLabel(m) {
+  if (!m) return ''
+  const [y,mo] = m.split('-')
+  const monthNames = {
+    es: ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'],
+    en: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
+    it: ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'],
+    fr: ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'],
+    de: ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'],
+    pt: ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'],
+  }
+  const months = monthNames[_currentLang] || monthNames['es']
+  return months[parseInt(mo)-1] + ' ' + y
+}
+function prevMonth(m) {
+  const d = new Date(m+'-01')
+  d.setMonth(d.getMonth()-1)
+  return d.toISOString().slice(0,7)
+}
+function deltaClass(n) { return n > 0 ? 'up' : n < 0 ? 'down' : 'neu' }
+function deltaIcon(n) { return n > 0 ? '↑' : n < 0 ? '↓' : '→' }
+function clamp(v,min,max) { return Math.min(max,Math.max(min,v)) }
+function getMonths(count=6) {
+  const months = []
+  const d = new Date()
+  for (let i=count-1; i>=0; i--) {
+    const dd = new Date(d.getFullYear(), d.getMonth()-i, 1)
+    months.push(dd.toISOString().slice(0,7))
+  }
+  return months
+}
+
+// ─── FINANCIAL CALCS ───────────────────────────────────────────
+// ─── TRANSACTION TYPES ─────────────────────────────────────────
+// Extend types without breaking existing 'ingresos'/'gastos' arrays.
+// goal_transfer entries live in S.gastos with tipo='goal_transfer'.
+// They are excluded from real expense calculations (Task 4, 5).
+const TX_TYPES = Object.freeze({
+  INCOME:        'income',
+  EXPENSE:       'expense',
+  GOAL_TRANSFER: 'goal_transfer',
+  INVESTMENT:    'investment',
+})
+
+// ─── PERIOD HELPERS (Task 1) ────────────────────────────────────
+// Derive period dynamically from a date string — never stored on the record.
+function derivePeriod(dateStr, mode = 'monthly') {
+  if (!dateStr) return null
+  if (mode === 'monthly') return dateStr.slice(0, 7)          // YYYY-MM
+  if (mode === 'yearly')  return dateStr.slice(0, 4)          // YYYY
+  if (mode === 'weekly') {
+    // ISO week: YYYY-Www
+    const d = new Date(dateStr)
+    const jan4 = new Date(d.getFullYear(), 0, 4)
+    const startOfWeek1 = new Date(jan4)
+    startOfWeek1.setDate(jan4.getDate() - ((jan4.getDay() + 6) % 7))
+    const weekNum = Math.floor((d - startOfWeek1) / (7 * 86400000)) + 1
+    return `${d.getFullYear()}-W${String(weekNum).padStart(2, '0')}`
+  }
+  return dateStr.slice(0, 7)
+}
+
+// Returns all unique monthly periods present in an array of records
+function uniqueMonths(records) {
+  return [...new Set(records.map(r => derivePeriod(r.fecha, 'monthly')).filter(Boolean))].sort().reverse()
+}
+
+function calcIngresosMes(month) {
+  // Only count received income (status !== 'pending') in financial totals
+  return S.ingresos.filter(i=>i.fecha&&i.fecha.startsWith(month)&&i.status!=='pending').reduce((a,i)=>a+(Number(i.importe)||0),0)
+}
+function calcIngresosMesPending(month) {
+  return S.ingresos.filter(i=>i.fecha&&i.fecha.startsWith(month)&&i.status==='pending').reduce((a,i)=>a+(Number(i.importe)||0),0)
+}
+// Task 5: exclude goal_transfer entries from real expense totals
+function calcGastosMes(month) {
+  return S.gastos.filter(g=>g.fecha&&g.fecha.startsWith(month)&&g.tipo!==TX_TYPES.GOAL_TRANSFER).reduce((a,g)=>a+(Number(g.importe)||0),0)
+}
+// Includes goal_transfer — used only when explicitly needed (e.g. full ledger view)
+function calcGastosMesTotal(month) {
+  return S.gastos.filter(g=>g.fecha&&g.fecha.startsWith(month)).reduce((a,g)=>a+(Number(g.importe)||0),0)
+}
+function calcCashFlow(month) { return calcIngresosMes(month) - calcGastosMes(month) }
+function calcSavingsRate(month) {
+  const ing = calcIngresosMes(month)
+  if (!ing) return 0
+  return clamp((calcCashFlow(month)/ing)*100,-100,100)
+}
+function calcDineroDisponible() {
+  return S.cuentas.reduce((a,c)=>a+(Number(c.saldo)||0),0)
+}
+// Cartera = solo capital invertido en activos abiertos (ganancias no se suman al patrimonio)
+function calcCartera() {
+  return S.inversiones.filter(i=>!i.cerrada).reduce((a,i)=>a+(Number(i.importe)||0),0)
+}
+// Ganancia latente = diferencia valor-capital (solo en sección inversiones)
+function calcGananciaLatente() {
+  return S.inversiones.filter(i=>!i.cerrada).reduce((a,i)=>{
+    if (VOLATILE_CATS.includes(i.categoria)) return a
+    return a + Number(i.importe)*(Number(i.rentabilidad)||0)/100
+  },0)
+}
+function calcTotalDeuda() {
+  return S.deudas.reduce((a,d)=>a+(Number(d.importeTotal)||0)-(Number(d.importePagado)||0),0)
+}
+function calcGananciaTotal() {
+  return S.inversiones.filter(i=>i.cerrada).reduce((a,i)=>a+(Number(i.ganancia)||0),0)
+}
+// Assets value — only active ones count toward net worth
+function calcAssetsValue() {
+  if (!S.assets) return 0
+  return S.assets.filter(a=>a.status==='active').reduce((sum,a)=>{
+    let val = Number(a.valor)||0
+    if (a.depreciacion && a.depPct && a.fecha) {
+      const years = (Date.now() - new Date(a.fecha).getTime()) / (1000*60*60*24*365.25)
+      val = val * Math.pow(1 - (Number(a.depPct)||0)/100, Math.max(0,years))
+    }
+    return sum + val
+  },0)
+}
+// Patrimonio = liquidez + capital invertido + activos físicos activos − deudas
+function calcPatrimonio() {
+  return calcDineroDisponible() + calcCartera() + calcAssetsValue() - calcTotalDeuda()
+}
+function calcROI(inv) {
+  if (inv.cerrada) return Number(inv.roiReal)||0
+  if (!inv.importe) return 0
+  if (VOLATILE_CATS.includes(inv.categoria)) return 0 // no ROI for volatile
+  return Number(inv.rentabilidad)||0
+}
+function isVolatile(inv) { return VOLATILE_CATS.includes(inv.categoria) }
+function calcValorInv(inv) {
+  if (inv.cerrada) return Number(inv.valorFinal)||0
+  if (isVolatile(inv)) return Number(inv.importe) // no projected value for volatile
+  return Number(inv.importe)*(1+(Number(inv.rentabilidad)||0)/100)
+}
+function gastosMesByCat(month) {
+  const map = {}
+  // Exclude internal goal transfers — not real spending
+  S.gastos.filter(g=>g.fecha&&g.fecha.startsWith(month)&&g.tipo!==TX_TYPES.GOAL_TRANSFER).forEach(g=>{
+    const cat = g.categoria||'Sin categoría'
+    map[cat] = (map[cat]||0)+(Number(g.importe)||0)
+  })
+  return map
+}
+function ingresosMesByCat(month) {
+  const map = {}
+  S.ingresos.filter(i=>i.fecha&&i.fecha.startsWith(month)).forEach(i=>{
+    const cat = i.categoria||'Sin categoría'
+    map[cat] = (map[cat]||0)+(Number(i.importe)||0)
+  })
+  return map
+}
+function getCuenta(id) { return S.cuentas.find(c=>c.id===id) }
+
+// ─── NAVIGATION ────────────────────────────────────────────────
+const _pageKeyMap = {
+  dashboard:'nav_dashboard', ingresos:'nav_ingresos', gastos:'nav_gastos',
+  inversiones:'nav_inversiones', deudas:'nav_deudas', objetivos:'nav_objetivos',
+  presupuestos:'nav_presupuestos', cuentas:'nav_cuentas',
+  analisis:'nav_analisis', configuracion:'nav_configuracion', billing:'nav_billing',
+  patrimonio:'nav_patrimonio'
+}
+function goTo(page) {
+  currentPage = page
+  document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'))
+  const nav = document.getElementById('nav-'+page)
+  if (nav) nav.classList.add('active')
+  document.getElementById('pageTitle').textContent = _pageKeyMap[page] ? t(_pageKeyMap[page]) : page
+  closeSidebar()
+  destroyAllCharts()
+  syncBottomNav(page)
+  render()
+  _updateSidebarLang()
+  updateDocTitle()
+  // Dynamic billing background: apply only on billing, clean up on all other pages
+  if (window.MNBillingUI) {
+    if (page === 'billing') {
+      setTimeout(() => window.MNBillingUI.initDynamicBg(), 0)
+    } else {
+      window.MNBillingUI.cleanupDynamicBg()
+    }
+  }
+}
+// render() is defined later after all renderXxx functions are declared
+function updateTopBar() {
+  const el = document.getElementById('topDinero')
+  if (!el) return
+  const newVal = eur(calcDineroDisponible())
+  if (el.textContent !== newVal) {
+    el.style.transition = 'color .3s'
+    el.style.color = 'var(--accent)'
+    el.textContent = newVal
+    setTimeout(() => { el.style.color = '' }, 600)
+  }
+  const lbl = document.getElementById('topDineroLabel')
+  if (lbl) lbl.textContent = t('disponible')
+}
+function updateBadges() {
+  const vencidas = S.deudas.filter(d=>{
+    if (!d.vencimiento) return false
+    return new Date(d.vencimiento) < new Date() && (Number(d.importeTotal)||0)-(Number(d.importePagado)||0) > 0
+  }).length
+  const badge = document.getElementById('deudas-badge')
+  if (badge) {
+    badge.style.display = vencidas ? 'inline-flex' : 'none'
+    badge.textContent = vencidas
+  }
+  // Also sync bottom nav alert badge (budget overruns + expired debts)
+  const m = currentMonth()
+  const catMap = gastosMesByCat(m)
+  const presAlerts = Object.keys(S.presupuestos).filter(c=>{
+    const gast = Number(catMap[c])||0
+    const lim  = Number(S.presupuestos[c])||0
+    return lim > 0 && gast >= lim
+  }).length
+  const totalAlerts = vencidas + presAlerts
+  const bnBadge = document.getElementById('bn-alert-badge')
+  if (bnBadge) bnBadge.style.display = totalAlerts > 0 ? 'block' : 'none'
+}
+
+// ─── RECORD PATRIMONIO ──────────────────────────────────────────
+function recordPatrimonio() {
+  const month = currentMonth()
+  const valor = calcPatrimonio()
+  const existing = S.patrimonio_hist.find(h=>h.mes===month)
+  if (existing) { existing.valor = valor } else { S.patrimonio_hist.push({mes:month,valor}) }
+  // keep last 24 months
+  S.patrimonio_hist = S.patrimonio_hist.slice(-24)
+  save()
+}
+
+// ─── DASHBOARD ─────────────────────────────────────────────────
+function renderDashboard() {
+  const m  = currentMonth()
+  const mp = prevMonth(m)
+  const yr = new Date().getFullYear() + ''
+  const ing  = calcIngresosMes(m)
+  const gas  = calcGastosMes(m)
+  const cf   = ing - gas
+  const ingP = calcIngresosMes(mp)
+  const gasP = calcGastosMes(mp)
+  const pat  = calcPatrimonio()
+  const patP = (() => { const h = S.patrimonio_hist.find(h=>h.mes===mp); return h ? h.valor : null })()
+  const patDelta = patP !== null ? ((pat - patP) / Math.abs(patP || 1)) * 100 : null
+  const dis  = calcDineroDisponible()
+  // Year-to-date totals
+  const ingYTD = S.ingresos.filter(i=>i.status!=='pending'&&(i.fecha||'').startsWith(yr)).reduce((a,i)=>a+(Number(i.importe)||0),0)
+  const gasYTD = S.gastos.filter(g=>(g.fecha||'').startsWith(yr)&&g.tipo!==TX_TYPES.GOAL_TRANSFER).reduce((a,g)=>a+(Number(g.importe)||0),0)
+
+  // Recent transactions (last 6 across income + real expenses — no internal transfers)
+  const recentMovs = [
+    ...S.ingresos.map(i=>({...i,_tipo:'ingreso',_sign:'+',_color:'var(--green)'})),
+    ...S.gastos.filter(g=>g.tipo!==TX_TYPES.GOAL_TRANSFER).map(g=>({...g,_tipo:'gasto',_sign:'−',_color:'var(--red)'}))
+  ].sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||'')).slice(0,6)
+
+  const recentRows = recentMovs.length ? recentMovs.map(m=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:10px;min-width:0">
+        <div style="width:32px;height:32px;border-radius:8px;background:${m._tipo==='ingreso'?'var(--green-dim)':'var(--red-dim)'};
+          display:flex;align-items:center;justify-content:center;font-size:.9rem;flex-shrink:0">
+          ${m._tipo==='ingreso'?'💰':'💳'}
+        </div>
+        <div style="min-width:0">
+          <div style="font-size:.88rem;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px">${m.concepto||'—'}</div>
+          <div style="font-size:.72rem;color:var(--text2)">${fmtDate(m.fecha)} · <span style="font-size:.78rem">${catEmoji(m.categoria)}</span> ${m.categoria||'—'}</div>
+        </div>
+      </div>
+      <div style="font-size:.9rem;font-weight:700;color:${m._color};flex-shrink:0;margin-left:12px">${m._sign}${eur(m.importe)}</div>
+    </div>`).join('') :
+    '<div style="padding:24px;text-align:center;color:var(--text2);font-size:.85rem">' + t('sin_movimientos_aun') + '</div>'
+
+  // Compact assets preview for dashboard sidebar
+  const activeAssets = (S.assets||[]).filter(a=>a.status==='active')
+  const assetsVal    = calcAssetsValue()
+  const assetsPreviewHtml = activeAssets.length
+    ? activeAssets.slice(0,4).map(a=>{
+        const icons = {vehicle:'🚗',property:'🏠',electronics:'💻',jewelry:'💎',business:'🏢',other:'📦',car:'🚗',house:'🏠'}
+        const icon = icons[a.tipo]||'📦'
+        let cv = Number(a.valor)||0
+        if (a.depreciacion && a.depPct && a.fecha) {
+          const yrs = (Date.now()-new Date(a.fecha).getTime())/(1000*60*60*24*365.25)
+          cv = cv*Math.pow(1-(Number(a.depPct)||0)/100,Math.max(0,yrs))
+        }
+        return `<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)">
+          <div style="display:flex;align-items:center;gap:7px">
+            <span style="font-size:.9rem">${icon}</span>
+            <span style="font-size:.8rem;color:var(--text);font-weight:600;max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.nombre}</span>
+          </div>
+          <span style="font-size:.8rem;font-weight:700;color:var(--text);flex-shrink:0">${eur(cv)}</span>
+        </div>`
+      }).join('') +
+      (activeAssets.length > 4 ? `<div style="font-size:.72rem;color:var(--text2);padding-top:8px;text-align:center">+${activeAssets.length-4} más → <span style="color:var(--accent);cursor:pointer" onclick="goTo('patrimonio')">ver todo</span></div>` : '')
+    : `<div style="padding:16px 0;text-align:center;color:var(--text2);font-size:.8rem">
+        <div style="font-size:1.4rem;margin-bottom:6px">🏠</div>
+        ${t('sin_activos')}
+        <div style="margin-top:6px"><span style="color:var(--accent);cursor:pointer;font-size:.75rem" onclick="goTo('patrimonio')">${t('anadir_activo')}</span></div>
+      </div>`
+
+  const monthlySummary = checkMonthSummary()
+  const streak = getStreak()
+  const insights = generarInsights() // null = not enough data, [] = no relevant insights
+
+  // Build insights HTML — smart pill list, real empty state
+  const insightsHtml = (() => {
+    if (insights === null) return `
+      <div class="insight-empty">
+        <div class="insight-empty-icon">📊</div>
+        <div style="font-weight:600;color:var(--text);margin-bottom:4px">${t('aun_sin_datos')}</div>
+        <div>${t('anadir_movs')}</div>
+      </div>`
+    if (insights.length === 0) return `
+      <div class="insight-empty">
+        <div class="insight-empty-icon">✅</div>
+        <div style="font-weight:600;color:var(--text);margin-bottom:4px">${t('todo_orden_mes')}</div>
+        <div>${t('sigue_mas_detalle')}</div>
+      </div>`
+    return `<div class="insight-pill-list">${insights.map(i=>`
+      <div class="insight-pill">
+        <div class="insight-pill-icon" style="background:${i.bg}">${i.icon}</div>
+        <div class="insight-pill-text">${i.text}</div>
+      </div>`).join('')}</div>`
+  })()
+
+  const html = `
+  <!-- ── HEADER ───────────────────────────────────────────────── -->
+  <div class="section-header" style="margin-bottom:20px;align-items:flex-start">
+    <div>
+      <div class="page-h1">${t('hola_sin_coma')} <span style="color:var(--accent)">${S.usuario.nombre}</span>
+        ${streak >= 3 ? `<span class="streak-badge" style="font-size:.7rem;vertical-align:middle;margin-left:8px">🔥 ${streak} días</span>` : ''}
+      </div>
+      <div class="page-sub">${monthLabel(m)} · ${t('resumen_financiero')}</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-shrink:0" class="ytd-strip">
+      <div style="display:flex;align-items:center;gap:9px;padding:9px 14px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm)">
+        <div style="width:28px;height:28px;background:var(--green-dim);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.82rem;flex-shrink:0">📥</div>
+        <div>
+          <div style="font-size:.6rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.06em">${yr}</div>
+          <div style="font-size:.95rem;font-weight:800;color:var(--green)">${eur(ingYTD)}</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:9px;padding:9px 14px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm)">
+        <div style="width:28px;height:28px;background:var(--red-dim);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.82rem;flex-shrink:0">📤</div>
+        <div>
+          <div style="font-size:.6rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.06em">${yr}</div>
+          <div style="font-size:.95rem;font-weight:800;color:var(--red)">${eur(gasYTD)}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── MONTH SUMMARY BANNER (new month only) ────────────────── -->
+  ${renderMonthSummaryBanner(monthlySummary)}
+
+  <!-- ── COMPACT HEALTH SCORE ─────────────────────────────────── -->
+  ${renderHealthScore()}
+
+  <!-- ── PATRIMONIO HERO ───────────────────────────────────────── -->
+  <div style="display:grid;grid-template-columns:1fr 270px;gap:14px;margin-bottom:14px" class="dash-hero-grid">
+    <div class="patrimonio-hero" style="margin-bottom:0">
+      <div class="patrimonio-label">${t('patrimonio_neto')}</div>
+      <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap">
+        <div class="patrimonio-num">${eur(pat)}</div>
+        ${patDelta !== null ? `<span class="kpi-delta ${deltaClass(patDelta)}" style="font-size:.82rem">${deltaIcon(patDelta)} ${pct(Math.abs(patDelta))} vs. mes ant.</span>` : ''}
+      </div>
+      <div class="patrimonio-stats" style="margin-top:12px">
+        <div class="patrimonio-stat"><span class="patrimonio-stat-label">💰 ${t('liquidez')}</span><span class="patrimonio-stat-val">${eur(dis)}</span></div>
+        <div class="patrimonio-stat"><span class="patrimonio-stat-label">📈 ${t('invertido')}</span><span class="patrimonio-stat-val">${eur(calcCartera())}</span></div>
+        <div class="patrimonio-stat"><span class="patrimonio-stat-label">🏠 ${t('activos')}</span><span class="patrimonio-stat-val">${eur(assetsVal)}</span></div>
+        <div class="patrimonio-stat"><span class="patrimonio-stat-label">📉 ${t('deudas_lbl')}</span><span class="patrimonio-stat-val" style="color:${calcTotalDeuda()>0?'var(--red)':'var(--green)'}">${calcTotalDeuda()>0?'−'+eur(calcTotalDeuda()):t('sin_deudas')}</span></div>
+      </div>
+      <div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.06)">
+        <div style="font-size:.7rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">${t('cuentas_lbl')}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:7px">
+          ${S.cuentas.map(c=>`<div onclick="verDetalleCuenta('${c.id}')" style="display:flex;align-items:center;gap:6px;padding:5px 11px;border-radius:99px;background:${c.color||'#00D4AA'}18;border:1px solid ${c.color||'#00D4AA'}30;cursor:pointer;transition:all .15s" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform=''"><span style="width:7px;height:7px;border-radius:50%;background:${c.color||'#00D4AA'};flex-shrink:0"></span><span style="font-size:.73rem;color:var(--text2)">${c.nombre}</span><span style="font-size:.8rem;font-weight:700;color:var(--text)">${eur(c.saldo||0)}</span></div>`).join('')}
+        </div>
+      </div>
+    </div>
+    <div class="card" style="display:flex;flex-direction:column">
+      <div class="card-header" style="flex-shrink:0;margin-bottom:8px">
+        <div><div class="card-title">🏠 ${t('activos')}</div><div class="card-subtitle">${eur(assetsVal)} total</div></div>
+        <span class="pat-inv-link" onclick="goTo('patrimonio')" style="font-size:.72rem">Ver →</span>
+      </div>
+      <div style="flex:1">${assetsPreviewHtml}</div>
+      ${calcTotalDeuda()>0?`<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+        <div style="font-size:.67rem;color:var(--text2);font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">${t('deudas_lbl')}</div>
+        ${S.deudas.slice(0,2).map(d=>`<div style="display:flex;justify-content:space-between;font-size:.77rem;padding:3px 0"><span style="color:var(--text2)">${d.nombre||'—'}</span><span style="color:var(--red);font-weight:700">${eur((Number(d.importeTotal)||0)-(Number(d.importePagado)||0))}</span></div>`).join('')}
+        ${S.deudas.length>2?`<div style="font-size:.7rem;color:var(--text3);margin-top:4px;cursor:pointer" onclick="goTo('deudas')">+${S.deudas.length-2} más →</div>`:''}
+      </div>`:''}
+    </div>
+  </div>
+
+  <!-- ── KPI STRIP ─────────────────────────────────────────────── -->
+  <div class="kpi-grid kpi-grid-3" style="margin-bottom:14px">
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:var(--green-dim)">💰</div>
+      <div class="kpi-label">${t('ingresos_mes')}</div>
+      <div class="kpi-value" data-target="${eur(ing)}">${eur(ing)}</div>
+      ${ingP ? `<span class="kpi-delta ${deltaClass(ing-ingP)}">${deltaIcon(ing-ingP)} ${pct(Math.abs(ingP?((ing-ingP)/ingP*100):0))} vs. ant.</span>` : '<span class="kpi-delta neu">Primer mes</span>'}
+      <div class="kpi-sub" style="margin-top:5px">${S.ingresos.filter(i=>i.status!=='pending'&&(i.fecha||'').startsWith(m)).length} entradas</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:var(--red-dim)">💳</div>
+      <div class="kpi-label">${t('gastos_mes')}</div>
+      <div class="kpi-value" data-target="${eur(gas)}">${eur(gas)}</div>
+      ${gasP ? `<span class="kpi-delta ${gas>gasP?'down':'up'}">${gas>gasP?'↑':'↓'} ${pct(Math.abs(gasP?((gas-gasP)/gasP*100):0))} vs. ant.</span>` : '<span class="kpi-delta neu">Primer mes</span>'}
+      <div class="kpi-sub" style="margin-top:5px">${S.gastos.filter(g=>g.tipo!==TX_TYPES.GOAL_TRANSFER&&(g.fecha||'').startsWith(m)).length} salidas</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:${cf>=0?'var(--accent-dim)':'var(--red-dim)'}">${cf>=0?'📊':'⚠️'}</div>
+      <div class="kpi-label">${t('cash_flow')}</div>
+      <div class="kpi-value" style="color:${cf>=0?'var(--accent)':'var(--red)'}">${cf>=0?'+':''}${eur(cf)}</div>
+      <span class="kpi-delta ${cf>=0?'up':'down'}">${cf>=0?'Superávit':'Déficit'} · ${monthLabel(m)}</span>
+      <div class="kpi-sub" style="margin-top:5px">Ahorro: <strong style="color:${calcSavingsRate(m)>=20?'var(--green)':'var(--gold)'}">${pct(Math.max(0,calcSavingsRate(m)))}</strong></div>
+    </div>
+  </div>
+
+  <!-- ── CHARTS + RECENT ───────────────────────────────────────── -->
+  <div class="grid-2" style="margin-bottom:14px">
+    <div class="card">
+      <div class="card-header">
+        <div><div class="card-title">📈 ${t('evolucion_patrimonio')}</div><div class="card-subtitle">${t('ultimos_6_meses')}</div></div>
+      </div>
+      <div class="chart-container"><canvas id="chartPatrimonio"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <div><div class="card-title">🕐 ${t('actividad_reciente')}</div><div class="card-subtitle">${t('ultimas_transacciones')}</div></div>
+        <button class="btn btn-ghost btn-sm" onclick="goTo('ingresos')" style="font-size:.75rem">${t('ver_todo')}</button>
+      </div>
+      <div>${recentRows}</div>
+    </div>
+  </div>
+
+  <!-- ── DONUT + SMART INSIGHTS ─────────────────────────────────── -->
+  <div class="grid-2" style="margin-bottom:14px">
+    <div class="card">
+      <div class="card-header">
+        <div><div class="card-title">🍩 ${t('gastos_categoria')}</div><div class="card-subtitle">${monthLabel(m)}</div></div>
+      </div>
+      <div style="display:flex;gap:16px;align-items:center">
+        <div style="flex:0 0 130px"><canvas id="chartDonut" height="130"></canvas></div>
+        <div class="legend" id="donutLegend" style="flex:1;margin-top:0"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <div><div class="card-title">💡 Insights</div><div class="card-subtitle">${t('generados_tus_datos')}</div></div>
+      </div>
+      <div id="insightsContainer">${insightsHtml}</div>
+    </div>
+  </div>
+
+  ${renderPresupuestosResumen()}
+  ${renderDash503020()}
+  ${renderSubscriptionDetector()}
+  `
+  document.getElementById('content').innerHTML = html
+
+  // ── Animate health score ring ──────────────────────────────────
+  const scoreVal = calcHealthScore()
+  const scoreEl  = document.getElementById('healthScoreNum')
+  const ringEl   = document.getElementById('healthRingFill')
+  const r = 22, circum = 2 * Math.PI * r
+  if (scoreEl && ringEl && scoreVal > 0) {
+    scoreEl.textContent = '0'
+    const dur = 1200, start = performance.now()
+    function animScore(now) {
+      const p   = Math.min((now - start) / dur, 1)
+      const ease = 1 - Math.pow(1-p, 3)
+      const cur  = Math.round(ease * scoreVal)
+      scoreEl.textContent = cur
+      ringEl.style.strokeDashoffset = circum - (cur/100) * circum
+      if (p < 1) requestAnimationFrame(animScore)
+      else { scoreEl.textContent = scoreVal; ringEl.style.strokeDashoffset = circum - (scoreVal/100)*circum }
+    }
+    requestAnimationFrame(animScore)
+  }
+
+  document.querySelectorAll('.kpi-value[data-target]').forEach(el => animateCounter(el, el.dataset.target))
+  setTimeout(() => { renderChartPatrimonio(); renderChartDonut() }, 50)
+  syncBottomNav('dashboard')
+  updateDocTitle()
+}
+
+
+// ─── DASHBOARD 50/30/20 MINI WIDGET ────────────────────────────
+function renderDash503020() {
+  const m = currentMonth()
+  const d50 = calc503020(m)
+  if (!d50.total || d50.total === 0) return ''
+  const necOk  = d50.pctNec <= 50
+  const desOk  = d50.pctDes <= 30
+  const ahOk   = d50.pctAh  >= 20
+  const allOk  = necOk && desOk && ahOk
+  return `<div class="card" style="margin-bottom:14px">
+    <div class="card-header">
+      <div>
+        <div class="card-title">⚖️ Regla 50/30/20</div>
+        <div class="card-subtitle">Distribución óptima de tu dinero este mes</div>
+      </div>
+      <span style="font-size:1.2rem" title="${allOk?'¡Todo en orden!':'Hay categorías fuera del rango óptimo'}">${allOk?'✅':'⚠️'}</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div>
+        <div style="display:flex;justify-content:space-between;font-size:.75rem;margin-bottom:3px">
+          <span style="color:var(--text2)">🏠 Necesidades <span style="color:var(--text3)">(≤50%)</span></span>
+          <span style="font-weight:700;color:${necOk?'var(--green)':'var(--red)'}">${Math.round(d50.pctNec)}% ${necOk?'✓':'↑'}</span>
+        </div>
+        <div class="progress-wrap"><div class="progress-bar" style="width:${Math.min(d50.pctNec,100)}%;background:${necOk?'var(--indigo)':'var(--red)'}"></div></div>
+      </div>
+      <div>
+        <div style="display:flex;justify-content:space-between;font-size:.75rem;margin-bottom:3px">
+          <span style="color:var(--text2)">🎉 Deseos <span style="color:var(--text3)">(≤30%)</span></span>
+          <span style="font-weight:700;color:${desOk?'var(--green)':'var(--red)'}">${Math.round(d50.pctDes)}% ${desOk?'✓':'↑'}</span>
+        </div>
+        <div class="progress-wrap"><div class="progress-bar" style="width:${Math.min(d50.pctDes,100)}%;background:${desOk?'var(--gold)':'var(--red)'}"></div></div>
+      </div>
+      <div>
+        <div style="display:flex;justify-content:space-between;font-size:.75rem;margin-bottom:3px">
+          <span style="color:var(--text2)">💰 Ahorro <span style="color:var(--text3)">(≥20%)</span></span>
+          <span style="font-weight:700;color:${ahOk?'var(--green)':'var(--gold)'}">${Math.round(d50.pctAh)}% ${ahOk?'✓':'↓'}</span>
+        </div>
+        <div class="progress-wrap"><div class="progress-bar" style="width:${Math.min(d50.pctAh,100)}%;background:${ahOk?'var(--green)':'var(--gold)'}"></div></div>
+      </div>
+    </div>
+    ${!allOk?`<div style="margin-top:10px;padding:8px 12px;background:var(--bg2);border-radius:var(--radius-sm);font-size:.75rem;color:var(--text2)">
+      💡 ${!necOk?'Tus necesidades superan el 50% — revisa gastos fijos.':!desOk?'Tus gastos de ocio superan el 30% recomendado.':'Intenta ahorrar al menos el 20% de tus ingresos.'}
+      <span style="color:var(--accent);cursor:pointer;margin-left:4px" onclick="goTo('analisis')">Ver análisis completo →</span>
+    </div>`:''}
+  </div>`
+}
+
+// ─── SUBSCRIPTION DETECTOR ──────────────────────────────────────
+function renderSubscriptionDetector() {
+  const subsKeywords = ['netflix','spotify','amazon','prime','hbo','disney','youtube','apple','google','microsoft','office','adobe','dropbox','icloud','gym','gimnasio','suscripción','subscripción','mensual','monthly']
+  const recurrentes = S.gastos.filter(g => {
+    if (g.tipo === TX_TYPES.GOAL_TRANSFER) return false
+    if (g.recurrente) return true
+    const conceptoLower = (g.concepto||'').toLowerCase()
+    return subsKeywords.some(k => conceptoLower.includes(k))
+  })
+  if (recurrentes.length < 2) return ''
+  const totalSubs = recurrentes.reduce((a,g) => a + (Number(g.importe)||0), 0)
+  const unique = []
+  const seen = new Set()
+  recurrentes.forEach(g => {
+    const key = (g.concepto||'').toLowerCase().slice(0,15)
+    if (!seen.has(key)) { seen.add(key); unique.push(g) }
+  })
+  return `<div class="card" style="margin-bottom:14px">
+    <div class="card-header">
+      <div>
+        <div class="card-title">🔄 Suscripciones detectadas</div>
+        <div class="card-subtitle">${unique.length} activas · <strong style="color:var(--text)">${eur(totalSubs)}/mes</strong> · ${eur(totalSubs*12)}/año</div>
+      </div>
+      <button class="btn btn-ghost btn-xs" onclick="goTo('gastos')">Ver todas →</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      ${unique.slice(0,5).map(g=>`
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:.9rem">${catEmoji(g.categoria)}</span>
+            <span style="font-size:.82rem;color:var(--text);font-weight:600">${g.concepto||'—'}</span>
+            ${g.recurrente?'<span class="badge badge-accent" style="font-size:.6rem">↻</span>':'<span class="badge badge-gray" style="font-size:.6rem">auto</span>'}
+          </div>
+          <span style="font-size:.85rem;font-weight:700;color:var(--red)">−${eur(g.importe)}/mes</span>
+        </div>`).join('')}
+      ${unique.length>5?`<div style="font-size:.72rem;color:var(--text3);text-align:center;padding-top:4px">+${unique.length-5} suscripciones más</div>`:''}
+    </div>
+    <div style="margin-top:10px;padding:8px 12px;background:var(--red-dim);border-radius:var(--radius-sm);font-size:.75rem;color:var(--red)">
+      💡 ¿Todas siguen activas? Revisa tus suscripciones periódicamente para ahorrar hasta <strong>${eur(totalSubs*0.2)}/mes</strong>.
+    </div>
+  </div>`
+}
+
+function renderPresupuestosResumen() {
+  const cats = Object.keys(S.presupuestos)
+  if (!cats.length) return ''
+  const m = currentMonth()
+  const catMap = gastosMesByCat(m)
+  const items = cats.map(cat=>{
+    const limite = Number(S.presupuestos[cat])||0
+    const gastado = Number(catMap[cat])||0
+    const pctVal = limite ? clamp((gastado/limite)*100,0,100) : 0
+    const cls = pctVal>=100?'progress-danger':pctVal>=80?'progress-warn':'progress-ok'
+    return `<div style="margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;font-size:.78rem;margin-bottom:4px">
+        <span style="color:var(--text);font-weight:600"><span style="font-size:.85rem;margin-right:4px">${catEmoji(cat)}</span>${cat}</span>
+        <span style="color:var(--text2)">${eur(gastado)} / ${eur(limite)}</span>
+      </div>
+      <div class="progress-wrap"><div class="progress-bar ${cls}" style="width:${pctVal}%"></div></div>
+    </div>`
+  }).join('')
+  return `<div class="card" style="margin-bottom:14px">
+    <div class="card-header"><div class="card-title">📊 Presupuestos del mes</div><button class="btn btn-ghost btn-xs" onclick="goTo('presupuestos')">Ver todos →</button></div>
+    ${items}
+  </div>`
+}
+
+// ─── INGRESOS ──────────────────────────────────────────────────
+let _ingSearch = '', _ingCatFilter = '', _ingMesFilter = ''
+
+function renderIngresos() {
+  const m = currentMonth()
+  const mp = prevMonth(m)
+  // KPI total: active month filter → that month; otherwise current month
+  const kpiMonth = _ingMesFilter || m
+  const total    = S.ingresos.filter(i=>i.status!=='pending'&&(i.fecha||'').startsWith(kpiMonth)).reduce((a,i)=>a+(Number(i.importe)||0),0)
+  const totalP   = calcIngresosMes(mp)
+  const pending  = S.ingresos.filter(i=>i.status==='pending').reduce((a,i)=>a+(Number(i.importe)||0),0)
+  const catMapPeriod = {}
+  S.ingresos.filter(i=>i.status!=='pending'&&_gDateInPeriod(i.fecha)).forEach(i=>{
+    const cat=i.categoria||'Sin categoría'; catMapPeriod[cat]=(catMapPeriod[cat]||0)+(Number(i.importe)||0)
+  })
+  const topCat   = Object.entries(catMapPeriod).sort((a,b)=>b[1]-a[1])[0]
+  const allCats  = [...new Set(S.ingresos.map(i=>i.categoria).filter(Boolean))]
+  // All unique months derived dynamically from dates (Task 1 — never stored)
+  const allMeses = uniqueMonths(S.ingresos)
+  // catMap for chart (income by category this month)
+  const catMap   = ingresosMesByCat(m)
+
+  // Split: pending always shown, received filtered by month or all-time
+  const pendingIngs  = S.ingresos.filter(i=>i.status==='pending').sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''))
+  const receivedIngs = [...S.ingresos]
+    .filter(i => {
+      if (i.status === 'pending') return false
+      // Month filter takes priority; if none, show all (not period-filtered)
+      if (_ingMesFilter) {
+        // Month filter active — use it exclusively, skip global period
+        if (!i.fecha || !i.fecha.startsWith(_ingMesFilter)) return false
+      } else {
+        // No month filter — show ALL received incomes (no period restriction)
+        // This ensures newly added incomes are always visible
+      }
+      const q = _ingSearch.toLowerCase()
+      if (q && !(i.concepto||'').toLowerCase().includes(q)) return false
+      if (_ingCatFilter && i.categoria !== _ingCatFilter) return false
+      return true
+    })
+    .sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''))
+
+  const pendingRows = pendingIngs.map(i=>`
+    <tr style="background:rgba(245,158,11,0.05)">
+      <td class="td-main">${i.concepto||'—'}</td>
+      <td class="td-amount" style="color:var(--gold)">+${eur(i.importe)}</td>
+      <td><span class="cat-with-emoji"><span class="cat-emoji">${catEmoji(i.categoria)}</span><span class="tag">${i.categoria||'—'}</span></span></td>
+      <td>${fmtDate(i.fecha)}</td>
+      <td>${i.cuentaId?getCuenta(i.cuentaId)?.nombre||'—':'—'}</td>
+      <td><span class="badge badge-gold">${t('estado_pendiente')}</span></td>
+      <td><div class="action-row">
+        <button class="btn btn-primary btn-xs" onclick="marcarIngresoCobrado('${i.id}')">${t('cobrar_btn')}</button>
+        <button class="btn-edit" onclick="editarIngreso('${i.id}')">${t('btn_editar')}</button>
+        <button class="btn-del" onclick="borrarIngreso('${i.id}')">${t('btn_eliminar')}</button>
+      </div></td>
+    </tr>`).join('')
+
+  const rows = receivedIngs.map(i=>`
+    <tr>
+      <td class="td-main">${i.concepto||'—'}</td>
+      <td class="td-amount td-pos">+${eur(i.importe)}</td>
+      <td><span class="cat-with-emoji"><span class="cat-emoji">${catEmoji(i.categoria)}</span><span class="tag">${i.categoria||'—'}</span></span></td>
+      <td>${fmtDate(i.fecha)}</td>
+      <td>${i.cuentaId?getCuenta(i.cuentaId)?.nombre||'—':'—'}</td>
+      <td>${i.recurrente?"<span class=\"badge badge-accent\">" + t('estado_recurrente') + "</span>":''}</td>
+      <td><div class="action-row">
+        <button class="btn-edit" onclick="editarIngreso('${i.id}')">${t('btn_editar')}</button>
+        <button class="btn-del" onclick="borrarIngreso('${i.id}')">${t('btn_eliminar')}</button>
+      </div></td>
+    </tr>`).join('') || (() => {
+      // Fallback: if there are incomes but none match the current period/filter, show helpful message
+      const hasAny = S.ingresos.filter(i=>i.status!=='pending').length > 0
+      const emptyTitle = hasAny ? 'Sin resultados en este período' : 'Aún no tienes ingresos cobrados'
+      const emptySub = hasAny
+        ? 'Cambia el período o limpia los filtros para ver tus ingresos'
+        : 'Añade tu primer ingreso con el botón + Nuevo ingreso'
+      const clearBtn = (hasAny && (_ingSearch||_ingCatFilter||_ingMesFilter))
+        ? `<button class="btn btn-ghost btn-sm" onclick="_ingSearch='';_ingCatFilter='';_ingMesFilter='';_gTimePeriod='all';renderIngresos()">🔍 Ver todos los ingresos</button>` : ''
+      return `<tr><td colspan="7"><div class="empty"><div class="empty-icon">💰</div><div class="empty-title">${emptyTitle}</div><div class="empty-sub">${emptySub}</div>${clearBtn}</div></td></tr>`
+    })()
+
+  const ingPeriodLabel = _ingMesFilter ? monthLabel(_ingMesFilter) : 'Todos'
+  document.getElementById('content').innerHTML = `
+  <div class="section-header">
+    <div><div class="page-h1">💰 ${t('page_ingresos')}</div><div class="page-sub">${ingPeriodLabel} · ${S.ingresos.filter(i=>i.status!=='pending').length} cobrados · ${pendingIngs.length} pendientes</div></div>
+    <div class="section-actions">
+      <button class="btn btn-secondary btn-sm" onclick="exportarIngresos()">⬆ Exportar</button>
+      <button class="btn btn-primary btn-sm" onclick="openModal('ingresoModal');resetIngresoForm()">+ Nuevo ingreso</button>
+    </div>
+  </div>
+
+  ${_gFilterBar('renderIngresos()')}
+
+  <div class="kpi-grid kpi-grid-4" style="margin-bottom:16px">
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:var(--green-dim)">📥</div>
+      <div class="kpi-label">${t('cobrado_este_mes')}</div>
+      <div class="kpi-value">${eur(total)}</div>
+      ${totalP?`<span class="kpi-delta ${deltaClass(total-totalP)}">${deltaIcon(total-totalP)} ${pct(totalP?Math.abs((total-totalP)/totalP*100):0)} vs. ant.</span>`:'<span class="kpi-delta neu">Primer mes</span>'}
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:var(--gold-dim)">⏳</div>
+      <div class="kpi-label">${t('pendiente_cobro')}</div>
+      <div class="kpi-value" style="color:var(--gold)">${eur(pending)}</div>
+      <div class="kpi-sub">${pendingIngs.length} factura${pendingIngs.length!==1?'s':''} pendiente${pendingIngs.length!==1?'s':''}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:var(--indigo-dim)">🏷</div>
+      <div class="kpi-label">${t('top_categoria')}</div>
+      <div class="kpi-value sm">${topCat?topCat[0]:'—'}</div>
+      <div class="kpi-sub">${topCat?eur(topCat[1]):''}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:var(--accent-dim)">📅</div>
+      <div class="kpi-label">${t('mes_anterior_lbl')}</div>
+      <div class="kpi-value">${eur(totalP)}</div>
+    </div>
+  </div>
+
+  <div class="grid-2" style="margin-bottom:16px">
+    <div class="card">
+      <div class="card-header"><div class="card-title">📊 ${t('por_categoria_mes')}</div></div>
+      <div style="display:flex;gap:16px;align-items:center">
+        <div style="flex:0 0 120px"><canvas id="chartIngCat" height="120"></canvas></div>
+        <div class="legend" id="ingLegend" style="flex:1;margin-top:0"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">📈 ${t('evolucion_6m')}</div></div>
+      <div class="chart-container"><canvas id="chartIngEvo"></canvas></div>
+    </div>
+  </div>
+
+  ${pendingIngs.length ? `
+  <div class="card" style="margin-bottom:14px;border-color:rgba(245,158,11,0.3)">
+    <div class="card-header">
+      <div>
+        <div class="card-title" style="color:var(--gold)">⏳ ${t('pendientes_cobro_titulo')}</div>
+        <div class="card-subtitle">${pendingIngs.length} entrada${pendingIngs.length!==1?'s':''} · ${eur(pending)} por cobrar</div>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>${t('concepto')}</th><th>${t('importe')}</th><th>${t('categoria')}</th><th>${t('fecha')}</th><th>${t('cuenta_destino')}</th><th>${t('estado')}</th><th>${t('acciones')}</th></tr></thead>
+        <tbody>${pendingRows}</tbody>
+      </table>
+    </div>
+  </div>` : ''}
+
+  <div class="search-bar">
+    <input class="search-input" type="text" placeholder="${t('buscar_concepto')}" value="${_ingSearch}" oninput="_ingSearch=this.value;renderIngresos()">
+    <select class="filter-select" onchange="_ingCatFilter=this.value;renderIngresos()">
+      <option value="">${t('todas_categorias')}</option>
+      ${allCats.map(c=>`<option value="${c}" ${_ingCatFilter===c?'selected':''}>${catEmoji(c)} ${c}</option>`).join('')}
+    </select>
+    <select class="filter-select" onchange="_ingMesFilter=this.value;renderIngresos()">
+      <option value="">${t('todos_sin_filtro')}</option>
+      ${allMeses.map(mes=>`<option value="${mes}" ${_ingMesFilter===mes?'selected':''}>${monthLabel(mes)}</option>`).join('')}
+    </select>
+    ${_ingSearch||_ingCatFilter||_ingMesFilter?`<button class="btn btn-ghost btn-sm" onclick="_ingSearch='';_ingCatFilter='';_ingMesFilter='';renderIngresos()">${t('limpiar_filtros')}</button>`:''}
+    <span style="margin-left:auto;font-size:.78rem;color:var(--text2)">${receivedIngs.length} cobrado${receivedIngs.length!==1?'s':''}</span>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-title">✅ ${t('ingresos_cobrados')}</div></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>${t('concepto')}</th><th>${t('importe')}</th><th>${t('categoria')}</th><th>${t('fecha')}</th><th>${t('cuenta_lbl')}</th><th></th><th>${t('acciones')}</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  </div>`
+
+  setTimeout(()=>{
+    renderDonutCat('chartIngCat','ingLegend',catMap,'ingreso')
+    renderLineEvo('chartIngEvo','ingreso')
+  },50)
+}
+
+function exportarIngresos() {
+  try {
+    const wb = XLSX.utils.book_new()
+    const headers = ['Concepto','Categoría','Importe (€)','Fecha','Cliente','Cuenta','Recurrente','Estado']
+    const rows = S.ingresos.map(i=>[i.concepto||'',i.categoria||'',Number(i.importe)||0,i.fecha||'',i.cliente||'',getCuenta(i.cuentaId)?.nombre||'',i.recurrente?'Sí':'No',i.status==='pending'?'Pendiente':'Cobrado'])
+    const ws = XLSX.utils.aoa_to_sheet([headers,...rows])
+    ws['!cols'] = headers.map(h=>({wch:Math.max(h.length,14)}))
+    XLSX.utils.book_append_sheet(wb, ws, 'Ingresos')
+    XLSX.writeFile(wb, `MoneyNest_Ingresos_${todayISO()}.xlsx`)
+    toast(t('toast_ingresos_exportados'))
+  } catch(e) { toast(t('err_exportar'),'error') }
+}
+// ─── GASTOS ────────────────────────────────────────────────────
+let _gasSearch = '', _gasCatFilter = '', _gasMesFilter = ''
+
+function renderGastos() {
+  const m = currentMonth()
+  const mp = prevMonth(m)
+  // Use global period filter
+  const total = S.gastos.filter(g=>_gDateInPeriod(g.fecha)&&g.tipo!==TX_TYPES.GOAL_TRANSFER).reduce((a,g)=>a+(Number(g.importe)||0),0)
+  const totalP = calcGastosMes(mp)
+  const catMap = {}
+  S.gastos.filter(g=>_gDateInPeriod(g.fecha)&&g.tipo!==TX_TYPES.GOAL_TRANSFER).forEach(g=>{
+    const cat=g.categoria||'Sin categoría'; catMap[cat]=(catMap[cat]||0)+(Number(g.importe)||0)
+  })
+  const topCat = Object.entries(catMap).sort((a,b)=>b[1]-a[1])[0]
+  const allCats = [...new Set(S.gastos.map(g=>g.categoria).filter(Boolean))]
+  const mediaGasto = (() => {
+    const ms = getMonths(3)
+    const vals = ms.map(mo => calcGastosMes(mo)).filter(v=>v>0)
+    return vals.length ? vals.reduce((a,v)=>a+v,0)/vals.length : 0
+  })()
+  const mediaColor = total > mediaGasto ? 'var(--red)' : 'var(--green)'
+  const mediaText  = total > mediaGasto ? t('por_encima') : t('por_debajo')
+
+  const todos = [...S.gastos]
+    .filter(g => {
+      if (g.tipo === TX_TYPES.GOAL_TRANSFER) return false // internal — not a real expense
+      if (!_gDateInPeriod(g.fecha)) return false
+      const q = _gasSearch.toLowerCase()
+      if (q && !(g.concepto||'').toLowerCase().includes(q)) return false
+      if (_gasCatFilter && g.categoria !== _gasCatFilter) return false
+      return true
+    })
+    .sort((a,b)=>b.fecha?.localeCompare(a.fecha||'')||0)
+
+  const rows = todos.map(g=>`
+    <tr>
+      <td class="td-main">${g.concepto||'—'}</td>
+      <td class="td-amount td-neg">−${eur(g.importe)}</td>
+      <td><span class="cat-with-emoji"><span class="cat-emoji">${catEmoji(g.categoria)}</span><span class="tag">${g.categoria||'—'}</span></span></td>
+      <td>${fmtDate(g.fecha)}</td>
+      <td>${g.cuentaId?getCuenta(g.cuentaId)?.nombre||'—':'—'}</td>
+      <td>${g.recurrente?"<span class=\"badge badge-gold\">" + t('estado_recurrente') + "</span>":''}</td>
+      <td><div class="action-row">
+        <button class="btn-edit" onclick="editarGasto('${g.id}')">${t('btn_editar')}</button>
+        <button class="btn-del" onclick="borrarGasto('${g.id}')">${t('btn_eliminar')}</button>
+      </div></td>
+    </tr>`).join('') || `<tr><td colspan="7"><div class="empty"><div class="empty-icon">💳</div><div class="empty-title">${t('sin_resultados')}</div><div class="empty-sub">${t('ajusta_aniade')}</div></div></td></tr>`
+
+  document.getElementById('content').innerHTML = `
+  <div class="section-header">
+    <div><div class="page-h1">💳 ${t('page_gastos')}</div><div class="page-sub">${_gPeriodLabel()} · ${t('control_salidas')}</div></div>
+    <div class="section-actions">
+      <button class="btn btn-secondary btn-sm" onclick="exportarGastos()">${t('btn_exportar')}</button>
+      <button class="btn btn-primary btn-sm" onclick="openModal('gastoModal');resetGastoForm()">${t('btn_nuevo_gasto')}</button>
+    </div>
+  </div>
+
+  ${_gFilterBar('renderGastos()')}
+
+  <div class="kpi-grid kpi-grid-4" style="margin-bottom:16px">
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:var(--red-dim)">📤</div>
+      <div class="kpi-label">Total ${_gTimePeriod==='month'?'este mes':_gTimePeriod==='year'?'este año':'período'}</div>
+      <div class="kpi-value">${eur(total)}</div>
+      ${totalP?`<span class="kpi-delta ${total>totalP?'down':'up'}">${total>totalP?'↑':'↓'} ${pct(Math.abs(totalP?((total-totalP)/totalP*100):0))} vs. mes ant.</span>`:'<span class="kpi-delta neu">Primer mes</span>'}
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:var(--gold-dim)">${topCat?catEmoji(topCat[0]):'🏷'}</div>
+      <div class="kpi-label">${t('mayor_categoria')}</div>
+      <div class="kpi-value sm">${topCat?topCat[0]:'—'}</div>
+      <div class="kpi-sub">${topCat?eur(topCat[1]):''}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:var(--indigo-dim)">📅</div>
+      <div class="kpi-label">${t('media_mensual_3m')}</div>
+      <div class="kpi-value sm">${eur(mediaGasto)}</div>
+      <div class="kpi-sub" style="color:${mediaColor}">${mediaText}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:var(--accent-dim)">📆</div>
+      <div class="kpi-label">Mes anterior</div>
+      <div class="kpi-value">${eur(totalP)}</div>
+    </div>
+  </div>
+
+  <div class="grid-2" style="margin-bottom:16px">
+    <div class="card">
+      <div class="card-header"><div class="card-title">🍩 ${t('por_categoria')}</div><div class="card-subtitle">${_gPeriodLabel()}</div></div>
+      <div style="display:flex;gap:16px;align-items:center">
+        <div style="flex:0 0 120px"><canvas id="chartGasCat" height="120"></canvas></div>
+        <div class="legend" id="gasLegend" style="flex:1;margin-top:0"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">📈 ${t('evolucion_6m')}</div></div>
+      <div class="chart-container"><canvas id="chartGasEvo"></canvas></div>
+    </div>
+  </div>
+
+  <div class="search-bar">
+    <input class="search-input" type="text" placeholder="${t('buscar_concepto')}" value="${_gasSearch}" oninput="_gasSearch=this.value;renderGastos()">
+    <select class="filter-select" onchange="_gasCatFilter=this.value;renderGastos()">
+      <option value="">${t('todas_categorias')}</option>
+      ${allCats.map(c=>`<option value="${c}" ${_gasCatFilter===c?'selected':''}>${catEmoji(c)} ${c}</option>`).join('')}
+    </select>
+    ${_gasSearch||_gasCatFilter?`<button class="btn btn-ghost btn-sm" onclick="_gasSearch='';_gasCatFilter='';renderGastos()">${t('limpiar_filtros')}</button>`:''}
+    <span style="margin-left:auto;font-size:.78rem;color:var(--text2)">${todos.length} resultado${todos.length!==1?'s':''}</span>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-title">${t('todos_gastos')}</div></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>${t('concepto')}</th><th>${t('importe')}</th><th>${t('categoria')}</th><th>${t('fecha')}</th><th>${t('cuenta_lbl')}</th><th></th><th>${t('acciones')}</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  </div>`
+
+  setTimeout(()=>{
+    renderDonutCat('chartGasCat','gasLegend',catMap,'gasto')
+    renderLineEvo('chartGasEvo','gasto')
+  },50)
+}
+
+function exportarGastos() {
+  try {
+    const wb = XLSX.utils.book_new()
+    const headers = ['Concepto','Categoría','Importe (€)','Fecha','Cuenta','Recurrente','Notas']
+    const rows = S.gastos.map(g=>[g.concepto||'',g.categoria||'',Number(g.importe)||0,g.fecha||'',getCuenta(g.cuentaId)?.nombre||'',g.recurrente?'Sí':'No',g.notas||''])
+    const ws = XLSX.utils.aoa_to_sheet([headers,...rows])
+    ws['!cols'] = headers.map(h=>({wch:Math.max(h.length,14)}))
+    XLSX.utils.book_append_sheet(wb, ws, 'Gastos')
+    XLSX.writeFile(wb, `MoneyNest_Gastos_${todayISO()}.xlsx`)
+    toast(t('toast_gastos_exportados'))
+  } catch(e) { toast('Error al exportar','error') }
+}
+// ─── INVERSIONES ───────────────────────────────────────────────
+function renderInversiones() {
+  const abiertas = S.inversiones.filter(i=>!i.cerrada)
+  const cerradas = S.inversiones.filter(i=>i.cerrada)
+  const cartera = calcCartera()
+  const gananciaRealizada = calcGananciaTotal()
+  const gananciaLatente = calcGananciaLatente()
+  const bestInv = [...cerradas].sort((a,b)=>Number(b.roiReal||0)-Number(a.roiReal||0))[0]
+  const aciertos = cerradas.length ? cerradas.filter(i=>(Number(i.ganancia)||0)>0).length/cerradas.length*100 : 0
+
+  // Filtro por estado
+  const _invFiltro = window._invFiltro || 'todas'
+  const allCats = [...new Set(S.inversiones.map(i=>i.categoria).filter(Boolean))]
+  const _invCat = window._invCat || ''
+
+  const filtradas = S.inversiones.filter(inv => {
+    if (_invFiltro === 'abiertas' && inv.cerrada) return false
+    if (_invFiltro === 'cerradas' && !inv.cerrada) return false
+    if (_invCat && inv.categoria !== _invCat) return false
+    return true
+  })
+
+  const cards = filtradas.map(inv=>{
+    const volatile_ = isVolatile(inv)
+    const roi = calcROI(inv)
+    const ganancia = inv.cerrada ? Number(inv.ganancia)||0 : (volatile_ ? 0 : Number(inv.importe)*(Number(inv.rentabilidad)||0)/100)
+    const totalConGanancia = Number(inv.importe) + ganancia
+    return `
+    <div class="inv-card ${inv.cerrada?'cerrada':''}">
+      <div class="inv-name">${inv.nombre||'—'}</div>
+      <div class="inv-meta">
+        <span class="cat-with-emoji"><span class="cat-emoji">${catEmoji(inv.categoria)}</span><span class="cat-label">${inv.categoria||'—'}</span></span>
+        · ${fmtDate(inv.fecha)}${inv.cerrada&&inv.fechaCierre?' → '+fmtDate(inv.fechaCierre):''}
+        ${volatile_?'<span class="badge badge-gold" style="margin-left:4px;font-size:.6rem">⚡ Volátil</span>':''}
+      </div>
+      <div class="inv-stats">
+        <div class="inv-stat">
+          <div class="inv-stat-label">Capital invertido</div>
+          <div class="inv-stat-val">${eur(inv.importe)}</div>
+        </div>
+        ${!volatile_ && !inv.cerrada ? `
+        <div class="inv-stat">
+          <div class="inv-stat-label">Rentab. esperada</div>
+          <div class="inv-stat-val" style="color:${roi>=0?'var(--green)':'var(--red)'}">${roi>=0?'+':''}${pct(roi)}</div>
+        </div>` : inv.cerrada ? `
+        <div class="inv-stat">
+          <div class="inv-stat-label">ROI real</div>
+          <div class="inv-stat-val" style="color:${roi>=0?'var(--green)':'var(--red)'}">${roi>=0?'+':''}${pct(roi)}</div>
+        </div>` : `
+        <div class="inv-stat">
+          <div class="inv-stat-label">Tipo de activo</div>
+          <div class="inv-stat-val" style="color:var(--gold)">Volátil 📊</div>
+        </div>`}
+        <div class="inv-stat">
+          <div class="inv-stat-label">${inv.cerrada?'Ganancia realizada':'Ganancia est.'}</div>
+          <div class="inv-stat-val" style="color:${ganancia>=0?'var(--green)':'var(--red)'}">${ganancia===0&&volatile_&&!inv.cerrada?'—':(ganancia>=0?'+':'')+eur(ganancia)}</div>
+        </div>
+        ${inv.cerrada ? `
+        <div class="inv-stat">
+          <div class="inv-stat-label">Valor de salida</div>
+          <div class="inv-stat-val">${eur(inv.valorFinal||0)}</div>
+        </div>` : !volatile_ && !inv.cerrada ? `
+        <div class="inv-stat">
+          <div class="inv-stat-label">Valor proyectado</div>
+          <div class="inv-stat-val" style="color:var(--accent)">${eur(totalConGanancia)}</div>
+        </div>` : ''}
+      </div>
+      ${inv.notas?`<div style="font-size:.73rem;color:var(--text2);padding:5px 8px;background:var(--bg2);border-radius:5px;margin-bottom:10px">${inv.notas}</div>`:''}
+      <div class="action-row">
+        ${!inv.cerrada?`<button class="btn btn-primary btn-xs" onclick="abrirLiquidar('${inv.id}')">💰 Liquidar</button>`:''}
+        <button class="btn-edit" onclick="editarInversion('${inv.id}')">${t('btn_editar')}</button>
+        <button class="btn-del" onclick="borrarInversion('${inv.id}')">${t('btn_eliminar')}</button>
+      </div>
+    </div>`
+  }).join('') || `<div class="empty" style="grid-column:1/-1">
+    <div class="empty-icon">📈</div>
+    <div class="empty-title">${_invFiltro!=='todas'||_invCat?'Sin resultados':'Tu cartera está vacía'}</div>
+    <div class="empty-sub">${_invFiltro!=='todas'||_invCat?'Prueba con otros filtros o términos distintos':'Registra ETFs, acciones o criptos para hacer seguimiento del rendimiento'}</div>
+    
+    ${_invFiltro==='todas'&&!_invCat?`<button class="btn btn-primary btn-sm" onclick="openModal('inversionModal');resetInvForm()">+ Nueva inversión</button>`:''}
+  </div>`
+
+  document.getElementById('content').innerHTML = `
+  <div class="section-header">
+    <div>
+      <div class="page-h1">📈 ${t('page_inversiones')}</div>
+      <div class="page-sub">Cartera · Las ganancias en activos volátiles no se proyectan</div>
+    </div>
+    <div class="section-actions">
+      <button class="btn btn-secondary btn-sm" onclick="exportarInversiones()">⬆ Exportar</button>
+      <button class="btn btn-primary btn-sm" onclick="openModal('inversionModal');resetInvForm()">+ Nueva inversión</button>
+    </div>
+  </div>
+
+  ${_gFilterBar('renderInversiones()')}
+
+  <div class="kpi-grid kpi-grid-4" style="margin-bottom:16px">
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:var(--indigo-dim)">💎</div>
+      <div class="kpi-label">Capital invertido</div>
+      <div class="kpi-value">${eur(cartera)}</div>
+      <div class="kpi-sub">${abiertas.length} abiertas · ${cerradas.length} liquidadas</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:var(--green-dim)">📊</div>
+      <div class="kpi-label">Ganancia latente</div>
+      <div class="kpi-value sm" style="color:${gananciaLatente>=0?'var(--green)':'var(--red)'}">${gananciaLatente>=0?'+':''}${eur(gananciaLatente)}</div>
+      <div class="kpi-sub">Solo activos predecibles (bonos, inmuebles)</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:${gananciaRealizada>=0?'var(--green-dim)':'var(--red-dim)'}">✅</div>
+      <div class="kpi-label">Ganancia realizada</div>
+      <div class="kpi-value sm" style="color:${gananciaRealizada>=0?'var(--green)':'var(--red)'}">${gananciaRealizada>=0?'+':''}${eur(gananciaRealizada)}</div>
+      <div class="kpi-sub">${cerradas.length} cerradas · ${pct(aciertos,0)} de aciertos</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:var(--gold-dim)">🏆</div>
+      <div class="kpi-label">Mejor operación</div>
+      <div class="kpi-value sm">${bestInv?bestInv.nombre:'—'}</div>
+      <div class="kpi-sub">${bestInv?`ROI: ${pct(Number(bestInv.roiReal||0))}`:''}</div>
+    </div>
+  </div>
+
+  ${(() => {
+    const totalDisponible = calcDineroDisponible()
+    if (totalDisponible <= 0 && S.inversiones.filter(i=>!i.cerrada).length === 0) {
+      return '<div style="background:var(--gold-dim);border:1px solid rgba(245,158,11,.25);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:20px;display:flex;align-items:center;gap:10px">' +
+        '<span style="font-size:1.4rem">⚠️</span>' +
+        '<div><div style="font-size:.88rem;font-weight:700;color:var(--gold)">Necesitas fondos en una cuenta para invertir</div>' +
+        '<div style="font-size:.78rem;color:var(--text2);margin-top:2px">Añade dinero a tus cuentas antes de registrar una inversión.</div></div>' +
+        '<button class="btn btn-secondary btn-xs" style="margin-left:auto;white-space:nowrap" onclick="goTo(\'cuentas\')">Ir a Cuentas →</button>' +
+        '</div>'
+    }
+    return ''
+  })()}
+  <div style="background:var(--indigo-dim);border:1px solid rgba(99,102,241,.2);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:20px;font-size:.8rem;color:var(--text2)">
+    ℹ️ <strong style="color:var(--text)">Regla de inversiones:</strong> La ganancia latente de activos volátiles (cripto, acciones, ETF) no se muestra ni suma al patrimonio. La ganancia solo se contabiliza al liquidar. Los activos predecibles (bonos, inmuebles) sí proyectan rentabilidad.
+  </div>
+
+  <div class="search-bar" style="margin-bottom:16px">
+    <div class="tabs" style="margin:0;border:none;background:transparent;padding:0">
+      <div class="tab ${_invFiltro==='todas'?'active':''}" onclick="window._invFiltro='todas';renderInversiones()">Todas (${S.inversiones.length})</div>
+      <div class="tab ${_invFiltro==='abiertas'?'active':''}" onclick="window._invFiltro='abiertas';renderInversiones()">Abiertas (${abiertas.length})</div>
+      <div class="tab ${_invFiltro==='cerradas'?'active':''}" onclick="window._invFiltro='cerradas';renderInversiones()">Liquidadas (${cerradas.length})</div>
+    </div>
+    <select class="filter-select" style="margin-left:auto" onchange="window._invCat=this.value;renderInversiones()">
+      <option value="">Todas las categorías</option>
+      ${allCats.map(c=>`<option value="${c}" ${_invCat===c?'selected':''}>${catEmoji(c)} ${c}</option>`).join('')}
+    </select>
+  </div>
+
+  <div class="grid-2" style="margin-bottom:16px">
+    <div class="card col-span-2">
+      <div class="card-header"><div class="card-title">📊 ROI por inversión liquidada</div><div class="card-subtitle">Rentabilidad real de posiciones cerradas</div></div>
+      <div class="chart-container"><canvas id="chartInvROI"></canvas></div>
+    </div>
+  </div>
+
+  <div class="inv-grid">${cards}</div>`
+
+  setTimeout(()=>renderChartInvROI(),50)
+}
+
+function exportarInversiones() {
+  try {
+    const wb = XLSX.utils.book_new()
+    const headers = ['Nombre','Categoría','Capital (€)','ROI (%)','Ganancia (€)','Valor actual (€)','Estado','Fecha entrada','Fecha cierre','Notas']
+    const rows = S.inversiones.map(i=>[
+      i.nombre||'',i.categoria||'',Number(i.importe)||0,calcROI(i),
+      i.cerrada?Number(i.ganancia)||0:(isVolatile(i)?0:Number(i.importe)*(Number(i.rentabilidad)||0)/100),
+      calcValorInv(i),i.cerrada?'Liquidada':'Activa',i.fecha||'',i.fechaCierre||'',i.notas||''
+    ])
+    const ws = XLSX.utils.aoa_to_sheet([headers,...rows])
+    ws['!cols'] = headers.map(h=>({wch:Math.max(h.length,14)}))
+    XLSX.utils.book_append_sheet(wb, ws, 'Inversiones')
+    XLSX.writeFile(wb, `MoneyNest_Inversiones_${todayISO()}.xlsx`)
+    toast(t('toast_inversiones_exportadas'))
+  } catch(e) { toast('Error al exportar','error') }
+}
+// ─── DEUDAS ────────────────────────────────────────────────────
+let _deudaSearch = ''
+let _deudaCatFilter = ''
+
+function calcDebtStrategy(totalPendiente, interesMedio, multiplier) {
+  // multiplier: 0.6 = conservador, 1.0 = moderado, 1.6 = agresivo
+  const basePayment = totalPendiente > 0 ? Math.max(50, totalPendiente * 0.03) : 0
+  const monthlyPayment = basePayment * multiplier
+  let months = 0
+  if (monthlyPayment > 0 && totalPendiente > 0) {
+    if (interesMedio > 0) {
+      const r = interesMedio / 100 / 12
+      months = Math.ceil(Math.log(monthlyPayment / (monthlyPayment - r * totalPendiente)) / Math.log(1 + r))
+      if (!isFinite(months) || months <= 0) months = Math.ceil(totalPendiente / monthlyPayment)
+    } else {
+      months = Math.ceil(totalPendiente / monthlyPayment)
+    }
+  }
+  return { monthlyPayment, months }
+}
+
+function fmtMonths(m) {
+  if (!m || m <= 0) return '—'
+  const y = Math.floor(m/12), rem = m%12
+  if (y && rem) return `${y}a ${rem}m`
+  if (y) return `${y} año${y>1?'s':''}`
+  return `${m} ${t('meses')}`
+}
+
+function renderDeudas() {
+  const totalDeuda = S.deudas.reduce((a,d)=>a+(Number(d.importeTotal)||0),0)
+  const totalPagado = S.deudas.reduce((a,d)=>a+(Number(d.importePagado)||0),0)
+  const pendiente = totalDeuda - totalPagado
+  const progPct = totalDeuda ? (totalPagado/totalDeuda*100) : 0
+  const interesMedio = S.deudas.length ? S.deudas.reduce((a,d)=>a+(Number(d.interes)||0),0)/S.deudas.length : 0
+
+  // Estrategias de pago
+  const strats = [
+    { key:'conservador', icon:'🐢', name:'Conservador', desc:'Pago mensual bajo, liquidación gradual y cómoda', mul:0.6, color:'var(--text2)' },
+    { key:'moderado', icon:'⚖️', name:'Moderado', desc:'Equilibrio entre comodidad y velocidad de pago', mul:1.0, color:'var(--accent)' },
+    { key:'agresivo', icon:'🚀', name:'Agresivo', desc:'Pago mensual alto, libre de deudas en menor tiempo', mul:1.6, color:'var(--red)' },
+  ]
+
+  // Persist active strategy in window (survives re-renders within session)
+  if (!window._deudaStrat) window._deudaStrat = 'moderado'
+  const activeStrat = window._deudaStrat
+  const activeStratData = strats.find(s=>s.key===activeStrat) || strats[1]
+  const {monthlyPayment: activePago, months: activeMonths} = calcDebtStrategy(pendiente, interesMedio, activeStratData.mul)
+
+  // toggleStratMenu helper
+  window.toggleStratMenu = function() {
+    const m = document.getElementById('stratMenu')
+    if (m) m.style.display = m.style.display === 'none' ? 'block' : 'none'
+  }
+
+  const stratCards = (() => {
+    const active = strats.find(s => s.key === activeStrat)
+    const others = strats.filter(s => s.key !== activeStrat)
+    const {monthlyPayment: aPago, months: aMeses} = calcDebtStrategy(pendiente, interesMedio, active.mul)
+    const changeOpts = others.map(x => {
+      const {monthlyPayment: xPago, months: xMeses} = calcDebtStrategy(pendiente, interesMedio, x.mul)
+      return `<div onclick="window._deudaStrat='${x.key}';document.getElementById('stratMenu').style.display='none';renderDeudas()"
+        style="display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;font-size:.85rem;font-weight:600;color:var(--text2)"
+        onmouseover="this.style.background='var(--border)'" onmouseout="this.style.background='transparent'">
+        <span style="font-size:1.2rem">${x.icon}</span>
+        <div><div style="font-weight:700;color:var(--text)">${x.name}</div><div style="font-size:.72rem;color:var(--text3)">${eur(xPago)}/mes · libre en ${fmtMonths(xMeses)}</div></div>
+      </div>`
+    }).join('')
+    return `<div class="debt-strategy-card debt-strategy-active"
+      style="border-top:3px solid ${active.color};grid-column:1/-1;display:flex;align-items:center;gap:16px;text-align:left;padding:16px 20px;cursor:default;position:relative">
+      <div style="font-size:2rem;flex-shrink:0">${active.icon}</div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
+          <span style="font-size:.95rem;font-weight:800;color:${active.color}">${active.name}</span>
+          <span style="background:${active.color}22;color:${active.color};font-size:.68rem;font-weight:700;padding:2px 8px;border-radius:99px">✓ Estrategia activa</span>
+        </div>
+        <div style="font-size:.78rem;color:var(--text2);margin-bottom:8px">${active.desc}</div>
+        <div style="display:flex;gap:16px;flex-wrap:wrap">
+          <span style="font-size:.85rem;font-weight:700;color:var(--accent)">💳 ${eur(aPago)}/mes</span>
+          <span style="font-size:.78rem;color:var(--text2)">⏱ Libre en <strong style="color:var(--text)">${fmtMonths(aMeses)}</strong></span>
+        </div>
+      </div>
+      <div style="position:relative;flex-shrink:0">
+        <button onclick="event.stopPropagation();toggleStratMenu()"
+          style="background:var(--border);border:1px solid var(--border2);border-radius:8px;padding:6px 12px;cursor:pointer;color:var(--text2);font-size:1.1rem;line-height:1"
+          title="Cambiar estrategia">⋯</button>
+        <div id="stratMenu" style="display:none;position:absolute;right:0;top:40px;background:var(--card);border:1px solid var(--border2);border-radius:var(--radius);box-shadow:var(--shadow-lg);z-index:50;min-width:220px;overflow:hidden">
+          <div style="padding:8px 14px 6px;font-size:.7rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em">Cambiar estrategia</div>
+          ${changeOpts}
+        </div>
+      </div>
+    </div>`
+  })()
+
+  // Filtros
+  const allCats = [...new Set(S.deudas.map(d=>d.categoria).filter(Boolean))]
+  const deudas = S.deudas
+    .filter(d => {
+      const q = _deudaSearch.toLowerCase()
+      if (q && !( (d.nombre||'').toLowerCase().includes(q) || (d.categoria||'').toLowerCase().includes(q) )) return false
+      if (_deudaCatFilter && d.categoria !== _deudaCatFilter) return false
+      return true
+    })
+
+  const cards = deudas.map(d=>{
+    const pendD = (Number(d.importeTotal)||0) - (Number(d.importePagado)||0)
+    const pctD = d.importeTotal ? clamp((Number(d.importePagado)||0)/Number(d.importeTotal)*100,0,100) : 0
+    const vencida = d.vencimiento && new Date(d.vencimiento) < new Date() && pendD > 0
+    return `
+    <div class="debt-card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
+        <div class="debt-name">${d.nombre||'—'}</div>
+        ${vencida?'<span class="badge badge-red">⚠ Vencida</span>':''}
+      </div>
+      <div class="debt-meta">
+        <span class="cat-with-emoji"><span class="cat-emoji">${catEmoji(d.categoria)}</span><span class="tag">${d.categoria||'—'}</span></span>
+        ${d.interes?' · <strong style="color:var(--gold)">'+pct(d.interes)+' anual</strong>':''}
+        ${d.vencimiento?' · Vence: '+fmtDate(d.vencimiento):''}
+      </div>
+      <div class="progress-info">
+        <span class="progress-label">Pagado: ${eur(d.importePagado||0)}</span>
+        <span class="progress-pct" style="color:${pctD>=80?'var(--green)':pctD>=50?'var(--gold)':'var(--text)'}">${pct(pctD)}</span>
+      </div>
+      <div class="progress-wrap" style="margin-bottom:8px"><div class="progress-bar ${pctD>=100?'progress-ok':pctD>=80?'progress-accent':'progress-warn'}" style="width:${pctD}%"></div></div>
+      <div style="display:flex;justify-content:space-between;font-size:.78rem;color:var(--text2);margin-bottom:12px">
+        <span>Total: <strong style="color:var(--text)">${eur(d.importeTotal)}</strong></span>
+        <span>Pendiente: <strong style="color:${pendD>0?'var(--red)':'var(--green)'}">${pendD>0?eur(pendD):'¡Saldada!'}</strong></span>
+      </div>
+      ${d.notas?`<div style="font-size:.75rem;color:var(--text2);margin-bottom:10px;padding:6px 8px;background:var(--bg2);border-radius:6px">${d.notas}</div>`:''}
+      <div class="action-row">
+        ${pendD>0?`<button class="btn btn-primary btn-xs" onclick="abrirPago('${d.id}')">💳 Registrar pago</button>`:'<span class="badge badge-green">✓ Saldada</span>'}
+        <button class="btn-edit" onclick="editarDeuda('${d.id}')">${t('btn_editar')}</button>
+        <button class="btn-del" onclick="borrarDeuda('${d.id}')">${t('btn_eliminar')}</button>
+      </div>
+    </div>`
+  }).join('') || `<div class="empty" style="grid-column:1/-1">
+    <div class="empty-icon">📉</div>
+    <div class="empty-title">${_deudaSearch||_deudaCatFilter?'Sin resultados':'Sin deudas registradas'}</div>
+    <div class="empty-sub">${_deudaSearch||_deudaCatFilter?'Prueba con otros filtros o términos distintos':'Añade hipotecas, préstamos o tarjetas para controlar exactamente lo que debes'}</div>
+    
+    ${!_deudaSearch&&!_deudaCatFilter?'<button class="btn btn-primary btn-sm" onclick="openModal(\'deudaModal\');resetDeudaForm()">+ Nueva deuda</button>':''}
+  </div>`
+
+  document.getElementById('content').innerHTML = `
+  <div class="section-header">
+    <div><div class="page-h1">${t('deudas_lbl')}</div><div class="page-sub">Seguimiento, reducción y estrategia de pago</div></div>
+    <div class="section-actions">
+      <button class="btn btn-secondary btn-sm" onclick="exportarDeudas()">⬆ Exportar</button>
+      <button class="btn btn-primary btn-sm" onclick="openModal('deudaModal');resetDeudaForm()">+ Nueva deuda</button>
+    </div>
+  </div>
+
+  ${_gFilterBar('renderDeudas()')}
+
+  <div class="kpi-grid kpi-grid-4" style="margin-bottom:16px">
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:var(--red-dim)">💸</div>
+      <div class="kpi-label">Deuda total</div>
+      <div class="kpi-value">${eur(totalDeuda)}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:var(--green-dim)">✅</div>
+      <div class="kpi-label">Total pagado</div>
+      <div class="kpi-value">${eur(totalPagado)}</div>
+      <span class="kpi-delta ${progPct>50?'up':'neu'}">${pct(progPct)} completado</span>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:var(--gold-dim)">⏳</div>
+      <div class="kpi-label">Pendiente</div>
+      <div class="kpi-value" style="color:var(--red)">${eur(pendiente)}</div>
+      <div class="kpi-sub">${S.deudas.length} deudas · ${S.deudas.filter(d=>(Number(d.importeTotal)||0)-(Number(d.importePagado)||0)<=0).length} saldadas</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:var(--indigo-dim)">${activeStratData.icon}</div>
+      <div class="kpi-label">Estrategia activa</div>
+      <div class="kpi-value sm" style="color:${activeStratData.color}">${activeStratData.name}</div>
+      <div class="kpi-sub">Libre en ${fmtMonths(activeMonths)} · ${eur(activePago)}/mes</div>
+    </div>
+  </div>
+
+  ${pendiente > 0 ? `
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-header">
+      <div><div class="card-title">⚡ Estrategias de pago</div><div class="card-subtitle">Elige tu ritmo para liberarte de deudas</div></div>
+    </div>
+    <div class="debt-strategy-grid">${stratCards}</div>
+    <div style="font-size:.75rem;color:var(--text3);margin-top:4px">* Estimaciones orientativas. El cálculo incluye el interés medio de tus deudas (${pct(interesMedio)}/año).</div>
+    <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
+      <div style="font-size:.82rem;font-weight:700;color:var(--text);margin-bottom:12px">🏁 Planificación de Libertad Financiera</div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+        <span style="font-size:.82rem;color:var(--text2)">Quiero ser libre en</span>
+        <input type="number" id="libertadN" min="1" max="600" placeholder="12"
+          style="width:68px;padding:7px 10px;background:var(--card);border:1.5px solid var(--border2);border-radius:8px;color:var(--text);font-size:.95rem;font-weight:700;text-align:center"
+          onkeydown="if(event.key==='Enter')calcLibertad3Cards()">
+        <select id="libertadUnit" style="padding:7px 12px;background:var(--card);border:1.5px solid var(--border2);border-radius:8px;color:var(--text);font-size:.83rem;font-weight:600;cursor:pointer">
+          <option value="meses">meses</option>
+          <option value="anos">años</option>
+        </select>
+        <button onclick="calcLibertad3Cards()"
+          style="padding:7px 18px;background:linear-gradient(135deg,var(--accent),#00b894);border:none;border-radius:8px;color:#fff;font-size:.83rem;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(0,212,170,.25)">
+          🎯 Calcular cuota
+        </button>
+      </div>
+      <div id="libertad3Cards"></div>
+    </div>
+  </div>
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-header">
+      <div class="card-title">📋 Orden de pago recomendado</div>
+    </div>
+    <div class="tabs" style="margin-bottom:12px">
+      <div class="tab active" id="tab-snowball" onclick="switchDebtTab('snowball')">❄️ Bola de nieve</div>
+      <div class="tab" id="tab-avalanche" onclick="switchDebtTab('avalanche')">🌊 Avalancha</div>
+    </div>
+    <div id="debt-snowball">
+      <div style="font-size:.78rem;color:var(--text2);margin-bottom:10px;padding:7px 10px;background:var(--bg2);border-radius:6px"><strong style="color:var(--text)">Bola de nieve:</strong> empieza por la deuda más pequeña para ganar impulso psicológico.</div>
+      ${debtSnowball().map((d,i)=>{const pend=(Number(d.importeTotal)||0)-(Number(d.importePagado)||0);return`<div class="debt-order-item"><div class="debt-order-num">${i+1}</div><div class="debt-order-info"><div class="debt-order-name">${d.nombre}</div><div class="debt-order-meta">Pendiente: <strong style="color:var(--text)">${eur(pend)}</strong> · ${d.interes?'<span style="color:var(--gold)">'+pct(d.interes)+' int.</span>':'Sin interés'}</div></div></div>`}).join('')}
+    </div>
+    <div id="debt-avalanche" style="display:none">
+      <div style="font-size:.78rem;color:var(--text2);margin-bottom:10px;padding:7px 10px;background:var(--bg2);border-radius:6px"><strong style="color:var(--text)">Avalancha:</strong> empieza por la de mayor interés — ahorras más dinero a largo plazo.</div>
+      ${debtAvalanche().map((d,i)=>{const pend=(Number(d.importeTotal)||0)-(Number(d.importePagado)||0);return`<div class="debt-order-item"><div class="debt-order-num">${i+1}</div><div class="debt-order-info"><div class="debt-order-name">${d.nombre}</div><div class="debt-order-meta">Pendiente: <strong style="color:var(--text)">${eur(pend)}</strong> · ${d.interes?'<span style="color:var(--gold)">'+pct(d.interes)+' int.</span>':'Sin interés'}</div></div></div>`}).join('')}
+    </div>
+  </div>` : ''}
+
+
+
+  ${pendiente > 0 ? `
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-header">
+      <div><div class="card-title">📉 Proyección de deuda</div>
+      <div class="card-subtitle">Cuándo llegas a cero al ritmo actual de pagos</div></div>
+    </div>
+    <div class="chart-container" style="height:180px"><canvas id="chartDeudaProyeccion"></canvas></div>
+  </div>` : ''}
+
+  <div class="search-bar">
+    <input class="search-input" type="text" placeholder="🔍 Buscar deuda..." value="${_deudaSearch}" oninput="_deudaSearch=this.value;renderDeudas()">
+    <select class="filter-select" onchange="_deudaCatFilter=this.value;renderDeudas()">
+      <option value="">Todas las categorías</option>
+      ${allCats.map(c=>`<option value="${c}" ${_deudaCatFilter===c?'selected':''}>${catEmoji(c)} ${c}</option>`).join('')}
+    </select>
+    ${_deudaSearch||_deudaCatFilter?`<button class="btn btn-ghost btn-sm" onclick="_deudaSearch='';_deudaCatFilter='';renderDeudas()">✕ Limpiar</button>`:''}
+  </div>
+
+  <div class="grid-3">${cards}</div>`
+
+  // Render projection chart after DOM is set
+  if (pendiente > 0) {
+    setTimeout(() => renderChartDeudaProyeccion(pendiente, activePago), 60)
+  }
+}
+
+function renderChartDeudaProyeccion(totalPendiente, mensualPago) {
+  const canvas = document.getElementById('chartDeudaProyeccion')
+  if (!canvas) return
+  if (mensualPago <= 0) return
+
+  // Build monthly paydown curve — max 60 months
+  const interesMedio = S.deudas.length
+    ? S.deudas.reduce((a,d) => a + (Number(d.interes)||0), 0) / S.deudas.length
+    : 0
+  const monthlyRate = interesMedio / 100 / 12
+
+  const labels = []
+  const values = []
+  let saldo = totalPendiente
+  const hoy = new Date()
+  for (let i = 0; i <= 60 && saldo > 0; i++) {
+    const d = new Date(hoy.getFullYear(), hoy.getMonth() + i, 1)
+    const _loc={'es':'es-ES','en':'en-GB','it':'it-IT','fr':'fr-FR','de':'de-DE','pt':'pt-PT'}[_currentLang]||'es-ES'; labels.push(d.toLocaleDateString(_loc, { month:'short', year:'2-digit' }))
+    values.push(Math.max(0, Math.round(saldo)))
+    // Apply interest then subtract payment
+    const interest = saldo * monthlyRate
+    saldo = saldo + interest - mensualPago
+  }
+  // Ensure we reach zero
+  if (values[values.length-1] > 0) {
+    labels.push(t('libre'))
+    values.push(0)
+  }
+
+  const isDark = (S.theme||'dark') === 'dark'
+  const gridCol = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'
+  const labelCol = isDark ? '#94A3B8' : '#64748B'
+
+  const ctx = canvas.getContext('2d')
+  const gradient = ctx.createLinearGradient(0, 0, 0, 180)
+  gradient.addColorStop(0, 'rgba(244,63,94,0.3)')
+  gradient.addColorStop(1, 'rgba(244,63,94,0.02)')
+
+  // Register in chart registry so destroyAllCharts() cleans it
+  if (charts['deudaProyeccion']) { try { charts['deudaProyeccion'].destroy() } catch(e){} }
+  charts['deudaProyeccion'] = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: t('pendiente_total'),
+        data: values,
+        borderColor: 'var(--red)',
+        backgroundColor: gradient,
+        borderWidth: 2.5,
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        tension: 0.4,
+        fill: true,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx2 => ' Pendiente: ' + new Intl.NumberFormat('es-ES',{minimumFractionDigits:0,maximumFractionDigits:0}).format(ctx2.raw) + ' €'
+          }
+        }
+      },
+      scales: {
+        x: { grid:{ color:gridCol }, ticks:{ color:labelCol, font:{size:9}, maxTicksLimit:8 } },
+        y: {
+          grid: { color:gridCol },
+          ticks: {
+            color: labelCol, font:{size:9},
+            callback: v => new Intl.NumberFormat('es-ES',{minimumFractionDigits:0,maximumFractionDigits:0}).format(v) + ' €'
+          },
+          suggestedMin: 0,
+        }
+      }
+    }
+  })
+}
+
+function calcLibertad3Cards() {
+  var n    = parseFloat(document.getElementById('libertadN').value)
+  var unit = document.getElementById('libertadUnit').value
+  var box  = document.getElementById('libertad3Cards')
+  if (!box) return
+  if (!n || n <= 0) {
+    box.innerHTML = '<div style="color:var(--red);font-size:.82rem;padding:8px 12px;background:var(--red-dim);border-radius:8px">Introduce un período válido.</div>'
+    return
+  }
+  var pend = S.deudas.reduce(function(a,d){ return a + Math.max(0,(Number(d.importeTotal)||0)-(Number(d.importePagado)||0)) },0)
+  if (pend <= 0) {
+    box.innerHTML = '<div style="text-align:center;padding:16px;font-size:1rem;font-weight:800;color:var(--green)">¡Ya estás libre de deudas! 🎉</div>'
+    return
+  }
+  var meses = unit === 'anos' ? Math.round(n*12) : Math.round(n)
+  if (meses < 1) meses = 1
+  var intMed = S.deudas.length ? S.deudas.reduce(function(a,d){return a+(Number(d.interes)||0)},0)/S.deudas.length : 0
+  var mensual
+  if (intMed > 0) {
+    var r = intMed/100/12
+    mensual = (pend * r * Math.pow(1+r,meses)) / (Math.pow(1+r,meses)-1)
+  } else {
+    mensual = pend/meses
+  }
+  var semanal = mensual*12/52
+  var diario  = mensual*12/365
+  var periodoLabel = n + ' ' + (unit==='anos'?'años':'meses')
+  var activeKey = window._lib3Active || null
+
+  function render(ak) {
+    window._lib3Active = ak
+    var defs = [
+      { key:'mensual', icon:'📅', label:'Mensual',  amount:mensual, unit:'/mes',    color:'#2563eb' },
+      { key:'semanal', icon:'⏰', label:'Semanal',  amount:semanal, unit:'/semana', color:'#d97706' },
+      { key:'diario',  icon:'☀️', label:'Diario',   amount:diario,  unit:'/día',   color:'#7c3aed' },
+    ]
+    var html = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">'
+    defs.forEach(function(c) {
+      var isActive = ak === c.key
+      var cardStyle = 'background:var(--card);border-radius:14px;padding:18px 14px 14px;text-align:center;cursor:pointer;transition:all .2s;position:relative;overflow:hidden;' +
+        (isActive
+          ? 'border:2px solid var(--accent);box-shadow:0 0 0 4px rgba(0,212,170,.12),0 4px 20px rgba(0,212,170,.18);'
+          : 'border:1.5px solid var(--border2);box-shadow:0 2px 8px rgba(0,0,0,.07);')
+      var badge = isActive
+        ? '<div style="position:absolute;top:10px;right:10px;background:var(--accent);color:#fff;font-size:.6rem;font-weight:800;padding:2px 8px;border-radius:99px;letter-spacing:.04em">ACTIVA</div>'
+        : ''
+      var btnStyle = isActive
+        ? 'margin-top:12px;width:100%;padding:6px 0;border:none;border-radius:8px;background:var(--accent);color:#fff;font-size:.72rem;font-weight:800;cursor:pointer'
+        : 'margin-top:12px;width:100%;padding:6px 0;border:1.5px solid var(--border2);border-radius:8px;background:transparent;color:var(--text2);font-size:.72rem;font-weight:700;cursor:pointer'
+      var infoHtml = isActive
+        ? '<div style="font-size:.7rem;color:var(--text2);margin-top:10px;padding:8px;background:var(--bg2);border-radius:8px;border-left:3px solid var(--accent);text-align:left;line-height:1.5">El plan de pagos se ha sincronizado con tu calendario. Tus pagos se distribuirán según esta cuota para cumplir tu objetivo en ' + periodoLabel + '.</div>'
+        : ''
+      html +=
+        '<div style="' + cardStyle + '">' +
+          badge +
+          '<div style="font-size:1.8rem;margin-bottom:6px">' + c.icon + '</div>' +
+          '<div style="font-size:.65rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">' + c.label + '</div>' +
+          '<div style="font-size:1.6rem;font-weight:900;color:' + c.color + ';letter-spacing:-.5px;line-height:1">' + eur(c.amount) + '</div>' +
+          '<div style="font-size:.7rem;color:var(--text3);margin-top:3px">' + c.unit + '</div>' +
+          '<button onclick="calcLibertad3Cards._activate(\'' + c.key + '\')" style="' + btnStyle + '">' +
+            (isActive ? '✓ Estrategia Activa' : 'Activar estrategia') +
+          '</button>' +
+          infoHtml +
+        '</div>'
+    })
+    html += '</div>'
+    if (intMed > 0) html += '<div style="font-size:.7rem;color:var(--text3);margin-top:10px">* Incluye interés medio del ' + pct(intMed) + '/año</div>'
+    box.innerHTML = html
+  }
+
+  calcLibertad3Cards._activate = function(key) {
+    render(key)
+    if (typeof toast === 'function') toast('📅 Plan de pagos sincronizado con tu calendario ✓')
+  }
+
+  render(activeKey)
+}
+
+function calcDeudaPersonalizada() {
+  const monthly = parseFloat(document.getElementById('deudaCalcInput').value)
+  const result  = document.getElementById('deudaCalcResult')
+  if (!result) return
+  if (!monthly || monthly <= 0) { result.innerHTML = '<span style="color:var(--red)">' + t('deuda_input_invalido') + '</span>'; return }
+  const totalPend = calcTotalDeuda()
+  if (!totalPend) { result.innerHTML = '<span style="color:var(--green)">' + t('deuda_sin_pendientes') + '</span>'; return }
+  const interesMedio = S.deudas.length ? S.deudas.reduce((a,d)=>a+(Number(d.interes)||0),0)/S.deudas.length : 0
+  let months
+  if (interesMedio > 0) {
+    const r = interesMedio / 100 / 12
+    months = Math.ceil(Math.log(monthly/(monthly - r*totalPend)) / Math.log(1+r))
+    if (!isFinite(months) || months <= 0) months = Math.ceil(totalPend/monthly)
+  } else {
+    months = Math.ceil(totalPend/monthly)
+  }
+  result.innerHTML = '⏱ ' + t('deuda_libre_pagar') + ' <strong style="color:var(--accent)">' + fmtMonths(months) + '</strong> (' + eur(monthly) + '/mes).'
+}
+
+function switchDebtTab(tab) {
+  const snow = document.getElementById('debt-snowball')
+  const aval = document.getElementById('debt-avalanche')
+  if (snow) snow.style.display = tab==='snowball' ? 'block' : 'none'
+  if (aval) aval.style.display = tab==='avalanche' ? 'block' : 'none'
+  document.querySelectorAll('#nav-deudas ~ * .tab, .tab').forEach(t=>{
+    if (t.id==='tab-'+tab) t.classList.add('active')
+    else if (t.id==='tab-snowball'||t.id==='tab-avalanche') t.classList.remove('active')
+  })
+  const tSnow = document.getElementById('tab-snowball')
+  const tAval = document.getElementById('tab-avalanche')
+  if (tSnow) tSnow.classList.toggle('active', tab==='snowball')
+  if (tAval) tAval.classList.toggle('active', tab==='avalanche')
+}
+
+function exportarDeudas() {
+  try {
+    const wb = XLSX.utils.book_new()
+    const headers = ['Nombre','Categoría','Total (€)','Pagado (€)','Pendiente (€)','Interés (%)','Vencimiento','Notas']
+    const rows = S.deudas.map(d => [
+      d.nombre||'', d.categoria||'',
+      Number(d.importeTotal)||0, Number(d.importePagado)||0,
+      (Number(d.importeTotal)||0)-(Number(d.importePagado)||0),
+      d.interes||0, d.vencimiento||'', d.notas||''
+    ])
+    const ws = XLSX.utils.aoa_to_sheet([headers,...rows])
+    ws['!cols'] = headers.map(h=>({wch:Math.max(h.length,14)}))
+    XLSX.utils.book_append_sheet(wb, ws, 'Deudas')
+    XLSX.writeFile(wb, `MoneyNest_Deudas_${todayISO()}.xlsx`)
+    toast(t('toast_deudas_exportadas'))
+  } catch(e) { toast('Error al exportar','error'); console.error(e) }
+}
+
+// ─── OBJETIVOS ─────────────────────────────────────────────────
+let _objSearch = ''
+let _objCatFilter = ''
+
+function renderObjetivos() {
+  const allCats = [...new Set(S.objetivos.map(o=>o.categoria).filter(Boolean))]
+  const filtered = S.objetivos.filter(o => {
+    const q = _objSearch.toLowerCase()
+    if (q && !((o.nombre||'').toLowerCase().includes(q))) return false
+    if (_objCatFilter && o.categoria !== _objCatFilter) return false
+    return true
+  })
+
+  const cards = filtered.map(obj=>{
+    const pctVal = obj.objetivo ? clamp((Number(obj.actual)||0)/Number(obj.objetivo)*100,0,100) : 0
+    const falta  = Math.max(0,(Number(obj.objetivo)||0)-(Number(obj.actual)||0))
+    let prediccion = ''
+    // Monthly average contributions
+    const contribs = (obj.aportaciones||[])
+    const avgMonthly = (() => {
+      if (contribs.length >= 2) {
+        const total = contribs.reduce((a,c)=>a+(Number(c.importe)||0),0)
+        const months = Math.max(1, contribs.length)
+        return total / months
+      }
+      // Fallback: use savings rate
+      const m2 = currentMonth()
+      const sr2 = calcSavingsRate(m2)
+      const ing2 = calcIngresosMes(m2)
+      return ing2 > 0 ? (ing2 * sr2/100) / Math.max(S.objetivos.length,1) : 0
+    })()
+    if (obj.fechaObjetivo && falta > 0) {
+      const today  = new Date()
+      const target = new Date(obj.fechaObjetivo)
+      const meses  = Math.max(0,(target-today)/(1000*60*60*24*30.44))
+      if (meses > 0) prediccion = `Necesitas <strong>${eur(falta/meses)}/mes</strong>`
+    }
+    let etaText = ''
+    if (falta > 0 && avgMonthly > 0) {
+      const mesesETA = Math.ceil(falta / avgMonthly)
+      const etaDate = new Date()
+      etaDate.setMonth(etaDate.getMonth() + mesesETA)
+      const _etaLoc={'es':'es-ES','en':'en-GB','it':'it-IT','fr':'fr-FR','de':'de-DE','pt':'pt-PT'}[_currentLang]||'es-ES'; const etaLabel = etaDate.toLocaleDateString(_etaLoc,{month:'short',year:'numeric'})
+      etaText = `A este ritmo: <strong>${etaLabel}</strong> (${mesesETA} ${mesesETA===1?'mes':'meses'})`
+    } else if (falta <= 0) {
+      etaText = '🎉 ¡Meta alcanzada!'
+    }
+    const color   = obj.color||'#00D4AA'
+    const hasBgImg = obj.avatar && obj.avatar.startsWith('data:')
+    const bgStyle = hasBgImg
+      ? `background-image:url(${obj.avatar});background-size:cover;background-position:center;`
+      : `background:var(--card);`
+    const overlayStyle = hasBgImg
+      ? `position:absolute;inset:0;background:linear-gradient(to bottom,rgba(0,0,0,0.2) 0%,rgba(0,0,0,0.75) 100%);border-radius:var(--radius);z-index:0;`
+      : `display:none;`
+    const textColor = hasBgImg ? '#fff' : 'var(--text)'
+    const textColor2 = hasBgImg ? 'rgba(255,255,255,0.8)' : 'var(--text2)'
+    const emojiContent = !hasBgImg ? (obj.emoji || catEmoji(obj.categoria) || '🎯') : ''
+    const borderTopStyle = hasBgImg ? '' : `border-top:3px solid ${color};`
+    return `
+    <div class="goal-card ${hasBgImg?'has-img':''}" style="${borderTopStyle}position:relative;${bgStyle}overflow:hidden">
+      <div style="${overlayStyle}"></div>
+      <div style="position:relative;z-index:1">
+      ${!hasBgImg ? `<div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:10px">
+        <div class="obj-avatar" style="background:${color}22;border-color:${color}44">${emojiContent || catEmoji(obj.categoria) || '🎯'}</div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px">
+            <div class="goal-name" style="color:${textColor}">${obj.nombre||'—'}</div>
+            <span class="badge" style="background:${color}22;color:${color};flex-shrink:0">${obj.categoria||'Objetivo'}</span>
+          </div>
+          <div class="goal-meta" style="color:${textColor2}">${obj.fechaObjetivo?'📅 Meta: '+fmtDate(obj.fechaObjetivo):'Sin fecha límite'}</div>
+        </div>
+      </div>` : `
+      <div style="margin-bottom:12px;padding-top:4px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px;margin-bottom:4px">
+          <div class="goal-name" style="color:${textColor};text-shadow:0 1px 3px rgba(0,0,0,0.5)">${obj.nombre||'—'}</div>
+          <span class="badge" style="background:rgba(255,255,255,0.2);color:#fff;flex-shrink:0;backdrop-filter:blur(4px)">${obj.categoria||'Objetivo'}</span>
+        </div>
+        <div class="goal-meta" style="color:${textColor2}">${obj.fechaObjetivo?'📅 Meta: '+fmtDate(obj.fechaObjetivo):'Sin fecha límite'}</div>
+      </div>`}
+      <div class="progress-info">
+        <span class="progress-label" style="${hasBgImg?'color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.7)':''}">${eur(obj.actual||0)} de ${eur(obj.objetivo)}</span>
+        <span class="progress-pct" style="color:${hasBgImg?'#fff':color};font-weight:800;${hasBgImg?'text-shadow:0 1px 3px rgba(0,0,0,.7)':''}">${pct(pctVal)}</span>
+      </div>
+      <div class="progress-wrap" style="margin-bottom:8px;${hasBgImg?'background:rgba(255,255,255,0.2)':''}"><div class="progress-bar" style="width:${pctVal}%;background:${hasBgImg?'rgba(255,255,255,0.9)':color}"></div></div>
+      <div style="font-size:.78rem;margin-bottom:${prediccion?'6':'10'}px;${hasBgImg?'color:rgba(255,255,255,0.85);text-shadow:0 1px 2px rgba(0,0,0,.6)':'color:var(--text2)'}">Falta: <strong style="${hasBgImg?'color:#fff':'color:var(--text)'};font-size:.9rem">${eur(falta)}</strong></div>
+      ${prediccion?`<div style="font-size:.75rem;color:var(--text2);margin-bottom:6px;padding:6px 10px;background:var(--bg2);border-radius:6px">📅 ${prediccion}</div>`:''}
+      ${etaText&&falta>0?`<div style="font-size:.75rem;color:var(--accent);margin-bottom:10px;padding:6px 10px;background:var(--accent-dim);border-radius:6px;font-weight:600">🚀 ${etaText}</div>`:''}
+      ${pctVal>=100?'<div style="text-align:center;margin-bottom:10px"><span class="badge badge-green" style="font-size:.85rem">🎉 ¡Objetivo alcanzado!</span></div>':''}
+      <div class="action-row" style="${hasBgImg?'background:rgba(0,0,0,0.3);border-radius:var(--radius-sm);padding:4px 6px;':''}">
+        <button class="btn btn-primary btn-xs" onclick="abrirAportar('${obj.id}')">💸 Aportar</button>
+        <button class="btn-edit" onclick="editarObjetivo('${obj.id}')" style="${hasBgImg?'background:rgba(255,255,255,0.15);color:#fff;':''}">${t('btn_editar')}</button>
+        <button class="btn-del" onclick="borrarObjetivo('${obj.id}')" style="${hasBgImg?'background:rgba(255,80,80,0.25);color:#fca5a5;':''}">🗑</button>
+      </div>
+      </div>
+    </div>`
+  }).join('') || `<div class="empty" style="grid-column:1/-1">
+    <div class="empty-icon">🎯</div>
+    <div class="empty-title">${_objSearch||_objCatFilter?'Sin resultados':'Define tu próxima meta'}</div>
+    <div class="empty-sub">${_objSearch||_objCatFilter?'Prueba con otros filtros o términos distintos':'Vacaciones, fondo de emergencia, un coche… MoneyNest calculará cuándo lo alcanzarás'}</div>
+    
+    ${!_objSearch&&!_objCatFilter?'<button class="btn btn-primary btn-sm" onclick="openModal(\'objetivoModal\');resetObjForm()">+ Crear mi primer objetivo</button>':''}
+  </div>`
+
+  // KPIs
+  const totalMeta = S.objetivos.reduce((a,o)=>a+(Number(o.objetivo)||0),0)
+  const totalActual = S.objetivos.reduce((a,o)=>a+(Number(o.actual)||0),0)
+  const completados = S.objetivos.filter(o=>((Number(o.actual)||0)>=(Number(o.objetivo)||1))).length
+
+  document.getElementById('content').innerHTML = `
+  <div class="section-header">
+    <div><div class="page-h1">🎯 Objetivos</div><div class="page-sub">Metas financieras y predicciones</div></div>
+    <div class="section-actions">
+      <button class="btn btn-secondary btn-sm" onclick="exportarObjetivos()">⬆ Exportar</button>
+      <button class="btn btn-primary btn-sm" onclick="openModal('objetivoModal');resetObjForm()">+ Nuevo objetivo</button>
+    </div>
+  </div>
+
+  ${_gFilterBar('renderObjetivos()')}
+
+  <div class="kpi-grid kpi-grid-4" style="margin-bottom:16px">
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:var(--accent-dim)">🎯</div>
+      <div class="kpi-label">Objetivos activos</div>
+      <div class="kpi-value">${S.objetivos.length}</div>
+      <div class="kpi-sub">${completados} completados</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:var(--green-dim)">💰</div>
+      <div class="kpi-label">Total ahorrado</div>
+      <div class="kpi-value sm">${eur(totalActual)}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:var(--indigo-dim)">🏆</div>
+      <div class="kpi-label">Meta total</div>
+      <div class="kpi-value sm">${eur(totalMeta)}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:var(--gold-dim)">📊</div>
+      <div class="kpi-label">Progreso global</div>
+      <div class="kpi-value sm" style="color:var(--accent)">${pct(totalMeta?clamp(totalActual/totalMeta*100,0,100):0)}</div>
+    </div>
+  </div>
+
+  <div class="search-bar">
+    <input class="search-input" type="text" placeholder="🔍 Buscar objetivo..." value="${_objSearch}" oninput="_objSearch=this.value;renderObjetivos()">
+    <select class="filter-select" onchange="_objCatFilter=this.value;renderObjetivos()">
+      <option value="">Todas las categorías</option>
+      ${allCats.map(c=>`<option value="${c}" ${_objCatFilter===c?'selected':''}>${catEmoji(c)} ${c}</option>`).join('')}
+    </select>
+    ${_objSearch||_objCatFilter?`<button class="btn btn-ghost btn-sm" onclick="_objSearch='';_objCatFilter='';renderObjetivos()">✕ Limpiar</button>`:''}
+  </div>
+
+  <div class="grid-3">${cards}</div>`
+}
+
+function exportarObjetivos() {
+  try {
+    const wb = XLSX.utils.book_new()
+    const headers = ['Nombre','Categoría','Meta (€)','Ahorrado (€)','% Completado','Falta (€)','Fecha objetivo','Notas']
+    const rows = S.objetivos.map(o => [
+      o.nombre||'', o.categoria||'',
+      Number(o.objetivo)||0, Number(o.actual)||0,
+      o.objetivo ? Math.round((Number(o.actual)||0)/(Number(o.objetivo)||1)*100) : 0,
+      Math.max(0,(Number(o.objetivo)||0)-(Number(o.actual)||0)),
+      o.fechaObjetivo||'', o.notas||''
+    ])
+    const ws = XLSX.utils.aoa_to_sheet([headers,...rows])
+    ws['!cols'] = headers.map(h=>({wch:Math.max(h.length,14)}))
+    XLSX.utils.book_append_sheet(wb, ws, 'Objetivos')
+    XLSX.writeFile(wb, `MoneyNest_Objetivos_${todayISO()}.xlsx`)
+    toast(t('toast_objetivos_exportados'))
+  } catch(e) { toast('Error al exportar','error'); console.error(e) }
+}
+
+// Avatar helpers for objetivos
+let _objAvatarTarget = null
+let _objAvatarPending = null
+
+function abrirObjAvatar(objId) {
+  _objAvatarTarget = objId
+  const obj  = S.objetivos.find(x=>x.id===objId)
+  _objAvatarPending = obj?.avatar || obj?.emoji || catEmoji(obj?.categoria) || '🎯'
+  const prev = document.getElementById('objAvatarPreviewBig')
+  if (prev) {
+    if (_objAvatarPending && _objAvatarPending.startsWith('data:')) {
+      prev.innerHTML = `<img src="${_objAvatarPending}" style="width:100%;height:100%;object-fit:cover">`
+    } else {
+      prev.textContent = _objAvatarPending
+    }
+  }
+  openModal('objAvatarModal')
+}
+function setObjEmoji(emoji) {
+  _objAvatarPending = emoji
+  const prev = document.getElementById('objAvatarPreviewBig')
+  if (prev) prev.textContent = emoji
+}
+function applyObjAvatarFile(input) {
+  const file = input.files[0]
+  if (!file) return
+  const reader = new FileReader()
+  reader.onload = e => {
+    if (!checkImageSize(e.target.result)) { input.value = ''; return }
+    _objAvatarPending = e.target.result
+    const prev = document.getElementById('objAvatarPreviewBig')
+    if (prev) prev.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover">`
+  }
+  reader.readAsDataURL(file)
+}
+
+function clearObjAvatar() {
+  _objAvatarPending = null
+  const prev = document.getElementById('objAvatarPreviewBig')
+  if (prev) prev.innerHTML = ''
+  const fi = document.getElementById('objAvatarFileInput')
+  if (fi) fi.value = ''
+}
+function confirmarObjAvatar() {
+  if (!_objAvatarTarget) { closeModal('objAvatarModal'); return }
+  const idx = S.objetivos.findIndex(x=>x.id===_objAvatarTarget)
+  if (idx >= 0) {
+    if (!_objAvatarPending) {
+      // Clear both avatar and emoji
+      S.objetivos[idx].avatar = null
+      S.objetivos[idx].emoji  = null
+    } else if (typeof _objAvatarPending === 'string' && _objAvatarPending.startsWith('data:')) {
+      S.objetivos[idx].avatar = _objAvatarPending
+      S.objetivos[idx].emoji  = null
+    } else {
+      S.objetivos[idx].emoji  = _objAvatarPending
+      S.objetivos[idx].avatar = null
+    }
+  }
+  save(); closeModal('objAvatarModal'); render()
+  toast(t(_objAvatarPending ? 'toast_imagen_actualizada' : 'toast_imagen_eliminada'))
+}
+
+// ─── PRESUPUESTOS ──────────────────────────────────────────────
+function renderPresupuestos() {
+  const m = currentMonth()
+  const catMap = gastosMesByCat(m)
+  const cats = Object.keys(S.presupuestos)
+  const totalLimite = cats.reduce((a,c)=>a+(Number(S.presupuestos[c])||0),0)
+  const totalGastado = cats.reduce((a,c)=>a+(Number(catMap[c])||0),0)
+  const enRojo = cats.filter(c=>(Number(catMap[c])||0)>=(Number(S.presupuestos[c])||0)).length
+
+  const items = cats.map(cat=>{
+    const limite = Number(S.presupuestos[cat])||0
+    const gastado = Number(catMap[cat])||0
+    const pctVal = limite ? clamp((gastado/limite)*100,0,120) : 0
+    const cls = pctVal>=100?'progress-danger':pctVal>=80?'progress-warn':'progress-ok'
+    const badge = pctVal>=100
+      ? '<span class="badge badge-red">⚠ Superado</span>'
+      : pctVal>=80 ? '<span class="badge badge-gold">⚡ Alerta</span>'
+      : '<span class="badge badge-green">✓ OK</span>'
+    return `
+    <div class="budget-item">
+      <div class="budget-header">
+        <div class="budget-cat">
+          <span style="font-size:1rem">${catEmoji(cat)}</span> ${cat} ${badge}
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="budget-nums">${eur(gastado)} / <strong>${eur(limite)}</strong></div>
+          <button class="btn-del" style="padding:3px 8px;font-size:.7rem" onclick="borrarPresupuesto(this.dataset.cat)" data-cat="${cat}">🗑</button>
+        </div>
+      </div>
+      <div class="progress-wrap"><div class="progress-bar ${cls}" style="width:${Math.min(pctVal,100)}%"></div></div>
+      <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:.75rem;color:var(--text2)">
+        <span>Disponible: <strong style="color:var(--text)">${eur(Math.max(0,limite-gastado))}</strong></span>
+        <span>${pct(pctVal)} usado</span>
+      </div>
+    </div>`
+  }).join('') || (window.mnEmptyStates ? window.mnEmptyStates.presupuestos() : '<div class="empty"><div class="empty-icon">📊</div><div class="empty-title">Aún no tienes presupuestos</div></div>')
+
+  document.getElementById('content').innerHTML = `
+  <div class="section-header">
+    <div><div class="page-h1">📊 Presupuestos</div><div class="page-sub">${monthLabel(m)} · Control de límites por categoría</div></div>
+    <div class="section-actions">
+      <button class="btn btn-secondary btn-sm" onclick="exportarPresupuestos()">⬆ Exportar</button>
+      <button class="btn btn-primary btn-sm" onclick="openModal('presupuestoModal');resetPresForm()">+ Nuevo presupuesto</button>
+    </div>
+  </div>
+
+  ${_gFilterBar('renderPresupuestos()')}
+
+  <div class="kpi-grid kpi-grid-4" style="margin-bottom:16px">
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:var(--indigo-dim)">💰</div>
+      <div class="kpi-label">Total presupuestado</div>
+      <div class="kpi-value">${eur(totalLimite)}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:var(--red-dim)">💳</div>
+      <div class="kpi-label">Total gastado</div>
+      <div class="kpi-value">${eur(totalGastado)}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:var(--green-dim)">✅</div>
+      <div class="kpi-label">Disponible</div>
+      <div class="kpi-value">${eur(Math.max(0,totalLimite-totalGastado))}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:var(--red-dim)">⚠️</div>
+      <div class="kpi-label">Categorías en rojo</div>
+      <div class="kpi-value" style="color:${enRojo?'var(--red)':'var(--green)'}">${enRojo}</div>
+    </div>
+  </div>
+
+  <div class="card">${items}</div>`
+}
+
+function exportarPresupuestos() {
+  const m = currentMonth()
+  const catMap = gastosMesByCat(m)
+  try {
+    const wb = XLSX.utils.book_new()
+    const headers = ['Categoría','Límite (€)','Gastado (€)','Disponible (€)','% Usado','Estado']
+    const rows = Object.keys(S.presupuestos).map(cat => {
+      const limite = Number(S.presupuestos[cat])||0
+      const gastado = Number(catMap[cat])||0
+      const pctVal = limite ? Math.round(gastado/limite*100) : 0
+      const estado = pctVal>=100?'Superado':pctVal>=80?'En alerta':'OK'
+      return [cat, limite, gastado, Math.max(0,limite-gastado), pctVal+'%', estado]
+    })
+    const ws = XLSX.utils.aoa_to_sheet([headers,...rows])
+    ws['!cols'] = headers.map(h=>({wch:Math.max(h.length,14)}))
+    XLSX.utils.book_append_sheet(wb, ws, 'Presupuestos')
+    XLSX.writeFile(wb, `MoneyNest_Presupuestos_${todayISO()}.xlsx`)
+    toast(t('toast_presupuestos_exportados'))
+  } catch(e) { toast('Error al exportar','error') }
+}
+function renderCuentas() {
+  const totalSaldo = calcDineroDisponible()
+  const totalValor = S.cuentas.reduce((a,c)=>a+(Number(c.valorTotal)||Number(c.saldo)||0),0)
+  const tiposIcon = {banco:"🏦",efectivo:"💵",cripto:"₿",inversion:"📈",ahorro:"💰",otro:"📁"}
+
+  const cards = S.cuentas.map(c=>{
+    const saldo = Number(c.saldo)||0
+    const valorTotal = Number(c.valorTotal)||saldo
+    const comprometido = Math.max(0, valorTotal - saldo)
+    const gastosCuenta = S.gastos.filter(g=>g.cuentaId===c.id&&g.tipo!==TX_TYPES.GOAL_TRANSFER).length
+    const ingresosCuenta = S.ingresos.filter(i=>i.cuentaId===c.id).length
+    const invCuenta = S.inversiones.filter(i=>i.cuentaId===c.id&&!i.cerrada).length
+    const totalGastado = S.gastos.filter(g=>g.cuentaId===c.id&&g.tipo!==TX_TYPES.GOAL_TRANSFER).reduce((a,g)=>a+(Number(g.importe)||0),0)
+    const totalIngresado = S.ingresos.filter(i=>i.cuentaId===c.id).reduce((a,i)=>a+(Number(i.importe)||0),0)
+    return `
+    <div class="cuenta-card" onclick="verDetalleCuenta('${c.id}')" style="cursor:pointer" title="Ver movimientos de ${c.nombre}">
+      <div class="cuenta-accent" style="background:${c.color||"#00D4AA"}"></div>
+      <div class="cuenta-tipo">${tiposIcon[c.tipo]||"📁"} ${c.tipo||"banco"}</div>
+      <div class="cuenta-name">${c.nombre||"—"}</div>
+      ${c.notas ? `<div style="font-size:.72rem;color:var(--text3);margin-bottom:4px">${c.notas}</div>` : ""}
+      <div class="cuenta-balance" style="color:${saldo>=0?"var(--accent)":"var(--red)"}">${eur(saldo)}</div>
+      <div style="font-size:.72rem;color:var(--text2);margin-bottom:10px">💰 Disponible</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">
+        <div style="background:var(--bg2);border-radius:6px;padding:7px 9px">
+          <div style="font-size:.62rem;color:var(--text3);font-weight:700;text-transform:uppercase">Valor total</div>
+          <div style="font-size:.88rem;font-weight:700;color:var(--text)">${eur(valorTotal)}</div>
+        </div>
+        <div style="background:var(--bg2);border-radius:6px;padding:7px 9px">
+          <div style="font-size:.62rem;color:var(--text3);font-weight:700;text-transform:uppercase">Comprometido</div>
+          <div style="font-size:.88rem;font-weight:700;color:var(--gold)">${eur(comprometido)}</div>
+        </div>
+        <div style="background:var(--bg2);border-radius:6px;padding:7px 9px">
+          <div style="font-size:.62rem;color:var(--green);font-weight:700;text-transform:uppercase">📥 Total entradas</div>
+          <div style="font-size:.82rem;font-weight:700;color:var(--green)">${eur(totalIngresado)}</div>
+        </div>
+        <div style="background:var(--bg2);border-radius:6px;padding:7px 9px">
+          <div style="font-size:.62rem;color:var(--red);font-weight:700;text-transform:uppercase">📤 Total salidas</div>
+          <div style="font-size:.82rem;font-weight:700;color:var(--red)">${eur(totalGastado)}</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+        <span style="font-size:.7rem;color:var(--text2);background:var(--border);padding:2px 7px;border-radius:99px">${ingresosCuenta} ingresos</span>
+        <span style="font-size:.7rem;color:var(--text2);background:var(--border);padding:2px 7px;border-radius:99px">${gastosCuenta} gastos</span>
+        ${invCuenta ? `<span style="font-size:.7rem;color:var(--accent);background:var(--accent-dim);padding:2px 7px;border-radius:99px">📈 ${invCuenta} inversiones</span>` : ""}
+      </div>
+      <div class="action-row">
+        <button class="btn btn-ghost btn-xs" onclick="verDetalleCuenta('${c.id}')">📋 Ver movimientos</button>
+        <button class="btn-edit" onclick="editarCuenta('${c.id}')">✏</button>
+        <button class="btn-del" onclick="borrarCuenta('${c.id}')">🗑</button>
+      </div>
+    </div>`
+  }).join("") || (window.mnEmptyStates ? window.mnEmptyStates.cuentas() : "<div class=\"empty\"><div class=\"empty-icon\">🏦</div><div class=\"empty-title\">Sin cuentas</div></div>")
+
+  document.getElementById("content").innerHTML = `
+  <div class="section-header">
+    <div><div class="page-h1">🏦 Cuentas</div><div class="page-sub">Dinero disponible y valor total por cuenta</div></div>
+    <div class="section-actions">
+      <button class="btn btn-ghost btn-sm" onclick="openModal('transModal');poblarTransModal()">⇄ Transferir</button>
+      <button class="btn btn-primary btn-sm" onclick="openModal('cuentaModal');resetCuentaForm()">+ Nueva cuenta</button>
+    </div>
+  </div>
+  <div class="kpi-grid kpi-grid-3" style="margin-bottom:16px">
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:var(--accent-dim)">💰</div>
+      <div class="kpi-label">Dinero disponible total</div>
+      <div class="kpi-value">${eur(totalSaldo)}</div>
+      <div class="kpi-sub">Listo para usar · ${S.cuentas.length} cuentas</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:var(--indigo-dim)">🏦</div>
+      <div class="kpi-label">Valor total cuentas</div>
+      <div class="kpi-value">${eur(totalValor)}</div>
+      <div class="kpi-sub">Incluyendo activos comprometidos</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:var(--gold-dim)">🔒</div>
+      <div class="kpi-label">Comprometido / Invertido</div>
+      <div class="kpi-value sm" style="color:var(--gold)">${eur(totalValor-totalSaldo)}</div>
+      <div class="kpi-sub">En inversiones u otros activos</div>
+    </div>
+  </div>
+  <div class="grid-3">${cards}</div>`
+}
+
+function resetCuentaForm() {
+  document.getElementById("cuentaId").value = ""
+  document.getElementById("cuentaModalTitle").textContent = t("modal_cuenta_titulo")
+  document.getElementById("cuentaNombre").value = ""
+  document.getElementById("cuentaTipo").value = "banco"
+  document.getElementById("cuentaSaldo").value = ""
+  const vt = document.getElementById("cuentaValorTotal")
+  if (vt) vt.value = ""
+  document.getElementById("cuentaColor").value = "#00D4AA"
+  const n = document.getElementById("cuentaNotas"); if (n) n.value = ""
+}
+function editarCuenta(id) {
+  const c = getCuenta(id)
+  if (!c) return
+  resetCuentaForm()
+  document.getElementById("cuentaId").value = id
+  document.getElementById("cuentaModalTitle").textContent = t("modal_cuenta_titulo_editar")
+  document.getElementById("cuentaNombre").value = c.nombre||""
+  document.getElementById("cuentaTipo").value = c.tipo||"banco"
+  document.getElementById("cuentaSaldo").value = c.saldo||""
+  const vt = document.getElementById("cuentaValorTotal")
+  if (vt) vt.value = c.valorTotal !== undefined ? c.valorTotal : (c.saldo||"")
+  document.getElementById("cuentaColor").value = c.color||"#00D4AA"
+  const n = document.getElementById("cuentaNotas"); if (n) n.value = c.notas||""
+  openModal("cuentaModal")
+}
+function guardarCuenta() {
+  if (!_formGuard.lock('cuentaModal')) return
+  const _unlock = () => _formGuard.unlock('cuentaModal')
+  const nombre = document.getElementById("cuentaNombre").value.trim()
+  if (!nombre) { toast(t('err_nombre_requerido'),'error'); _unlock(); return }
+  const id = document.getElementById("cuentaId").value
+  const saldo = parseFloat(document.getElementById("cuentaSaldo").value)||0
+  const vtEl = document.getElementById("cuentaValorTotal")
+  const valorTotal = vtEl && vtEl.value !== "" ? parseFloat(vtEl.value)||0 : saldo
+  const nEl = document.getElementById("cuentaNotas")
+  const data = {nombre, tipo:document.getElementById("cuentaTipo").value, saldo, valorTotal, color:document.getElementById("cuentaColor").value||"#00D4AA", notas: nEl ? nEl.value.trim() : ""}
+  if (id) {
+    const idx = S.cuentas.findIndex(c=>c.id===id)
+    if (idx>=0) S.cuentas[idx] = {...S.cuentas[idx],...data}
+  } else {
+    S.cuentas.push({id:uid(),...data})
+  }
+  save(); closeModal("cuentaModal"); _unlock(); render(); toast(t('toast_cuenta_guardada'))
+}
+function borrarCuenta(id) {
+  if (S.cuentas.length <= 1) { toast(t('toast_cuenta_min'),'error'); return }
+  confirmar(t('confirm_eliminar_cuenta'), ()=>{
+    S.cuentas = S.cuentas.filter(c=>c.id!==id)
+    save(); render(); toast(t('toast_cuenta_eliminada'))
+  }, {titulo:t('confirm_eliminar_cuenta_titulo'),icono:'🗑️'})
+}
+
+// ─── CONFIGURACION ─────────────────────────────────────────────
+function renderConfiguracion() {
+  const catTypes = [
+    {key:'ingreso',   label:t('cat_type_ingreso'),   icon:'💰'},
+    {key:'gasto',     label:t('cat_type_gasto'),     icon:'💳'},
+    {key:'inversion', label:t('cat_type_inversion'), icon:'📈'},
+    {key:'deuda',     label:t('cat_type_deuda'),     icon:'📉'},
+    {key:'objetivo',  label:t('cat_type_objetivo'),  icon:'🎯'},
+  ]
+  const catSections = catTypes.map(ct=>`
+    <div style="margin-bottom:18px">
+      <div style="font-size:.78rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">${ct.icon} ${ct.label}</div>
+      <div class="cat-pills" id="pills-${ct.key}">
+        ${(S.categorias[ct.key]||[]).map(c=>`
+          <span class="cat-pill">${catEmoji(c)} ${tCat(c)}
+            <span class="remove" data-key="${ct.key}" data-cat="${c.replace(/"/g,'&quot;')}" onclick="removeCatEl(this)">✕</span>
+          </span>`).join('')}
+      </div>
+      <div class="add-cat-row" style="align-items:center">
+        ${_buildEmojiPicker(ct.key)}
+        <input type="text" id="newcat-${ct.key}" placeholder="${t('cfg_nueva_cat')}"
+          onkeydown="if(event.key==='Enter'){addCat('${ct.key}');event.preventDefault()}" style="flex:1">
+        <button class="btn btn-secondary btn-sm" onclick="addCat('${ct.key}')">${t('cfg_anadir')}</button>
+      </div>
+      <div style="font-size:.72rem;color:var(--text3);margin-top:4px">${t('cfg_emoji_tip')}</div>
+    </div>`).join('')
+
+  const isDark = S.theme !== 'light'
+
+  document.getElementById('content').innerHTML = `
+  <div class="section-header">
+    <div><div class="page-h1">⚙️ ${t('page_configuracion')}</div><div class="page-sub">${t('cfg_personaliza_sub')} · v${VERSION}</div></div>
+  </div>
+
+  <div class="grid-2">
+    <!-- Columna izquierda -->
+    <div style="display:flex;flex-direction:column;gap:20px">
+
+      <!-- Perfil -->
+      <div class="card">
+        <div class="card-header"><div class="card-title">👤 ${t('cfg_perfil')}</div></div>
+        <div class="form-group" style="margin-bottom:12px">
+          <label>${t('cfg_nombre')}</label>
+          <input type="text" id="cfgNombre" value="${S.usuario.nombre||''}" placeholder="${t('cfg_nombre')}">
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="guardarPerfil()">${t('cfg_guardar')}</button>
+      </div>
+
+      <!-- Idioma -->
+      <div class="card">
+        <div class="card-header"><div class="card-title">🌐 ${t('cfg_idioma')}</div></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:4px">
+          ${[['es','🇪🇸','Español'],['en','🇺🇸','English'],['it','🇮🇹','Italiano'],['fr','🇫🇷','Français'],['de','🇩🇪','Deutsch'],['pt','🇵🇹','Português']].map(([code,flag,name])=>`
+            <div onclick="setLang('${code}');renderConfiguracion()" style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--radius-sm);background:var(--bg2);border:1.5px solid ${_currentLang===code?'var(--accent)':'var(--border)'};cursor:pointer;transition:all .15s;${_currentLang===code?'background:var(--accent-dim)':''}">
+              <span style="font-size:1.1rem">${flag}</span>
+              <span style="font-size:.82rem;font-weight:600;color:${_currentLang===code?'var(--accent)':'var(--text2)'}">${name}</span>
+              ${_currentLang===code?'<span style="margin-left:auto;font-size:.68rem;color:var(--accent)">✓</span>':''}
+            </div>`).join('')}
+        </div>
+      </div>
+
+      <!-- Apariencia -->
+      <div class="card">
+        <div class="card-header"><div class="card-title">🎨 ${t('cfg_apariencia')}</div></div>
+        <div style="display:flex;gap:12px;margin-bottom:8px">
+          <div onclick="cfgSetTheme('dark')" style="flex:1;padding:16px 12px;border-radius:var(--radius-sm);background:#0F1420;border:2px solid ${isDark?'var(--accent)':'rgba(255,255,255,0.08)'};cursor:pointer;text-align:center;transition:all .15s">
+            <div style="font-size:1.4rem">🌙</div>
+            <div style="font-size:.8rem;color:#94A3B8;margin-top:6px;font-weight:700">${t('cfg_oscuro')}</div>
+            ${isDark?`<div style="font-size:.68rem;color:var(--accent);margin-top:2px">${t('cfg_activo')}</div>`:''}
+          </div>
+          <div onclick="cfgSetTheme('light')" style="flex:1;padding:16px 12px;border-radius:var(--radius-sm);background:#F8FAFC;border:2px solid ${!isDark?'var(--accent)':'#E2E8F0'};cursor:pointer;text-align:center;transition:all .15s">
+            <div style="font-size:1.4rem">☀️</div>
+            <div style="font-size:.8rem;color:#475569;margin-top:6px;font-weight:700">${t('cfg_claro')}</div>
+            ${!isDark?`<div style="font-size:.68rem;color:var(--accent);margin-top:2px">${t('cfg_activo')}</div>`:''}
+          </div>
+        </div>
+        <div style="font-size:.75rem;color:var(--text3)">${t('cfg_apariencia_tip')}</div>
+      </div>
+
+      <!-- Datos -->
+      <div class="card">
+        <div class="card-header"><div class="card-title">📦 ${t('cfg_datos')}</div><div class="card-subtitle">MoneyNest v${VERSION}</div></div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button class="btn btn-secondary btn-sm" onclick="openDmPanel('dm-export-panel')">${t('cfg_exportar_pdf')}</button>
+          <button class="btn btn-secondary btn-sm" onclick="dmExportMoneynest()">${t('cfg_backup_json')}</button>
+          <button class="btn btn-secondary btn-sm" id="driveBackupBtn" onclick="exportarADrive()" style="background:var(--indigo-dim);border-color:var(--indigo-dim);color:var(--indigo)">
+            ${t('cfg_drive')}
+            <span id="driveBackupStatus" style="font-size:.7rem;margin-left:6px;opacity:.8"></span>
+          </button>
+          <button class="btn btn-secondary btn-sm" onclick="openDmPanel('dm-import-panel')" style="cursor:pointer;justify-content:flex-start">
+            ${t('cfg_importar')}
+          </button>
+          <hr style="border:none;border-top:1px solid var(--border);margin:4px 0">
+          <button class="btn btn-danger btn-sm" onclick="borrarTodo()">${t('cfg_borrar_todo')}</button>
+        </div>
+      </div>
+
+      <!-- Demo Mode -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">🔍 ${t('cfg_demo_titulo')}</div>
+            <div class="card-subtitle">${isDemoMode() ? `<span style="color:var(--gold);font-weight:700">${t('cfg_demo_activo_lbl')}</span>` : t('cfg_demo_inactivo_lbl')}</div>
+          </div>
+          ${isDemoMode() ? `<span style="font-size:.68rem;padding:3px 10px;background:var(--gold-dim);color:var(--gold);border-radius:99px;font-weight:700;letter-spacing:.04em">DEMO</span>` : ''}
+        </div>
+        <div style="font-size:.8rem;color:var(--text2);margin-bottom:12px;line-height:1.55">
+          ${isDemoMode() ? t('cfg_demo_desc_on') : t('cfg_demo_desc_off')}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          ${isDemoMode()
+            ? `<button class="btn btn-danger btn-sm" onclick="confirmar(t('confirm_salir_demo'),()=>{clearDemoData()},{titulo:t('confirm_salir_demo_titulo'),icono:'🏁',btnLabel:t('confirm_salir_demo_btn')})">${t('cfg_demo_salir')}</button>
+               <button class="btn btn-ghost btn-sm" onclick="reloadDemoWithScenario()">${t('cfg_demo_recargar')}</button>`
+            : `<button class="btn btn-secondary btn-sm" onclick="activateDemoWithConfig()" style="background:var(--gold-dim);border-color:rgba(245,158,11,.2);color:var(--gold);font-weight:700">${t('cfg_demo_activar')}</button>`}
+        </div>
+      </div>
+
+      <!-- Info -->
+      <div class="card">
+        <div class="card-header"><div class="card-title">ℹ️ ${t('cfg_info')}</div></div>
+        <div class="stat-row"><span class="stat-key">${t('cfg_version_lbl')}</span><span class="stat-val" style="color:var(--accent);font-weight:800">MoneyNest v${VERSION} · ${_currentLang.toUpperCase()}</span></div>
+        <div class="stat-row"><span class="stat-key">💰 ${t('page_ingresos')}</span><span class="stat-val">${S.ingresos.length}</span></div>
+        <div class="stat-row"><span class="stat-key">💳 ${t('page_gastos')}</span><span class="stat-val">${S.gastos.length}</span></div>
+        <div class="stat-row"><span class="stat-key">📈 ${t('page_inversiones')}</span><span class="stat-val">${S.inversiones.length}</span></div>
+        <div class="stat-row"><span class="stat-key">📉 ${t('page_deudas')}</span><span class="stat-val">${S.deudas.length}</span></div>
+        <div class="stat-row"><span class="stat-key">🎯 ${t('page_objetivos')}</span><span class="stat-val">${S.objetivos.length}</span></div>
+        <div class="stat-row"><span class="stat-key">👥 ${t('nav_clientes') || 'Clientes'}</span><span class="stat-val">${(S.clientes||[]).length}</span></div>
+        <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-secondary btn-sm" onclick="lanzarTutorial()">${t('cfg_ver_tutorial')}</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Columna derecha: categorías -->
+    <div class="card" style="align-self:start">
+      <div class="card-header">
+        <div><div class="card-title">🏷 ${t('cfg_cats_titulo')}</div><div class="card-subtitle">${t('cfg_cats_sub')}</div></div>
+      </div>
+      ${catSections}
+    </div>
+  </div>`
+}
+// ─── CHARTS ────────────────────────────────────────────────────
+const CHART_COLORS = ['#00D4AA','#6366F1','#F59E0B','#F43F5E','#10B981','#8B5CF6','#EC4899','#3B82F6','#14B8A6','#F97316']
+function chartDefaults() {
+  return {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false }, tooltip: {
+      backgroundColor: tooltipBg(),
+      borderColor: 'rgba(128,128,128,0.15)', borderWidth: 1,
+      titleColor: tooltipText(), bodyColor: '#94A3B8',
+      padding: 10, cornerRadius: 8
+    }}
+  }
+}
+function destroyChart(id) {
+  if (charts[id]) { try { charts[id].destroy() } catch(e){} delete charts[id] }
+}
+function destroyAllCharts() { Object.keys(charts).forEach(k=>destroyChart(k)) }
+function gridColor()  { return S.theme==='light' ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.05)' }
+function labelColor() { return S.theme==='light' ? '#64748B' : '#64748B' }
+function tooltipBg()  { return S.theme==='light' ? 'rgba(255,255,255,0.98)' : 'rgba(17,24,39,0.95)' }
+function tooltipText(){ return S.theme==='light' ? '#0F172A' : '#E8EFF7' }
+
+function renderChartPatrimonio() {
+  const ctx = document.getElementById('chartPatrimonio')
+  if (!ctx) return
+  destroyChart('patrimonio')
+  const months = getMonths(6)
+  recordPatrimonio()
+  const vals = months.map(m => {
+    const h = S.patrimonio_hist.find(h => h.mes === m)
+    return h ? h.valor : null
+  })
+  const nonNullVals = vals.filter(v => v !== null)
+  const maxVal = nonNullVals.length ? Math.max(...nonNullVals) : 0
+  const minVal = nonNullVals.length ? Math.min(...nonNullVals) : 0
+  const yPad = (maxVal - minVal) * 0.15 || Math.abs(maxVal) * 0.15 || 100
+  charts['patrimonio'] = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: months.map(monthLabel),
+      datasets: [{
+        data: vals,
+        borderColor: '#00D4AA',
+        backgroundColor: (c) => {
+          const gradient = c.chart.ctx.createLinearGradient(0, 0, 0, 200)
+          gradient.addColorStop(0, 'rgba(0,212,170,0.15)')
+          gradient.addColorStop(1, 'rgba(0,212,170,0)')
+          return gradient
+        },
+        fill: true, tension: 0.4,
+        pointRadius: nonNullVals.length <= 1 ? 5 : 3,
+        pointBackgroundColor: '#00D4AA',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 1,
+        borderWidth: 2, spanGaps: true
+      }]
+    },
+    options: { ...chartDefaults(), scales: {
+      x: { grid: { color: 'transparent' }, ticks: { color: labelColor(), font: { size: 11 } } },
+      y: { grid: { color: gridColor() }, ticks: { color: labelColor(), font: { size: 11 }, callback: v => eur(v) },
+        suggestedMin: minVal - yPad,
+        suggestedMax: maxVal + yPad
+      }
+    }}
+  })
+}
+
+function renderChartCashFlow() {
+  const ctx = document.getElementById('chartCashFlow')
+  if (!ctx) return
+  destroyChart('cashflow')
+  const months = getMonths(6)
+  const cfData = months.map(m => calcCashFlow(m))
+  charts['cashflow'] = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: months.map(monthLabel),
+      datasets: [{
+        data: cfData,
+        borderColor: cfData[cfData.length-1] >= 0 ? '#00D4AA' : '#F43F5E',
+        backgroundColor: (ctx2) => {
+          const gradient = ctx2.chart.ctx.createLinearGradient(0,0,0,200)
+          gradient.addColorStop(0,'rgba(0,212,170,0.15)')
+          gradient.addColorStop(1,'rgba(0,212,170,0)')
+          return gradient
+        },
+        fill: true, tension: 0.4, pointRadius: 4,
+        pointBackgroundColor: cfData.map(v => v >= 0 ? '#00D4AA' : '#F43F5E'),
+        pointBorderColor: 'transparent',
+        borderWidth: 2, spanGaps: true,
+        segment: {
+          borderColor: ctx2 => cfData[ctx2.p0DataIndex] >= 0 ? '#00D4AA' : '#F43F5E'
+        }
+      }]
+    },
+    options: { ...chartDefaults(),
+      plugins: { ...chartDefaults().plugins,
+        tooltip: { ...chartDefaults().plugins.tooltip,
+          callbacks: { label: ctx2 => (ctx2.raw >= 0 ? '+' : '') + eur(ctx2.raw) }
+        }
+      },
+      scales: {
+        x: { grid:{color:gridColor()}, ticks:{color:labelColor(),font:{size:11}} },
+        y: { grid:{color:gridColor()}, ticks:{color:labelColor(),font:{size:11},callback:v=>(v>=0?'+':'')+eur(v)},
+          afterDataLimits: scale => { const max = Math.max(Math.abs(scale.min),Math.abs(scale.max)); scale.min=-max; scale.max=max }
+        }
+      }
+    }
+  })
+}
+
+function renderChartIngVsGas() {
+  const ctx = document.getElementById('chartIngVsGas')
+  if (!ctx) return
+  destroyChart('ingvsgas')
+  const months = getMonths(6)
+  const ingData = months.map(m => calcIngresosMes(m))
+  const gasData = months.map(m => calcGastosMes(m))
+  const allVals = [...ingData, ...gasData].filter(v => v > 0)
+  const maxVal = allVals.length ? Math.max(...allVals) : 100
+  charts['ingvsgas'] = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: months.map(monthLabel),
+      datasets: [
+        { label: t('nav_ingresos'), data: ingData, borderColor: '#10B981', backgroundColor: 'rgba(16,185,129,0.08)', fill: true, tension: 0.4, pointRadius: 4, pointBackgroundColor: '#10B981', pointBorderColor: 'transparent', borderWidth: 2, spanGaps: true },
+        { label: t('nav_gastos'),   data: gasData, borderColor: '#F43F5E', backgroundColor: 'rgba(244,63,94,0.05)',  fill: true, tension: 0.4, pointRadius: 4, pointBackgroundColor: '#F43F5E', pointBorderColor: 'transparent', borderWidth: 2, spanGaps: true }
+      ]
+    },
+    options: { ...chartDefaults(),
+      plugins: { ...chartDefaults().plugins,
+        legend: { display: true, labels: { color: labelColor(), boxWidth: 10, font: { size: 10 } } },
+        tooltip: { ...chartDefaults().plugins.tooltip, callbacks: { label: c => c.dataset.label + ': ' + eur(c.raw) } }
+      },
+      scales: {
+        x: { grid: { color: 'transparent' }, ticks: { color: labelColor(), font: { size: 11 } } },
+        y: { grid: { color: gridColor() }, ticks: { color: labelColor(), font: { size: 11 }, callback: v => eur(v) },
+          suggestedMin: 0, suggestedMax: maxVal > 0 ? maxVal * 1.15 : 100 }
+      }
+    }
+  })
+}
+
+function renderChartDonut() {
+  const ctx = document.getElementById('chartDonut')
+  const legendEl = document.getElementById('donutLegend')
+  if (!ctx) return
+  destroyChart('donut')
+  const m = currentMonth()
+  const catMap = gastosMesByCat(m)
+  const entries = Object.entries(catMap).sort((a,b)=>b[1]-a[1]).slice(0,6)
+  if (!entries.length) return
+  const total = entries.reduce((a,e)=>a+e[1],0)
+  charts['donut'] = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: entries.map(e=>e[0]),
+      datasets: [{ data: entries.map(e=>e[1]), backgroundColor: CHART_COLORS, borderWidth: 0, hoverOffset: 4 }]
+    },
+    options: { ...chartDefaults(), cutout: '70%' }
+  })
+  if (legendEl) {
+    legendEl.innerHTML = entries.map((e,i)=>`
+      <div class="legend-item">
+        <div class="legend-dot" style="background:${CHART_COLORS[i]}"></div>
+        <span class="legend-label">${e[0]}</span>
+        <span class="legend-val">${pct(total?e[1]/total*100:0,0)}</span>
+      </div>`).join('')
+  }
+}
+
+function renderDonutCat(canvasId, legendId, catMap, type) {
+  const ctx = document.getElementById(canvasId)
+  const legendEl = document.getElementById(legendId)
+  if (!ctx) return
+  destroyChart(canvasId)
+  const entries = Object.entries(catMap).sort((a,b)=>b[1]-a[1]).slice(0,7)
+  if (!entries.length) return
+  const total = entries.reduce((a,e)=>a+e[1],0)
+  charts[canvasId] = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: entries.map(e=>e[0]),
+      datasets: [{ data: entries.map(e=>e[1]), backgroundColor: CHART_COLORS, borderWidth: 0, hoverOffset: 4 }]
+    },
+    options: { ...chartDefaults(), cutout: '65%' }
+  })
+  if (legendEl) {
+    legendEl.innerHTML = entries.map((e,i)=>`
+      <div class="legend-item">
+        <div class="legend-dot" style="background:${CHART_COLORS[i]}"></div>
+        <span class="legend-label">${e[0]}</span>
+        <span class="legend-val">${eur(e[1])}</span>
+      </div>`).join('')
+  }
+}
+
+function renderLineEvo(canvasId, type) {
+  const ctx = document.getElementById(canvasId)
+  if (!ctx) return
+  destroyChart(canvasId)
+  const months = getMonths(6)
+  const color = type==='ingreso' ? '#10B981' : '#F43F5E'
+  const fn = type==='ingreso' ? calcIngresosMes : calcGastosMes
+  charts[canvasId] = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: months.map(monthLabel),
+      datasets: [{ data: months.map(fn), borderColor: color, backgroundColor: color+'20', fill:true, tension:0.4, pointRadius:3, pointBackgroundColor:color, borderWidth:2 }]
+    },
+    options: { ...chartDefaults(), scales: {
+      x: { grid:{color:gridColor()}, ticks:{color:labelColor(),font:{size:11}} },
+      y: { grid:{color:gridColor()}, ticks:{color:labelColor(),font:{size:11},callback:v=>eur(v)} }
+    }}
+  })
+}
+
+function renderChartInvROI() {
+  const ctx = document.getElementById('chartInvROI')
+  if (!ctx) return
+  destroyChart('invROI')
+  const cerradas = S.inversiones.filter(i=>i.cerrada)
+  if (!cerradas.length) {
+    // Show a placeholder message if no closed investments
+    const parent = ctx.parentElement
+    if (parent) parent.innerHTML = '<div class=empty style=padding:20px><div class=empty-icon>📊</div><div class=empty-title>Sin inversiones liquidadas</div><div class=empty-sub>Liquida una inversión para ver el gráfico ROI</div></div>'
+    return
+  }
+  const inv = cerradas.slice(0,10)
+  const roiData = inv.map(i=>Number(i.roiReal)||0)
+  const maxAbs = Math.max(...roiData.map(Math.abs), 1)
+  const n = inv.length
+  // Proportional scaling: fewer bars = narrower to avoid single oversized bar
+  const catPct = n === 1 ? 0.18 : n <= 3 ? 0.35 : n <= 5 ? 0.55 : 0.7
+  charts['invROI'] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: inv.map(i=>i.nombre ? (i.nombre.length>18?i.nombre.slice(0,16)+'…':i.nombre) : '—'),
+      datasets: [{
+        label: 'ROI %', data: roiData,
+        backgroundColor: roiData.map(v=>v>=0?'rgba(16,185,129,0.75)':'rgba(244,63,94,0.75)'),
+        borderColor: roiData.map(v=>v>=0?'rgba(16,185,129,1)':'rgba(244,63,94,1)'),
+        borderWidth: 1,
+        borderRadius: 6,
+        categoryPercentage: catPct,
+        barPercentage: 0.85,
+        maxBarThickness: 48,
+        minBarLength: 3,
+      }]
+    },
+    options: { ...chartDefaults(),
+      layout: { padding: { left: n<=3 ? 0 : 0 } },
+      plugins: { ...chartDefaults().plugins, legend:{display:false},
+        tooltip: { ...chartDefaults().plugins.tooltip, callbacks: { label: ctx2 => (ctx2.raw>=0?'+':'')+ctx2.raw.toFixed(1)+'%' } }
+      },
+      scales: {
+        x: { grid:{color:'transparent'}, ticks:{color:labelColor(),font:{size:10},maxRotation:35},
+             // Align left: add padding after last bar using offset
+             offset: true },
+        y: {
+          grid:{color:gridColor()},
+          ticks:{color:labelColor(),font:{size:10},callback:v=>v+'%'},
+          suggestedMin: -maxAbs*1.3,
+          suggestedMax: maxAbs*1.3,
+        }
+      }
+    }
+  })
+}
+
+// ─── INSIGHTS ──────────────────────────────────────────────────
+// ─── SMART INSIGHTS ENGINE ─────────────────────────────────────
+// Only generates insights from REAL user data. Never static or generic.
+// Returns null (not []) when there is not enough data yet.
+function generarInsights() {
+  const m  = currentMonth()
+  const mp = prevMonth(m)
+
+  // ── Minimum data threshold ─────────────────────────────────────
+  const gastosMes = S.gastos.filter(g =>
+    g.tipo !== TX_TYPES.GOAL_TRANSFER && (g.fecha||'').startsWith(m)
+  )
+  const ingresosMes = S.ingresos.filter(i =>
+    i.status !== 'pending' && (i.fecha||'').startsWith(m)
+  )
+  const totalTxAllTime = S.ingresos.length + S.gastos.length
+
+  // Not enough data → return null so UI can show empty state
+  if (totalTxAllTime < 5 || gastosMes.length < 2) return null
+
+  const insights = []
+  const ing  = calcIngresosMes(m)
+  const gas  = calcGastosMes(m)
+  const ingP = calcIngresosMes(mp)
+  const gasP = calcGastosMes(mp)
+
+  // ── CASE A: Recurring expense detection ────────────────────────
+  // Detect transactions that repeat across ≥2 months with same concept + similar amount (±10%)
+  const prevGastos = S.gastos.filter(g =>
+    g.tipo !== TX_TYPES.GOAL_TRANSFER && (g.fecha||'').startsWith(mp)
+  )
+  const recurringDetected = gastosMes.filter(g => {
+    const amt = Number(g.importe) || 0
+    return prevGastos.some(pg => {
+      const pgAmt = Number(pg.importe) || 0
+      const sameConcept = pg.concepto && g.concepto &&
+        pg.concepto.toLowerCase().trim() === g.concepto.toLowerCase().trim()
+      const similarAmt = Math.abs(amt - pgAmt) / Math.max(pgAmt, 1) <= 0.1
+      return (sameConcept || pg.recurrente || g.recurrente) && similarAmt && amt > 0
+    })
+  })
+  if (recurringDetected.length >= 2) {
+    const totalRec = recurringDetected.reduce((a,g) => a + (Number(g.importe)||0), 0)
+    insights.push({
+      icon: '🔄',
+      bg:   'var(--indigo-dim)',
+      text: `Tienes <strong>${recurringDetected.length} gastos recurrentes</strong> detectados este mes que suman <strong>${eur(totalRec)}</strong> (~${eur(Math.round(totalRec))}/mes).`
+    })
+  }
+
+  // ── CASE B: Top spending category (vs total expenses, not income) ─
+  if (gas > 0) {
+    const catMap = gastosMesByCat(m)
+    const topCat = Object.entries(catMap).sort((a,b) => b[1]-a[1])[0]
+    if (topCat) {
+      const share = topCat[1] / gas * 100
+      if (share >= 35) {
+        insights.push({
+          icon: '🏷',
+          bg:   'var(--gold-dim)',
+          text: `El <strong>${Math.round(share)}% de tus gastos</strong> va en <strong>${topCat[0]}</strong> (${eur(topCat[1])}). Es tu categoría más alta este mes.`
+        })
+      }
+    }
+  }
+
+  // ── CASE C: Month-over-month spending change ────────────────────
+  if (gasP > 0 && gas > 0) {
+    const delta = (gas - gasP) / gasP * 100
+    if (delta >= 12) {
+      insights.push({
+        icon: '📈',
+        bg:   'var(--red-dim)',
+        text: `Tus gastos han <strong>subido un ${Math.round(delta)}%</strong> respecto al mes anterior — de ${eur(gasP)} a ${eur(gas)}.`
+      })
+    } else if (delta <= -12) {
+      insights.push({
+        icon: '📉',
+        bg:   'var(--green-dim)',
+        text: `Has <strong>reducido tus gastos un ${Math.round(Math.abs(delta))}%</strong> vs el mes pasado (${eur(gasP)} → ${eur(gas)}). Buen trabajo.`
+      })
+    }
+  }
+
+  // ── CASE D: Savings rate (only shown when income data exists) ───
+  if (ing > 0 && ingresosMes.length >= 1) {
+    const sr = (ing - gas) / ing * 100
+    if (sr < 0) {
+      insights.push({
+        icon: '🚨',
+        bg:   'var(--red-dim)',
+        text: `<strong>Gastas más de lo que ingresas</strong> este mes. Déficit de ${eur(Math.abs(ing-gas))}. Revisa tus gastos.`
+      })
+    } else if (sr < 10 && gas > 0) {
+      insights.push({
+        icon: '⚠️',
+        bg:   'var(--gold-dim)',
+        text: `Tu tasa de ahorro es del <strong>${Math.round(sr)}%</strong> — por debajo del 10%. Considera reducir gastos variables.`
+      })
+    } else if (sr >= 25) {
+      insights.push({
+        icon: '✅',
+        bg:   'var(--green-dim)',
+        text: `Estás ahorrando el <strong>${Math.round(sr)}% de tus ingresos</strong> este mes (${eur(ing - gas)}). Por encima de la media.`
+      })
+    }
+  }
+
+  // ── CASE E: Small impulse expenses accumulation ─────────────────
+  const smallTx = gastosMes.filter(g => {
+    const amt = Number(g.importe) || 0
+    return amt > 0 && amt < 15
+  })
+  if (smallTx.length >= 6) {
+    const totalSmall = smallTx.reduce((a,g) => a + (Number(g.importe)||0), 0)
+    insights.push({
+      icon: '☕',
+      bg:   'var(--gold-dim)',
+      text: `<strong>${smallTx.length} gastos pequeños</strong> (< 15€) suman <strong>${eur(totalSmall)}</strong> este mes. Las compras pequeñas se acumulan rápido.`
+    })
+  }
+
+  // ── CASE F: Budget overrun (only if budgets exist) ──────────────
+  if (Object.keys(S.presupuestos).length > 0 && gas > 0) {
+    const catMap = gastosMesByCat(m)
+    const overrun = Object.keys(S.presupuestos).filter(c => {
+      const spent = Number(catMap[c]) || 0
+      const limit = Number(S.presupuestos[c]) || 0
+      return limit > 0 && spent > limit
+    })
+    if (overrun.length) {
+      insights.push({
+        icon: '🚫',
+        bg:   'var(--red-dim)',
+        text: `Superaste el presupuesto en: <strong>${overrun.join(', ')}</strong> este mes.`
+      })
+    }
+  }
+
+  // Cap at 3 insights max — keep it scannable
+  return insights.slice(0, 3)
+}
+
+// ─── MODALS ────────────────────────────────────────────────────
+function openModal(id) {
+  // Guest users cannot write data — show account creation prompt
+  const WRITE_MODALS = ['ingresoModal','gastoModal','inversionModal','deudaModal','objetivoModal','cuentaModal','presupuestoModal']
+  if (isGuest() && WRITE_MODALS.includes(id)) {
+    _showGuestGateModal()
+    return
+  }
+  const el = document.getElementById(id)
+  if (el) { el.classList.add('open'); document.body.style.overflow='hidden' }
+}
+function closeModal(id) {
+  const el = document.getElementById(id)
+  if (el) { el.classList.remove('open'); document.body.style.overflow='' }
+}
+function closeAllModals() {
+  document.querySelectorAll('.modal-overlay.open').forEach(el=>{ el.classList.remove('open'); document.body.style.overflow='' })
+}
+
+function confirmar(msg, onOk, opts={}) {
+  document.getElementById('confirmMsg').textContent = msg
+  document.getElementById('confirmTitle').textContent = opts.titulo||'¿Estás seguro?'
+  document.getElementById('confirmIcon').textContent = opts.icono||'⚠️'
+  const btn = document.getElementById('confirmBtn')
+  btn.textContent = opts.btnLabel||'Eliminar'
+  btn.onclick = ()=>{ closeModal('confirmModal'); onOk() }
+  openModal('confirmModal')
+}
+
+function checkCustomCat(selectId, fieldId) {
+  const sel = document.getElementById(selectId)
+  const field = document.getElementById(fieldId)
+  if (!sel || !field) return
+  if (sel.value === '__custom__') { field.classList.add('show') }
+  else { field.classList.remove('show') }
+}
+
+function getOrCreateCat(selectId, inputId, catKey) {
+  const sel = document.getElementById(selectId)
+  if (!sel) return ''
+  if (sel.value === '__custom__') {
+    const input = document.getElementById(inputId)
+    const newCat = (input?.value||'').trim()
+    if (!newCat) return ''
+    if (!S.categorias[catKey].includes(newCat)) {
+      S.categorias[catKey].push(newCat)
+      save()
+    }
+    return newCat
+  }
+  return sel.value
+}
+
+function poblarSelect(selectId, catKey, selected='') {
+  const sel = document.getElementById(selectId)
+  if (!sel) return
+  const cats = S.categorias[catKey]||[]
+  // PASO 4: Las categorías por defecto se traducen via tCat().
+  // Las categorías personalizadas del usuario NO se tocan (tCat devuelve el nombre original si no existe traducción).
+  sel.innerHTML = cats.map(c=>`<option value="${c}" ${c===selected?'selected':''}>${catEmoji(c)} ${tCat(c)}</option>`).join('') +
+    `<option value="__custom__">${t('cat_custom_lbl')}</option>`
+  checkCustomCat(selectId, selectId.replace('Cat','CatCustom').replace('Pres','Pres'))
+}
+
+function poblarCuentaSelect(selectId, selectedId='') {
+  const sel = document.getElementById(selectId)
+  if (!sel) return
+  sel.innerHTML = '<option value="">Sin cuenta</option>' +
+    S.cuentas.map(c=>`<option value="${c.id}" ${c.id===selectedId?'selected':''}>${c.nombre}</option>`).join('')
+}
+
+// ─── INGRESO CRUD ───────────────────────────────────────────────
+function resetIngresoForm() {
+  document.getElementById('ingresoId').value = ''
+  document.getElementById('ingresoModalTitle').textContent = t('modal_nuevo_ingreso')
+  document.getElementById('ingresoConcepto').value = ''
+  document.getElementById('ingresoImporte').value = ''
+  document.getElementById('ingresoFecha').value = todayISO()
+  document.getElementById('ingresoNotas').value = ''
+  document.getElementById('ingresoRecurrente').checked = false
+  document.getElementById('ingresoPendiente').checked = false
+  document.getElementById('ingresoUpdateSaldo').checked = true
+  poblarSelect('ingresoCat','ingreso')
+  poblarCuentaSelect('ingresoCuenta')
+  const cl = document.getElementById('ingresoClienteLink')
+  if (cl) cl.value = ''
+}
+function editarIngreso(id) {
+  const i = S.ingresos.find(x=>x.id===id)
+  if (!i) return
+  resetIngresoForm()
+  document.getElementById('ingresoId').value = id
+  document.getElementById('ingresoModalTitle').textContent = t('btn_editar') + ' ' + t('page_ingresos')
+  document.getElementById('ingresoConcepto').value = i.concepto||''
+  document.getElementById('ingresoImporte').value  = i.importe||''
+  document.getElementById('ingresoFecha').value    = i.fecha||todayISO()
+  document.getElementById('ingresoNotas').value    = i.notas||''
+  document.getElementById('ingresoRecurrente').checked = !!i.recurrente
+  document.getElementById('ingresoPendiente').checked  = i.status === 'pending'
+  document.getElementById('ingresoUpdateSaldo').checked = false
+  poblarSelect('ingresoCat','ingreso',i.categoria||'')
+  poblarCuentaSelect('ingresoCuenta',i.cuentaId||'')
+  openModal('ingresoModal')
+}
+function guardarIngreso() {
+  if (!_formGuard.lock('ingresoModal')) return
+  const _unlock = () => _formGuard.unlock('ingresoModal')
+  const concepto = document.getElementById('ingresoConcepto').value.trim()
+  const importe  = parseFloat(document.getElementById('ingresoImporte').value)
+  if (!concepto || !importe || importe <= 0) { toast(t('err_concepto_importe'),'error'); _unlock(); return }
+  const cuentaId   = document.getElementById('ingresoCuenta').value || null
+  if (!cuentaId) { toast(t('err_selecciona_cuenta'),'error'); return }
+  const cat        = getOrCreateCat('ingresoCat','ingresoCatCustomInput','ingreso') || S.categorias.ingreso[0]
+  const fecha      = document.getElementById('ingresoFecha').value || todayISO()
+  const updateSaldo= document.getElementById('ingresoUpdateSaldo').checked
+  const pending    = document.getElementById('ingresoPendiente')?.checked || false
+  const id         = document.getElementById('ingresoId').value
+  const base = {
+    concepto, importe, categoria: cat, fecha,
+    notas:      document.getElementById('ingresoNotas').value.trim(),
+    recurrente: document.getElementById('ingresoRecurrente').checked,
+    status:     pending ? 'pending' : 'paid',
+    cuentaId
+  }
+  if (id) {
+    const idx = S.ingresos.findIndex(x=>x.id===id)
+    if (idx>=0) S.ingresos[idx] = {...S.ingresos[idx], ...base}
+  } else {
+    const clienteId = window._ingresoClienteId || null
+    window._ingresoClienteId = null
+    S.ingresos.push({id:uid(), ...base, clienteId})
+    if (updateSaldo && cuentaId && !pending) {
+      const c = getCuenta(cuentaId)
+      if (c) c.saldo = (Number(c.saldo)||0) + importe
+    }
+  }
+  save()
+  updateStreak()
+  closeModal('ingresoModal')
+  _unlock()
+  // Clear month filter so all incomes are visible after saving
+  if (!id) _ingMesFilter = ''
+  render()
+  toast(t('toast_ingreso_guardado'))
+}
+function borrarIngreso(id) {
+  confirmar(t('confirm_eliminar_ingreso'), ()=>{
+    S.ingresos = S.ingresos.filter(x=>x.id!==id)
+    save(); render(); toast(t('toast_ingreso_eliminado'))
+  }, {titulo:t('confirm_eliminar_ingreso_titulo'),icono:'🗑️'})
+}
+
+// ─── GASTO CRUD ─────────────────────────────────────────────────
+function resetGastoForm() {
+  document.getElementById('gastoId').value = ''
+  document.getElementById('gastoModalTitle').textContent = t('modal_nuevo_gasto')
+  document.getElementById('gastoConcepto').value = ''
+  document.getElementById('gastoImporte').value = ''
+  document.getElementById('gastoFecha').value = todayISO()
+  document.getElementById('gastoNotas').value = ''
+  document.getElementById('gastoRecurrente').checked = false
+  document.getElementById('gastoUpdateSaldo').checked = true
+  poblarSelect('gastoCat','gasto')
+  poblarCuentaSelect('gastoCuenta')
+  poblarProveedorSelect('gastoProveedor','')
+  window._gastoProveedorId = null
+}
+function editarGasto(id) {
+  const g = S.gastos.find(x=>x.id===id)
+  if (!g) return
+  resetGastoForm()
+  document.getElementById('gastoId').value = id
+  document.getElementById('gastoModalTitle').textContent = t('btn_editar') + ' ' + t('page_gastos')
+  document.getElementById('gastoConcepto').value = g.concepto||''
+  document.getElementById('gastoImporte').value = g.importe||''
+  document.getElementById('gastoFecha').value = g.fecha||todayISO()
+  document.getElementById('gastoNotas').value = g.notas||''
+  document.getElementById('gastoRecurrente').checked = !!g.recurrente
+  document.getElementById('gastoUpdateSaldo').checked = false
+  poblarSelect('gastoCat','gasto',g.categoria||'')
+  poblarCuentaSelect('gastoCuenta',g.cuentaId||'')
+  poblarProveedorSelect('gastoProveedor',g.proveedorId||'')
+  openModal('gastoModal')
+}
+function guardarGasto() {
+  if (!_formGuard.lock('gastoModal')) return
+  const _unlock = () => _formGuard.unlock('gastoModal')
+  const concepto = document.getElementById('gastoConcepto').value.trim()
+  const importe  = parseFloat(document.getElementById('gastoImporte').value)
+  if (!concepto || !importe || importe <= 0) { toast('Concepto e importe requeridos','error'); _unlock(); return }
+  const cuentaId   = document.getElementById('gastoCuenta').value || null
+  if (!cuentaId) { toast(t('err_selecciona_cuenta'),'error'); _unlock(); return }
+  const cat        = getOrCreateCat('gastoCat','gastoCatCustomInput','gasto') || S.categorias.gasto[0]
+  const fecha      = document.getElementById('gastoFecha').value || todayISO()
+  const updateSaldo= document.getElementById('gastoUpdateSaldo').checked
+  const id         = document.getElementById('gastoId').value
+  const provEl = document.getElementById('gastoProveedor')
+  const proveedorId = provEl ? (provEl.value || window._gastoProveedorId || null) : (window._gastoProveedorId || null)
+  window._gastoProveedorId = null
+  const base = { concepto, importe, categoria:cat, fecha,
+    notas: document.getElementById('gastoNotas').value.trim(),
+    recurrente: document.getElementById('gastoRecurrente').checked,
+    cuentaId, proveedorId }
+  const _doSaveGasto = () => {
+    if (id) {
+      const idx = S.gastos.findIndex(x=>x.id===id)
+      if (idx>=0) S.gastos[idx] = {...S.gastos[idx], ...base}
+    } else {
+      S.gastos.push({id:uid(), ...base})
+      if (updateSaldo && cuentaId) {
+        const c = getCuenta(cuentaId)
+        if (c) c.saldo = (Number(c.saldo)||0) - importe
+      }
+    }
+    save(); updateStreak(); closeModal('gastoModal'); _unlock(); render(); toast(t('toast_gasto_guardado'))
+  }
+
+  // Warn if operation would leave account in negative balance
+  if (!id && updateSaldo && cuentaId) {
+    const cuentaGasto = getCuenta(cuentaId)
+    if (cuentaGasto && (Number(cuentaGasto.saldo)||0) < importe) {
+      confirmar(
+        '"' + cuentaGasto.nombre + '" ' + t('confirm_saldo_neg') + ' (' + eur((Number(cuentaGasto.saldo)||0) - importe) + ')',
+        _doSaveGasto,
+        {titulo:t('confirm_saldo_neg_titulo'), icono:'⚠️', btnLabel:t('confirm_saldo_neg_btn')}
+      )
+      return
+    }
+  }
+  _doSaveGasto()
+}
+function borrarGasto(id) {
+  confirmar(t('confirm_eliminar_gasto'), ()=>{
+    S.gastos = S.gastos.filter(x=>x.id!==id)
+    save(); render(); toast(t('toast_gasto_eliminado'))
+  }, {titulo:t('confirm_eliminar_gasto_titulo'),icono:'🗑️'})
+}
+
+// ─── INVERSION CRUD ─────────────────────────────────────────────
+function resetInvForm() {
+  document.getElementById('invId').value = ''
+  document.getElementById('invModalTitle').textContent = t('modal_nueva_inv')
+  document.getElementById('invNombre').value = ''
+  document.getElementById('invImporte').value = ''
+  document.getElementById('invRentabilidad').value = ''
+  document.getElementById('invFecha').value = todayISO()
+  document.getElementById('invNotas').value = ''
+  // cuenta required - saldo update is automatic
+  poblarSelect('invCat','inversion')
+  poblarCuentaSelect('invCuenta')
+  toggleInvRoi()
+  setTimeout(mostrarSaldoCuenta, 50)
+}
+
+/** Muestra/oculta campo de rentabilidad esperada según si el activo es volátil */
+function toggleInvRoi() {
+  const sel   = document.getElementById('invCat')
+  const group = document.getElementById('invRoiGroup')
+  if (!sel || !group) return
+  const cat     = sel.value
+  const volatile_ = VOLATILE_CATS.includes(cat) || cat === '__custom__'
+  group.style.display = volatile_ ? 'none' : 'block'
+  if (volatile_) {
+    const inp = document.getElementById('invRentabilidad')
+    if (inp) inp.value = ''
+  }
+}
+function editarInversion(id) {
+  const i = S.inversiones.find(x=>x.id===id)
+  if (!i) return
+  resetInvForm()
+  document.getElementById('invId').value = id
+  document.getElementById('invModalTitle').textContent = t('btn_editar') + ' ' + t('page_inversiones')
+  document.getElementById('invNombre').value    = i.nombre||''
+  document.getElementById('invImporte').value   = i.importe||''
+  document.getElementById('invRentabilidad').value = i.rentabilidad||''
+  document.getElementById('invFecha').value     = i.fecha||todayISO()
+  document.getElementById('invNotas').value     = i.notas||''
+  // editing - no saldo update needed
+  poblarSelect('invCat','inversion',i.categoria||'')
+  poblarCuentaSelect('invCuenta',i.cuentaId||'')
+  toggleInvRoi()
+  openModal('inversionModal')
+}
+function guardarInversion() {
+  if (!_formGuard.lock('inversionModal')) return
+  const _unlock = () => _formGuard.unlock('inversionModal')
+  const nombre = document.getElementById('invNombre').value.trim()
+  const importe = parseFloat(document.getElementById('invImporte').value)
+  if (!nombre || !importe || importe <= 0) { toast(t('err_nombre_importe'),'error'); _unlock(); return }
+  const cuentaId = document.getElementById('invCuenta').value || null
+  const id = document.getElementById('invId').value
+
+  if (!id && !cuentaId) { toast(t('err_selecciona_cuenta'),'error'); _unlock(); return }
+
+  const cat = getOrCreateCat('invCat','invCatCustomInput','inversion') || S.categorias.inversion[0]
+  const rentabilidad = parseFloat(document.getElementById('invRentabilidad').value)||0
+  const fecha = document.getElementById('invFecha').value||todayISO()
+  const notas = document.getElementById('invNotas').value.trim()
+
+  const _doSaveInv = () => {
+    if (id) {
+      const idx = S.inversiones.findIndex(x=>x.id===id)
+      if (idx>=0) S.inversiones[idx] = {...S.inversiones[idx],nombre,importe,rentabilidad,categoria:cat,fecha,notas,cuentaId}
+    } else {
+      S.inversiones.push({id:uid(),nombre,importe,rentabilidad,categoria:cat,fecha,notas,cuentaId,cerrada:false})
+      const cuentaOrigen = getCuenta(cuentaId)
+      if (cuentaOrigen) cuentaOrigen.saldo = (Number(cuentaOrigen.saldo)||0) - importe
+    }
+    save(); closeModal('inversionModal'); _unlock(); render(); toast(t('toast_inversion_guardada'))
+  }
+
+  // Warn if operation would leave account in negative balance
+  if (!id && cuentaId) {
+    const cuentaInv = getCuenta(cuentaId)
+    if (cuentaInv && (Number(cuentaInv.saldo)||0) < importe) {
+      confirmar(
+        'Esta operación dejará la cuenta "' + cuentaInv.nombre + '" con saldo negativo (' +
+        eur((Number(cuentaInv.saldo)||0) - importe) + '). ¿Deseas continuar?',
+        _doSaveInv,
+        {titulo:'⚠️ Saldo insuficiente', icono:'⚠️', btnLabel:'Continuar igualmente'}
+      )
+      return
+    }
+  }
+  _doSaveInv()
+}
+function borrarInversion(id) {
+  const inv = S.inversiones.find(x=>x.id===id)
+  if (!inv) return
+  const msg = inv.cerrada
+    ? t('confirm_eliminar_inversion')
+    : t('confirm_eliminar_inversion') + ' "' + inv.nombre + '"'
+  confirmar(msg, ()=>{
+    // Devolver capital a la cuenta si la inversión estaba abierta
+    if (!inv.cerrada && inv.cuentaId) {
+      const cuenta = getCuenta(inv.cuentaId)
+      if (cuenta) {
+        cuenta.saldo = (Number(cuenta.saldo)||0) + (Number(inv.importe)||0)
+      }
+    }
+    S.inversiones = S.inversiones.filter(x=>x.id!==id)
+    save(); render()
+    toast(inv.cerrada ? t('toast_inversion_eliminada') : t('toast_inversion_eliminada') + ' · ' + eur(inv.importe) + ' devueltos')
+  }, {titulo:t('confirm_eliminar_inversion_titulo'), icono:'🗑️', btnLabel:t('btn_eliminar')})
+}
+
+// ─── LIQUIDACION ────────────────────────────────────────────────
+function abrirLiquidar(id) {
+  const inv = S.inversiones.find(x=>x.id===id)
+  if (!inv) { toast(t('err_inversion_no_encontrada'),'error'); return }
+  // Task 2: guard — already liquidated investments cannot be re-liquidated
+  if (inv.cerrada || inv.status === 'liquidated') {
+    toast(t('inversion_ya_liquidada') + ' ' + (inv.liquidatedAt || inv.fechaCierre || '—'), 'error')
+    return
+  }
+  document.getElementById('liqInvId').value = id
+  document.getElementById('liqValor').value = ''
+  document.getElementById('liqRentPct').value = ''
+  document.getElementById('liqPreview').style.display = 'none'
+  poblarCuentaSelect('liqCuenta', inv.cuentaId||'')
+  document.getElementById('liqInvInfo').innerHTML = `
+    <div style="background:var(--bg2);border-radius:var(--radius-sm);padding:12px 14px;border:1px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+        <div>
+          <strong style="color:var(--text);font-size:.95rem">${inv.nombre}</strong>
+          <div style="font-size:.78rem;color:var(--text2);margin-top:3px">
+            Capital: <strong style="color:var(--accent)">${eur(inv.importe)}</strong> · 
+            Cuenta: <strong style="color:var(--text)">${getCuenta(inv.cuentaId)?.nombre || 'Sin cuenta'}</strong>
+          </div>
+        </div>
+        <span class="badge badge-gold">${catEmoji(inv.categoria)} ${inv.categoria||'—'}</span>
+      </div>
+    </div>`
+  openModal('liquidarModal')
+}
+function syncLiq(from) {
+  const inv = S.inversiones.find(x=>x.id===document.getElementById('liqInvId').value)
+  if (!inv) return
+  const importe = Number(inv.importe)||0
+  if (from === 'valor') {
+    const val = parseFloat(document.getElementById('liqValor').value)||0
+    if (importe > 0) document.getElementById('liqRentPct').value = fmt(((val-importe)/importe)*100, 2)
+  } else {
+    const pctVal = parseFloat(document.getElementById('liqRentPct').value)||0
+    document.getElementById('liqValor').value = fmt(importe*(1+pctVal/100),2)
+  }
+  updateLiqPreview()
+}
+function updateLiqPreview() {
+  const inv = S.inversiones.find(x=>x.id===document.getElementById('liqInvId').value)
+  if (!inv) return
+  const valorFinal = parseFloat(document.getElementById('liqValor').value)||0
+  const importe = Number(inv.importe)||0
+  if (!valorFinal) { document.getElementById('liqPreview').style.display='none'; return }
+  const ganancia = valorFinal - importe
+  const roiReal = importe ? (ganancia/importe)*100 : 0
+  const ganColor = ganancia>=0?'var(--green)':'var(--red)'
+  document.getElementById('liqPreview').style.display = 'block'
+  document.getElementById('liqPreview').innerHTML = `
+    <div class="liq-preview-row"><span>Capital inicial</span><span>${eur(importe)}</span></div>
+    <div class="liq-preview-row"><span>Valor de salida</span><span>${eur(valorFinal)}</span></div>
+    <hr class="liq-preview-divider">
+    <div class="liq-preview-row liq-ganancia"><span><strong>Ganancia / Pérdida</strong></span><span style="color:${ganColor}"><strong>${ganancia>=0?'+':''}${eur(ganancia)}</strong></span></div>
+    <div class="liq-preview-row"><span>ROI real</span><span style="color:${ganColor}">${ganancia>=0?'+':''}${pct(roiReal)}</span></div>`
+}
+function spawnMoneyParticles(x, y) {
+  const emojis = ['💰','✨','📈','🤑','💵']
+  for (let i = 0; i < 7; i++) {
+    const el = document.createElement('div')
+    el.className = 'money-particle'
+    el.textContent = emojis[i % emojis.length]
+    el.style.left = (x + (Math.random()-0.5)*80) + 'px'
+    el.style.top  = (y + (Math.random()-0.5)*40) + 'px'
+    el.style.animationDelay = (i * 0.07) + 's'
+    document.body.appendChild(el)
+    setTimeout(() => el.remove(), 1200)
+  }
+}
+
+function confirmarLiquidacion() {
+  const id = document.getElementById('liqInvId').value
+  const inv = S.inversiones.find(x=>x.id===id)
+  if (!inv) { toast('Inversión no encontrada','error'); return }
+  const valorFinal = parseFloat(document.getElementById('liqValor').value)
+  if (!valorFinal || valorFinal <= 0) { toast(t('err_valor_salida'),'error'); return }
+  const ganancia = valorFinal - Number(inv.importe)
+  const roiReal = inv.importe ? (ganancia/Number(inv.importe))*100 : 0
+  const cuentaId = document.getElementById('liqCuenta').value
+  if (!cuentaId) { toast(t('err_cuenta_origen'),'error'); return }
+  const cuenta = getCuenta(cuentaId)
+  if (!cuenta) { toast(t('err_cuenta_no_encontrada'),'error'); return }
+
+  // 1) Return full value to account
+  cuenta.saldo = (Number(cuenta.saldo)||0) + valorFinal
+
+  // 2) Register gain as income or loss as expense
+  if (ganancia > 0) {
+    S.ingresos.push({
+      id: uid(), concepto: '💰 Ganancia: ' + inv.nombre,
+      importe: ganancia, categoria: 'Dividendos',
+      fecha: todayISO(), cuentaId,
+      notas: 'ROI real: ' + pct(roiReal) + ' · Capital: ' + eur(Number(inv.importe))
+    })
+  } else if (ganancia < 0) {
+    S.gastos.push({
+      id: uid(), concepto: '📉 Pérdida: ' + inv.nombre,
+      importe: Math.abs(ganancia), categoria: 'Otro',
+      fecha: todayISO(), cuentaId,
+      notas: 'ROI real: ' + pct(roiReal) + ' · Capital: ' + eur(Number(inv.importe))
+    })
+  }
+
+  // 3) Task 2: Mark as liquidated instead of deleting — preserves history
+  const idx = S.inversiones.findIndex(x=>x.id===id)
+  if (idx !== -1) {
+    S.inversiones[idx] = {
+      ...S.inversiones[idx],
+      cerrada: true,                   // backward compat flag kept
+      status: 'liquidated',            // new explicit status field
+      liquidatedAt: todayISO(),        // when it was closed
+      liquidationAmount: valorFinal,   // exit value
+      profit: ganancia,                // realized gain/loss
+      roiReal,
+      valorFinal,
+      ganancia,
+      fechaCierre: todayISO(),
+    }
+  }
+
+  save(); closeModal('liquidarModal'); render()
+
+  // 4) Visual feedback
+  if (ganancia > 0) {
+    setTimeout(() => {
+      const topbar = document.querySelector('.dinero-display')
+      if (topbar) {
+        topbar.classList.add('liq-success-flash')
+        const r = topbar.getBoundingClientRect()
+        spawnMoneyParticles(r.left + r.width/2, r.top + r.height/2)
+        setTimeout(() => topbar.classList.remove('liq-success-flash'), 700)
+      }
+    }, 150)
+    toast('✅ ' + t('toast_liquidado_ganancia') + ' +' + eur(ganancia))
+  } else if (ganancia < 0) {
+    toast('📉 ' + t('toast_liquidado_perdida') + ' ' + eur(Math.abs(ganancia)))
+  } else {
+    toast(t('toast_liquidado_neutro'))
+  }
+}
+
+// ─── DEUDA CRUD ─────────────────────────────────────────────────
+function resetDeudaForm() {
+  document.getElementById('deudaId').value = ''
+  document.getElementById('deudaModalTitle').textContent = t('modal_nueva_deuda')
+  document.getElementById('deudaNombre').value = ''
+  document.getElementById('deudaTotal').value = ''
+  document.getElementById('deudaPagado').value = ''
+  document.getElementById('deudaInteres').value = ''
+  document.getElementById('deudaVencimiento').value = ''
+  document.getElementById('deudaNotas').value = ''
+  poblarSelect('deudaCat','deuda')
+}
+function editarDeuda(id) {
+  const d = S.deudas.find(x=>x.id===id)
+  if (!d) return
+  resetDeudaForm()
+  document.getElementById('deudaId').value = id
+  document.getElementById('deudaModalTitle').textContent = t('btn_editar') + ' ' + t('page_deudas')
+  document.getElementById('deudaNombre').value = d.nombre||''
+  document.getElementById('deudaTotal').value = d.importeTotal||''
+  document.getElementById('deudaPagado').value = d.importePagado||''
+  document.getElementById('deudaInteres').value = d.interes||''
+  document.getElementById('deudaVencimiento').value = d.vencimiento||''
+  document.getElementById('deudaNotas').value = d.notas||''
+  poblarSelect('deudaCat','deuda',d.categoria||'')
+  openModal('deudaModal')
+}
+function guardarDeuda() {
+  if (!_formGuard.lock('deudaModal')) return
+  const _unlock = () => _formGuard.unlock('deudaModal')
+  const nombre = document.getElementById('deudaNombre').value.trim()
+  const importeTotal = parseFloat(document.getElementById('deudaTotal').value)
+  if (!nombre || !importeTotal || importeTotal <= 0) { toast('Nombre e importe requeridos','error'); _unlock(); return }
+  const cat = getOrCreateCat('deudaCat','deudaCatCustomInput','deuda') || S.categorias.deuda[0]
+  const id = document.getElementById('deudaId').value
+  const data = {nombre, importeTotal, importePagado:parseFloat(document.getElementById('deudaPagado').value)||0, interes:parseFloat(document.getElementById('deudaInteres').value)||0, categoria:cat, vencimiento:document.getElementById('deudaVencimiento').value||'', notas:document.getElementById('deudaNotas').value.trim(), pagos:[]}
+
+  if (id) {
+    const idx = S.deudas.findIndex(x=>x.id===id)
+    if (idx>=0) S.deudas[idx] = {...S.deudas[idx],...data}
+  } else {
+    S.deudas.push({id:uid(),...data})
+  }
+  save(); closeModal('deudaModal'); _unlock(); render(); toast(t('toast_deuda_guardada'))
+}
+function borrarDeuda(id) {
+  confirmar(t('confirm_eliminar_deuda'), ()=>{
+    S.deudas = S.deudas.filter(x=>x.id!==id)
+    save(); render(); toast(t('toast_deuda_eliminada'))
+  }, {titulo:t('confirm_eliminar_deuda_titulo'),icono:'🗑️'})
+}
+function abrirPago(id) {
+  const d = S.deudas.find(x=>x.id===id)
+  if (!d) return
+  document.getElementById('pagoDeudaId').value = id
+  document.getElementById('pagoImporte').value = ''
+  document.getElementById('pagoFecha').value = todayISO()
+  const pendiente = (Number(d.importeTotal)||0)-(Number(d.importePagado)||0)
+  document.getElementById('pagoDeudaInfo').textContent = `Deuda: ${d.nombre} · Pendiente: ${eur(pendiente)}`
+  openModal('pagoModal')
+}
+function registrarPago() {
+  const id = document.getElementById('pagoDeudaId').value
+  const importe = parseFloat(document.getElementById('pagoImporte').value)
+  if (!importe || importe <= 0) { toast(t('err_importe_pago'),'error'); return }
+  const idx = S.deudas.findIndex(x=>x.id===id)
+  if (idx<0) return
+  S.deudas[idx].importePagado = Math.min(Number(S.deudas[idx].importeTotal), (Number(S.deudas[idx].importePagado)||0)+importe)
+  if (!S.deudas[idx].pagos) S.deudas[idx].pagos = []
+  S.deudas[idx].pagos.push({fecha:document.getElementById('pagoFecha').value||todayISO(),importe})
+  save(); closeModal('pagoModal'); render(); toast(eur(importe) + ' – ' + t('toast_pago_registrado'))
+}
+
+// ─── OBJETIVO CRUD ──────────────────────────────────────────────
+function previewObjModalAvatar(input) {
+  const file = input.files[0]
+  if (!file) return
+  const reader = new FileReader()
+  reader.onload = e => {
+    if (!checkImageSize(e.target.result)) { input.value = ''; return }
+    document.getElementById('objAvatarData').value = e.target.result
+    const prev = document.getElementById('objModalAvatarPreview')
+    if (prev) prev.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover">`
+  }
+  reader.readAsDataURL(file)
+}
+function limpiarObjModalAvatar() {
+  document.getElementById('objAvatarData').value = ''
+  const prev = document.getElementById('objModalAvatarPreview')
+  if (prev) prev.innerHTML = '🎯'
+  const fi = document.getElementById('objModalAvatarFile')
+  if (fi) fi.value = ''
+}
+
+function resetObjForm() {
+  document.getElementById('objId').value = ''
+  document.getElementById('objModalTitle').textContent = t('modal_nuevo_obj')
+  document.getElementById('objNombre').value = ''
+  document.getElementById('objMeta').value = ''
+  document.getElementById('objActual').value = ''
+  document.getElementById('objFecha').value = ''
+  document.getElementById('objNotas').value = ''
+  document.getElementById('objColor').value = '#00D4AA'
+  document.getElementById('objAvatarData').value = ''
+  const prev = document.getElementById('objModalAvatarPreview')
+  if (prev) prev.innerHTML = '🎯'
+  poblarSelect('objCat','objetivo')
+}
+function editarObjetivo(id) {
+  const o = S.objetivos.find(x=>x.id===id)
+  if (!o) return
+  resetObjForm()
+  document.getElementById('objId').value = id
+  document.getElementById('objModalTitle').textContent = t('btn_editar') + ' ' + t('page_objetivos')
+  document.getElementById('objNombre').value = o.nombre||''
+  document.getElementById('objMeta').value = o.objetivo||''
+  document.getElementById('objActual').value = o.actual||''
+  document.getElementById('objFecha').value = o.fechaObjetivo||''
+  document.getElementById('objNotas').value = o.notas||''
+  document.getElementById('objColor').value = o.color||'#00D4AA'
+  // Restore avatar in modal
+  if (o.avatar && o.avatar.startsWith('data:')) {
+    document.getElementById('objAvatarData').value = o.avatar
+    const prev = document.getElementById('objModalAvatarPreview')
+    if (prev) prev.innerHTML = `<img src="${o.avatar}" style="width:100%;height:100%;object-fit:cover">`
+  } else if (o.emoji) {
+    const prev = document.getElementById('objModalAvatarPreview')
+    if (prev) prev.textContent = o.emoji
+  }
+  poblarSelect('objCat','objetivo',o.categoria||'')
+  openModal('objetivoModal')
+}
+function guardarObjetivo() {
+  if (!_formGuard.lock('objetivoModal')) return
+  const _unlock = () => _formGuard.unlock('objetivoModal')
+  const nombre = document.getElementById('objNombre').value.trim()
+  const objetivo = parseFloat(document.getElementById('objMeta').value)
+  if (!nombre || !objetivo || objetivo <= 0) { toast(t('err_nombre_meta'),'error'); _unlock(); return }
+  const cat = getOrCreateCat('objCat','objCatCustomInput','objetivo') || S.categorias.objetivo[0]
+  const id = document.getElementById('objId').value
+  const avatarData = document.getElementById('objAvatarData').value || null
+  const data = {
+    nombre, objetivo,
+    actual: parseFloat(document.getElementById('objActual').value)||0,
+    categoria: cat,
+    fechaObjetivo: document.getElementById('objFecha').value||'',
+    color: document.getElementById('objColor').value||'#00D4AA',
+    notas: document.getElementById('objNotas').value.trim(),
+    avatar: avatarData || null,
+    emoji: avatarData ? null : undefined
+  }
+  if (id) {
+    const idx = S.objetivos.findIndex(x=>x.id===id)
+    if (idx>=0) S.objetivos[idx] = {...S.objetivos[idx], ...data}
+  } else {
+    S.objetivos.push({id:uid(), ...data})
+  }
+  save(); closeModal('objetivoModal'); _unlock(); render(); toast(t('toast_objetivo_guardado'))
+}
+function borrarObjetivo(id) {
+  confirmar(t('confirm_eliminar_objetivo'), ()=>{
+    S.objetivos = S.objetivos.filter(x=>x.id!==id)
+    save(); render(); toast(t('toast_objetivo_eliminado'))
+  }, {titulo:t('confirm_eliminar_objetivo_titulo'),icono:'🗑️'})
+}
+function abrirAportar(id) {
+  const o = S.objetivos.find(x=>x.id===id)
+  if (!o) return
+  document.getElementById('aportarObjId').value = id
+  document.getElementById('aportarImporte').value = ''
+  document.getElementById('aportarObjInfo').textContent = `Objetivo: ${o.nombre} · Meta: ${eur(o.objetivo)} · Ahorrado: ${eur(o.actual||0)}`
+  selectRadio('nuevo')
+  poblarCuentaSelect('aportarCuenta')
+  openModal('aportarModal')
+}
+function selectRadio(tipo) {
+  aportarTipo = tipo
+  document.getElementById('radioNuevo').classList.toggle('selected', tipo==='nuevo')
+  document.getElementById('radioExistente').classList.toggle('selected', tipo==='existente')
+  document.getElementById('aportarCuentaGroup').style.display = tipo==='existente'?'block':'none'
+}
+function confirmarAportar() {
+  const id = document.getElementById('aportarObjId').value
+  const importe = parseFloat(document.getElementById('aportarImporte').value)
+  if (!importe || importe <= 0) { toast(t('err_importe_aportar'),'error'); return }
+  const idx = S.objetivos.findIndex(x=>x.id===id)
+  if (idx < 0) return
+  const obj = S.objetivos[idx]
+
+  if (aportarTipo === 'nuevo') {
+    // Task 3 — NEW money: create income entry so wallet balance increases,
+    // then record an internal goal_transfer (not a real expense) to show movement.
+    S.ingresos.push({
+      id: uid(),
+      concepto: `🎯 Aportación a objetivo: ${obj.nombre}`,
+      importe,
+      categoria: 'Otro',
+      fecha: todayISO(),
+      notas: `Ingreso para objetivo "${obj.nombre}"`,
+    })
+    // Record as goal_transfer (internal — excluded from real expense calcs)
+    S.gastos.push({
+      id: uid(),
+      concepto: `🎯 Transferencia a objetivo: ${obj.nombre}`,
+      importe,
+      categoria: 'Objetivos',
+      tipo: TX_TYPES.GOAL_TRANSFER, // excluded from calcGastosMes
+      fecha: todayISO(),
+      notas: `Asignación interna a "${obj.nombre}"`,
+    })
+  } else {
+    // Task 3 — EXISTING money: deduct from chosen account (real movement of existing balance),
+    // no new income created. Also record as goal_transfer so expenses stay clean.
+    const cuentaId = document.getElementById('aportarCuenta').value
+    if (cuentaId) {
+      const c = getCuenta(cuentaId)
+      if (c) c.saldo = (Number(c.saldo)||0) - importe
+    }
+    S.gastos.push({
+      id: uid(),
+      concepto: `🎯 Transferencia a objetivo: ${obj.nombre}`,
+      importe,
+      categoria: 'Objetivos',
+      tipo: TX_TYPES.GOAL_TRANSFER, // excluded from calcGastosMes
+      fecha: todayISO(),
+      cuentaId: cuentaId || undefined,
+      notas: `Asignación interna a "${obj.nombre}"`,
+    })
+  }
+
+  // Increase goal progress regardless of source
+  S.objetivos[idx].actual = (Number(S.objetivos[idx].actual)||0) + importe
+
+  save(); closeModal('aportarModal'); render(); toast(eur(importe) + ' ' + t('toast_aportado_ok'))
+}
+
+// ─── PRESUPUESTO CRUD ───────────────────────────────────────────
+function resetPresForm() {
+  document.getElementById('presLimite').value = ''
+  poblarSelect('presCat','gasto')
+}
+function guardarPresupuesto() {
+  if (!_formGuard.lock('presupuestoModal')) return
+  const _unlock = () => _formGuard.unlock('presupuestoModal')
+  const cat = getOrCreateCat('presCat','presCatCustomInput','gasto')
+  if (!cat) { toast(t('err_selecciona_cat'),'error'); _unlock(); return }
+  const limite = parseFloat(document.getElementById('presLimite').value)
+  if (!limite || limite <= 0) { toast(t('err_limite_valido'),'error'); _unlock(); return }
+  S.presupuestos[cat] = limite
+  save(); closeModal('presupuestoModal'); _unlock(); render(); toast(t('toast_presupuesto_guardado'))
+}
+function borrarPresupuesto(cat) {
+  confirmar(t('confirm_eliminar_presupuesto') + ' "' + cat + '"?', ()=>{
+    delete S.presupuestos[cat]
+    save(); render(); toast(t('toast_presupuesto_eliminado'))
+  }, {titulo:t('confirm_eliminar_presupuesto_titulo'),icono:'🗑️'})
+}
+
+// ─── CUENTA CRUD ────────────────────────────────────────────────
+function poblarTransModal() {
+  poblarCuentaSelect('transDesde')
+  poblarCuentaSelect('transHacia')
+  document.getElementById('transImporte').value = ''
+}
+function realizarTransferencia() {
+  const desdeId = document.getElementById('transDesde').value
+  const haciaId = document.getElementById('transHacia').value
+  const importe = parseFloat(document.getElementById('transImporte').value)
+  if (!desdeId||!haciaId||desdeId===haciaId) { toast(t('err_cuentas_distintas'),'error'); return }
+  if (!importe||importe<=0) { toast(t('err_importe_valido'),'error'); return }
+  const desde = getCuenta(desdeId)
+  const hacia = getCuenta(haciaId)
+  if (!desde||!hacia) return
+  desde.saldo = (Number(desde.saldo)||0) - importe
+  hacia.saldo = (Number(hacia.saldo)||0) + importe
+  save(); closeModal('transModal'); render(); toast(t('toast_transferencia_ok') + ': ' + eur(importe))
+}
+
+// ─── CONFIGURACION CRUD ─────────────────────────────────────────
+function guardarPerfil() {
+  S.usuario.nombre = document.getElementById('cfgNombre').value.trim() || 'Usuario'
+  save(); render(); toast(t('toast_perfil_guardado'))
+}
+
+// Config page theme helpers
+function cfgToggleTheme() {
+  cfgSetTheme(S.theme === 'dark' ? 'light' : 'dark')
+}
+function cfgSetTheme(t) {
+  S.theme = t; save(); applyTheme(); renderConfiguracion()
+}
+function cfgSetMode(m) {
+  // Mode switching disabled - personal only
+}
+// ─── EMOJI PICKER ──────────────────────────────────────────────
+const PICKER_EMOJIS = {
+  finanzas: ['💰','💵','💴','💶','💷','💸','🤑','💳','🏦','📈','📉','📊','💹','🏧','💎','🪙'],
+  trabajo:  ['💼','👔','🖥️','💻','📱','📋','📝','✏️','🖊️','📌','📎','🗂️','📂','🏢','🤝','⚙️'],
+  hogar:    ['🏠','🏡','🏘️','🛒','🛍️','🍔','🍽️','☕','🛋️','🛏️','🚿','💡','🔑','🪟','🌿','🧹'],
+  movilidad:['🚗','🚙','🚌','✈️','🚂','🛵','🚲','⛽','🛣️','🏎️','🚕','🛺','⚓','🚢','🚁','🛸'],
+  salud:    ['🏥','💊','🩺','🧬','🏋️','🧘','🩹','👁️','🦷','🧪','🩻','💉','🧠','❤️','🫀','🫁'],
+  ocio:     ['🎮','🎬','🎵','🎸','📚','🏖️','⚽','🎾','🏄','🎨','🎭','🎪','🎢','🎠','🎯','🎲'],
+  educacion:['🎓','📚','✏️','🔬','🔭','🏫','📐','🧮','💡','🧩','🏆','🥇','🎖️','📜','🗺️','🌍'],
+  otros:    ['⭐','✨','🔥','💫','🌟','🎁','🎀','🎊','🎉','🛡️','🚀','🌈','🌺','🍀','🦋','📌'],
+}
+const _emojiPickerState = {} // key → chosen emoji
+
+function _openEmojiPicker(key) {
+  // Close any other open pickers first
+  document.querySelectorAll('.emoji-dropdown.open').forEach(d=>{
+    if (d.dataset.key !== key) d.classList.remove('open')
+  })
+  const dd = document.getElementById('emoji-dd-'+key)
+  if (dd) dd.classList.toggle('open')
+}
+
+function _selectEmoji(key, emoji) {
+  _emojiPickerState[key] = emoji
+  const trigger = document.getElementById('emoji-trigger-'+key)
+  if (trigger) trigger.textContent = emoji
+  // Update selected highlight
+  const dd = document.getElementById('emoji-dd-'+key)
+  if (dd) {
+    dd.querySelectorAll('.emoji-opt').forEach(el => {
+      el.classList.toggle('selected', el.dataset.emoji === emoji)
+    })
+    dd.classList.remove('open')
+  }
+}
+
+function _buildEmojiPicker(key) {
+  const current = _emojiPickerState[key] || ''
+  const allEmojis = Object.values(PICKER_EMOJIS).flat()
+  const grid = allEmojis.map(e =>
+    `<div class="emoji-opt${current===e?' selected':''}" data-emoji="${e}" onclick="_selectEmoji('${key}','${e}')" title="${e}">${e}</div>`
+  ).join('')
+  return `
+    <div class="emoji-picker-wrap">
+      <div class="emoji-trigger" id="emoji-trigger-${key}" onclick="_openEmojiPicker('${key}')" title="Seleccionar emoji">${current || '😀'}</div>
+      <div class="emoji-dropdown" id="emoji-dd-${key}" data-key="${key}">
+        ${grid}
+      </div>
+    </div>`
+}
+
+// Close pickers on outside click
+document.addEventListener('click', e => {
+  if (!e.target.closest('.emoji-picker-wrap')) {
+    document.querySelectorAll('.emoji-dropdown.open').forEach(d => d.classList.remove('open'))
+  }
+}, true)
+
+function addCat(key) {
+  const input = document.getElementById('newcat-'+key)
+  if (!input) return
+  const val = input.value.trim()
+  if (!val) return
+  if (!S.categorias[key].includes(val)) {
+    S.categorias[key].push(val)
+    // Register emoji from picker (or legacy text input fallback)
+    const pickedEmoji = _emojiPickerState[key]
+    const legacyInput = document.getElementById('newcat-emoji-'+key)
+    const emoji = pickedEmoji || (legacyInput && legacyInput.value.trim()) || ''
+    if (emoji) CAT_EMOJIS[val] = emoji
+    // Clear picker state for this key
+    delete _emojiPickerState[key]
+    save()
+    renderConfiguracion()
+    toast(t('toast_cat_añadida'))
+  } else {
+    toast(t('toast_cat_existe'),'error')
+  }
+}
+function removeCatEl(el) {
+  const key = el.dataset.key
+  const cat = el.dataset.cat
+  removeCat(key, cat)
+}
+function removeCat(key, cat) {
+  S.categorias[key] = S.categorias[key].filter(c=>c!==cat)
+  save(); renderConfiguracion()
+}
+// ─── CERRAR SESIÓN ───────────────────────────────────────────────
+// Limpia la sesión de MNAuth (plan, trial) y recarga la app para
+// volver al onboarding. Los datos financieros (S) se conservan.
+function mnCerrarSesion() {
+  // Open account selector instead of full reset
+  if (window.MNAccounts) {
+    window.MNAccounts.openAccountSelector()
+  } else {
+    // Fallback if MNAccounts not loaded
+    confirmar(
+      t('confirm_cerrar_sesion'),
+      () => {
+        try { localStorage.removeItem('mn_auth_user'); } catch(e) {}
+        try { localStorage.removeItem('mn_billing_sub'); } catch(e) {}
+        try { localStorage.removeItem('mn_billing_history'); } catch(e) {}
+        setTimeout(() => location.reload(), 120)
+      },
+      { titulo: t('confirm_cerrar_sesion_titulo'), icono: '🚪', btnLabel: t('confirm_cerrar_sesion_btn') }
+    )
+  }
+}
+
+function borrarTodo() {
+  confirmar(t('confirm_borrar_todo'), ()=>{
+    // Full state reset — always use fresh defaultState
+    S = defaultState()
+    S.ingresos = []; S.gastos = []; S.inversiones = []; S.deudas = []
+    S.objetivos = []; S.presupuestos = {}; S.assets = []; S.patrimonio_hist = []
+    S.clientes = []; S.proveedores = []; S.devengos = []
+    S.cuentas = defaultState().cuentas
+    // Reset all global filter/search state — prevents stale UI after reset
+    try {
+      _gTimePeriod = 'month'; _gDateFrom = ''; _gDateTo = ''
+      _ingSearch = ''; _ingCatFilter = ''; _ingMesFilter = ''
+      _gasSearch = ''; _gasCatFilter = ''; _gasMesFilter = ''
+      _deudaSearch = ''; _deudaCatFilter = ''
+      window._invFiltro = 'todas'; window._invCat = ''
+      window._deudaStrat = 'moderado'
+      _objSearch = ''; _objCatFilter = ''
+    } catch(e) {}
+    currentPage = 'dashboard'
+    save()
+    // Reset onboarding + tutorial flags so onboarding runs again after reset
+    try {
+      localStorage.removeItem(OB_FLAG_KEY)
+      localStorage.removeItem(TUT_FLAG_KEY)
+    } catch(e) {}
+    destroyAllCharts()
+    // Re-init properly (same as first launch)
+    render()
+    _updateSidebarLang()
+    updateSidebarLogo()
+    checkOnboarding()
+    toast(t('toast_datos_eliminados'))
+  }, {titulo:t('confirm_borrar_todo_titulo'),icono:'⚠️',btnLabel:t('confirm_borrar_todo_btn')})
+}
+
+
+// Auto-clear stale flags when no data exists at all (safety net)
+function _autoResetFlagsIfEmpty() {
+  const hasAnyData = (S.ingresos||[]).length || (S.gastos||[]).length ||
+                     (S.inversiones||[]).length || (S.deudas||[]).length ||
+                     (S.objetivos||[]).length || (S.assets||[]).length ||
+                     (S.cuentas||[]).some(c => (Number(c.saldo)||0) !== 0) ||
+                     (S.usuario.nombre && S.usuario.nombre !== 'Usuario')
+  if (!hasAnyData && _obFlagSeen()) {
+    try {
+      localStorage.removeItem(OB_FLAG_KEY)
+      localStorage.removeItem(TUT_FLAG_KEY)
+    } catch(e) {}
+  }
+}
+
+// ─── CLIENTES ──────────────────────────────────────────────────
+let _clienteSearch = ''
+let _clienteCatFilter = ''
+
+function renderClientes() {
+  goTo('dashboard')
+}
+
+function exportarClientes() {
+  try {
+    const wb = XLSX.utils.book_new()
+    const headers = ['Nombre','Empresa','Email','Teléfono','Facturado (€)','Facturas','Pendiente (€)','Notas']
+    const rows = (S.clientes||[]).map(c => {
+      const facturado = S.ingresos.filter(i=>i.clienteId===c.id).reduce((a,i)=>a+(Number(i.importe)||0),0)
+      const facturas = S.ingresos.filter(i=>i.clienteId===c.id).length
+      const pendiente = S.ingresos.filter(i=>i.clienteId===c.id&&i.status==='pending').reduce((a,i)=>a+(Number(i.importe)||0),0)
+      return [c.nombre||'', c.empresa||'', c.email||'', c.telefono||'', facturado, facturas, pendiente, c.notas||'']
+    })
+    const ws = XLSX.utils.aoa_to_sheet([headers,...rows])
+    ws['!cols'] = headers.map(h=>({wch:Math.max(h.length,14)}))
+    XLSX.utils.book_append_sheet(wb, ws, 'Clientes')
+    XLSX.writeFile(wb, `MoneyNest_Clientes_${todayISO()}.xlsx`)
+    toast('Clientes exportados ✓')
+  } catch(e) { toast('Error al exportar','error'); console.error(e) }
+}
+
+function cambiarModoEmpresa() {
+  // Disabled - personal-only app
+}
+
+function resetClienteForm() {
+  document.getElementById('clienteId').value   = ''
+  document.getElementById('clienteModalTitle').textContent = t('cliente_nuevo')
+  document.getElementById('clienteNombre').value   = ''
+  document.getElementById('clienteEmpresa').value  = ''
+  document.getElementById('clienteEmail').value    = ''
+  document.getElementById('clienteTelefono').value = ''
+  document.getElementById('clienteNotas').value    = ''
+  document.getElementById('clienteColor').value    = '#00D4AA'
+  document.getElementById('clienteAvatar').value   = ''
+  const ct = document.getElementById('clienteTipo'); if(ct) ct.value = 'empresa'
+  document.getElementById('clienteAvatarEmoji').style.display = 'block'
+  document.getElementById('clienteAvatarImg').style.display   = 'none'
+  document.getElementById('clienteAvatarImg').src  = ''
+}
+
+function editarCliente(id) {
+  const c = (S.clientes||[]).find(x=>x.id===id)
+  if (!c) return
+  resetClienteForm()
+  document.getElementById('clienteId').value   = id
+  document.getElementById('clienteModalTitle').textContent = t('cliente_editar')
+  document.getElementById('clienteNombre').value   = c.nombre||''
+  document.getElementById('clienteEmpresa').value  = c.empresa||''
+  document.getElementById('clienteEmail').value    = c.email||''
+  document.getElementById('clienteTelefono').value = c.telefono||''
+  document.getElementById('clienteNotas').value    = c.notas||''
+  document.getElementById('clienteColor').value    = c.color||'#00D4AA'
+  document.getElementById('clienteAvatar').value   = c.avatar||''
+  const ctEl = document.getElementById('clienteTipo'); if(ctEl) ctEl.value = c.tipo||'empresa'
+  if (c.avatar) {
+    document.getElementById('clienteAvatarEmoji').style.display = 'none'
+    document.getElementById('clienteAvatarImg').style.display   = 'block'
+    document.getElementById('clienteAvatarImg').src = c.avatar
+  }
+  openModal('clienteModal')
+}
+
+
+// ─── STORAGE LIMIT CHECK ────────────────────────────────────────
+function checkStorageLimit() {
+  try {
+    let total = 0
+    for (const key in localStorage) {
+      if (Object.prototype.hasOwnProperty.call(localStorage, key)) {
+        total += (localStorage.getItem(key)||'').length + key.length
+      }
+    }
+    return total < 4 * 1024 * 1024 / 2  // 4MB limit
+  } catch(e) { return true }
+}
+function checkImageSize(dataUrl) {
+  const currentSize = (localStorage.getItem('mn7_data')||'').length
+  const imgSize = (dataUrl||'').length
+  if (currentSize + imgSize > 4 * 1024 * 1024 / 2) {
+    toast(t('toast_espacio_insuficiente'),'error')
+    return false
+  }
+  return true
+}
+
+function previewClienteAvatar(input) {
+  const file = input.files[0]
+  if (!file) return
+  const reader = new FileReader()
+  reader.onload = e => {
+    // Check if adding this image would exceed storage limit
+    if (!checkImageSize(e.target.result)) { input.value = ''; return }
+    document.getElementById('clienteAvatar').value = e.target.result
+    document.getElementById('clienteAvatarEmoji').style.display = 'none'
+    document.getElementById('clienteAvatarImg').style.display   = 'block'
+    document.getElementById('clienteAvatarImg').src = e.target.result
+  }
+  reader.readAsDataURL(file)
+}
+
+function guardarCliente() {
+  const nombre = document.getElementById('clienteNombre').value.trim()
+  if (!nombre) { toast('El nombre es requerido','error'); return }
+  if (!S.clientes) S.clientes = []
+  const id  = document.getElementById('clienteId').value
+  const data = {
+    nombre,
+    empresa:  document.getElementById('clienteEmpresa').value.trim(),
+    email:    document.getElementById('clienteEmail').value.trim(),
+    telefono: document.getElementById('clienteTelefono').value.trim(),
+    notas:    document.getElementById('clienteNotas').value.trim(),
+    color:    document.getElementById('clienteColor').value || '#00D4AA',
+    avatar:   document.getElementById('clienteAvatar').value || null,
+    tipo:     document.getElementById('clienteTipo')?.value || 'empresa'
+  }
+  if (id) {
+    const idx = S.clientes.findIndex(x=>x.id===id)
+    if (idx>=0) S.clientes[idx] = {...S.clientes[idx], ...data}
+  } else {
+    S.clientes.push({id: uid(), ...data})
+  }
+  save(); closeModal('clienteModal'); render(); toast('Cliente guardado ✓')
+}
+
+function borrarCliente(id) {
+  confirmar(t('confirm_eliminar_cliente'), ()=>{
+    S.clientes = (S.clientes||[]).filter(x=>x.id!==id)
+    save(); render(); toast('Cliente eliminado')
+  }, {titulo:t('confirm_eliminar_cliente_titulo'),icono:'🗑️'})
+}
+
+/** Abre el modal de ingreso con el clienteId preseleccionado */
+function nuevoIngresoCliente(clienteId) {
+  resetIngresoForm()
+  // Store clienteId for association when saving
+  window._ingresoClienteId = clienteId
+  // Pre-fill concepto hint
+  const c = (S.clientes||[]).find(x=>x.id===clienteId)
+  if (c) document.getElementById('ingresoConcepto').value = ''
+  openModal('ingresoModal')
+}
+
+// ─── EXPORT ────────────────────────────────────────────────────
+// ─── GOOGLE DRIVE BACKUP ──────────────────────────────────────
+// Uses the Anthropic MCP proxy already connected to the user's Drive.
+// Falls back to a plain download if Drive is not available.
+async function exportarADrive() {
+  const btn = document.getElementById('driveBackupBtn')
+  const status = document.getElementById('driveBackupStatus')
+  if (btn) { btn.disabled = true }
+  if (status) status.textContent = t('drive_guardando')
+
+  try {
+    const data = JSON.stringify(S, null, 2)
+    const fecha = new Date().toISOString().slice(0,10)
+    const filename = `MoneyNest_backup_${fecha}.json`
+
+    // Try Anthropic Google Drive MCP endpoint
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 256,
+        messages: [{ role:'user', content: `Sube este JSON a Google Drive con el nombre "${filename}". Contenido: ${data.slice(0,500)}...` }],
+        mcp_servers: [{ type:'url', url:'https://drivemcp.googleapis.com/mcp/v1', name:'gdrive' }]
+      })
+    })
+
+    if (resp.ok) {
+      if (status) status.textContent = t('drive_guardado')
+      toast(t('toast_drive_ok'))
+    } else {
+      throw new Error('Drive no disponible')
+    }
+  } catch(e) {
+    // Fallback: plain file download
+    exportarJSON()
+    if (status) status.textContent = t('drive_local')
+    toast(t('toast_drive_error'),'error')
+  } finally {
+    if (btn) btn.disabled = false
+    setTimeout(() => { if (status) status.textContent = '' }, 4000)
+  }
+}
+
+function exportarJSON() {
+  const blob = new Blob([JSON.stringify(S,null,2)], {type:'application/json'})
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = `MoneyNest_backup_${todayISO()}.json`
+  a.click(); URL.revokeObjectURL(a.href)
+  toast(t('toast_json_exportado'))
+}
+function importarJSON(input) {
+  const file = input.files[0]
+  if (!file) return
+  const reader = new FileReader()
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result)
+      confirmar(t('confirm_importar'), ()=>{
+        S = Object.assign(defaultState(), data)
+        save(); render(); toast(t('toast_json_importado'))
+      }, {titulo:t('confirm_importar_titulo'),icono:'📥',btnLabel:t('confirm_importar_btn')})
+    } catch { toast(t('err_leer_archivo'),'error') }
+  }
+  reader.readAsText(file)
+  input.value = ''
+}
+
+function exportarPDF() {
+  try {
+    const { jsPDF } = window.jspdf
+    const doc = new jsPDF({ orientation: 'portrait', format: 'a4' })
+    const m = currentMonth()
+    const ing  = calcIngresosMes(m)
+    const gas  = calcGastosMes(m)
+    const pat  = calcPatrimonio()
+    const cf   = ing - gas
+    const TEAL = [0,212,170]; const DARK=[17,24,39]; const GRAY=[100,116,139]
+    const WHITE=[255,255,255]; const LIGHT=[248,250,252]
+
+    // ── PAGE 1: COVER ────────────────────────────────────────
+    // Full-bleed header
+    doc.setFillColor(...TEAL)
+    doc.rect(0,0,210,80,'F')
+    // Decorative circles
+    doc.setFillColor(0,180,144); doc.circle(190,20,50,'F')
+    doc.setFillColor(0,155,120); doc.circle(195,75,30,'F')
+
+    // Logo area
+    doc.setTextColor(...WHITE); doc.setFont('helvetica','bold')
+    doc.setFontSize(32); doc.text('Money', 16, 38)
+    doc.setFillColor(0,155,120); doc.roundedRect(69,24,30,14,3,3,'F')
+    doc.setFontSize(32); doc.text('Nest', 70, 38)
+
+    doc.setFontSize(11); doc.setFont('helvetica','normal')
+    doc.text('Informe Financiero Personal', 16, 52)
+    doc.setFontSize(9)
+    doc.text(monthLabel(m) + '  ·  ' + new Date().toLocaleDateString('es-ES'), 16, 62)
+    doc.text(`${S.usuario.nombre}${S.usuario.empresa?' · '+S.usuario.empresa:''}`, 16, 70)
+
+    let y = 96
+
+    // ── KPI CARDS ────────────────────────────────────────────
+    const kpis = [
+      { label:'Ingresos mes',     val:eur(ing),              color:[16,185,129],  bg:[240,253,244] },
+      { label:'Gastos mes',       val:eur(gas),              color:[244,63,94],   bg:[255,241,242] },
+      { label:'Cash Flow',        val:(cf>=0?'+':'')+eur(cf),color:cf>=0?[0,180,144]:[244,63,94], bg:cf>=0?[240,253,249]:[255,241,242] },
+      { label:'Patrimonio Neto',  val:eur(pat),              color:[99,102,241],  bg:[245,243,255] },
+      { label:'Tasa de ahorro',   val:pct(calcSavingsRate(m)),color:[245,158,11], bg:[255,251,235] },
+      { label:'Capital invertido',val:eur(calcCartera()),    color:[139,92,246],  bg:[250,245,255] },
+    ]
+    const cw=60, ch=20, gap=6, startX=14
+    kpis.forEach((k,i) => {
+      const kx = startX + (i%3)*(cw+gap)
+      const ky = y + Math.floor(i/3)*(ch+8)
+      doc.setFillColor(...k.bg); doc.roundedRect(kx, ky, cw, ch, 3, 3, 'F')
+      doc.setDrawColor(...k.color); doc.setLineWidth(0.5)
+      doc.roundedRect(kx, ky, cw, ch, 3, 3, 'S')
+      doc.setFontSize(6.5); doc.setFont('helvetica','normal'); doc.setTextColor(...GRAY)
+      doc.text(k.label.toUpperCase(), kx+4, ky+7)
+      doc.setFontSize(11); doc.setFont('helvetica','bold'); doc.setTextColor(...k.color)
+      doc.text(k.val, kx+4, ky+15)
+    })
+    y += 62
+
+    // Helper: section title bar
+    const sectionTitle = (title, color=TEAL) => {
+      y += 6
+      doc.setFillColor(...color)
+      doc.roundedRect(14, y, 182, 7, 2, 2, 'F')
+      doc.setTextColor(...WHITE); doc.setFontSize(8.5); doc.setFont('helvetica','bold')
+      doc.text(title, 18, y+5)
+      y += 10
+    }
+
+    // Helper: add autoTable and track y
+    const addTable = (headers, rows, headColor=TEAL) => {
+      if (!rows.length) return
+      doc.autoTable({
+        startY: y,
+        head: [headers],
+        body: rows,
+        theme: 'striped',
+        headStyles: { fillColor: headColor, textColor: WHITE, fontSize: 7.5, fontStyle: 'bold', cellPadding: 3 },
+        bodyStyles: { fontSize: 7.5, textColor: DARK, cellPadding: 2.5 },
+        alternateRowStyles: { fillColor: LIGHT },
+        footStyles: { fillColor: [230,252,245], textColor: DARK, fontStyle: 'bold', fontSize: 7.5 },
+        margin: { left: 14, right: 14 },
+        tableWidth: 182,
+        didDrawPage: () => {}
+      })
+      y = doc.lastAutoTable.finalY + 4
+    }
+
+    // ── INGRESOS ─────────────────────────────────────────────
+    if (S.ingresos.length) {
+      sectionTitle('INGRESOS', [16,185,129])
+      const ingTotal = S.ingresos.reduce((a,i)=>a+(Number(i.importe)||0),0)
+      addTable(
+        ['Concepto','Categoría','Fecha','Importe'],
+        [
+          ...S.ingresos.map(i=>[i.concepto||'—', i.categoria||'—', fmtDate(i.fecha), eur(i.importe)]),
+          ['TOTAL','','',eur(ingTotal)]
+        ],
+        [16,185,129]
+      )
+    }
+
+    // ── GASTOS ───────────────────────────────────────────────
+    const realGastos = S.gastos.filter(g=>g.tipo!==TX_TYPES.GOAL_TRANSFER)
+    if (realGastos.length) {
+      sectionTitle('GASTOS', [244,63,94])
+      const gasTotal = realGastos.reduce((a,g)=>a+(Number(g.importe)||0),0)
+      addTable(
+        ['Concepto','Categoría','Fecha','Importe'],
+        [
+          ...realGastos.map(g=>[g.concepto||'—', g.categoria||'—', fmtDate(g.fecha), eur(g.importe)]),
+          ['TOTAL','','',eur(gasTotal)]
+        ],
+        [244,63,94]
+      )
+    }
+
+    // ── INVERSIONES ──────────────────────────────────────────
+    if (S.inversiones.length) {
+      sectionTitle('INVERSIONES', [99,102,241])
+      addTable(
+        ['Nombre','Categoría','Capital','ROI','Valor actual','Estado'],
+        S.inversiones.map(i=>[
+          i.nombre||'—', i.categoria||'—', eur(i.importe),
+          pct(calcROI(i)), eur(calcValorInv(i)), i.cerrada?'Liquidada':'Activa'
+        ]),
+        [99,102,241]
+      )
+    }
+
+    // ── DEUDAS ───────────────────────────────────────────────
+    if (S.deudas.length) {
+      sectionTitle('DEUDAS', [245,158,11])
+      const deuTotal = S.deudas.reduce((a,d)=>a+((Number(d.importeTotal)||0)-(Number(d.importePagado)||0)),0)
+      addTable(
+        ['Nombre','Categoría','Total','Pagado','Pendiente'],
+        [
+          ...S.deudas.map(d=>[
+            d.nombre||'—', d.categoria||'—',
+            eur(d.importeTotal), eur(d.importePagado||0),
+            eur((Number(d.importeTotal)||0)-(Number(d.importePagado)||0))
+          ]),
+          ['TOTAL PENDIENTE','','','',eur(deuTotal)]
+        ],
+        [245,158,11]
+      )
+    }
+
+    // ── FOOTER on every page ─────────────────────────────────
+    const pages = doc.internal.getNumberOfPages()
+    for (let p=1; p<=pages; p++) {
+      doc.setPage(p)
+      doc.setFillColor(241,245,249); doc.rect(0,287,210,10,'F')
+      doc.setTextColor(...GRAY); doc.setFontSize(7); doc.setFont('helvetica','normal')
+      doc.text('MoneyNest v'+VERSION+'  ·  '+new Date().toLocaleDateString('es-ES')+'  ·  '+S.usuario.nombre, 14, 293)
+      doc.text('Página '+p+' de '+pages, 196, 293, { align:'right' })
+      // Teal top strip on pages > 1
+      if (p > 1) {
+        doc.setFillColor(...TEAL); doc.rect(0,0,210,4,'F')
+      }
+    }
+
+    doc.save(`MoneyNest_Informe_${todayISO()}.pdf`)
+    toast(t('toast_pdf_exportado'))
+  } catch(e) { toast(t('err_pdf'),'error'); console.error(e) }
+}
+
+function exportarExcel() {
+  try {
+    const wb = XLSX.utils.book_new()
+    const m = currentMonth()
+
+    // Helper: create a styled worksheet with bold header row, auto-width cols, and optional totals
+    const makeSheet = (headers, rows, totalsRow) => {
+      const data = [headers, ...rows]
+      if (totalsRow) data.push(totalsRow)
+      const ws = XLSX.utils.aoa_to_sheet(data)
+
+      // Bold header row
+      headers.forEach((_, ci) => {
+        const cell = XLSX.utils.encode_cell({r:0, c:ci})
+        if (!ws[cell]) ws[cell] = {v: headers[ci], t:'s'}
+        ws[cell].s = { font:{bold:true, color:{rgb:'FFFFFF'}}, fill:{fgColor:{rgb:'00D4AA'}}, alignment:{horizontal:'center'} }
+      })
+
+      // Bold totals row if present
+      if (totalsRow) {
+        const tr = rows.length + 1
+        totalsRow.forEach((_, ci) => {
+          const cell = XLSX.utils.encode_cell({r:tr, c:ci})
+          if (ws[cell]) ws[cell].s = { font:{bold:true}, fill:{fgColor:{rgb:'E8FDF8'}} }
+        })
+      }
+
+      // Auto column widths
+      ws['!cols'] = headers.map((h, ci) => {
+        const maxLen = Math.max(h.length, ...rows.map(r => String(r[ci]||'').length), totalsRow ? String(totalsRow[ci]||'').length : 0)
+        return { wch: Math.min(Math.max(maxLen + 2, 10), 40) }
+      })
+      return ws
+    }
+
+    // ─── RESUMEN ───────────────────────────────────────────────
+    const resumenRows = [
+      ['MoneyNest v'+VERSION, ''],
+      ['Generado el', new Date().toLocaleDateString('es-ES')],
+      ['',''],
+      ['── MES ACTUAL ──', ''],
+      ['Ingresos', calcIngresosMes(m)],
+      ['Gastos', calcGastosMes(m)],
+      ['Cash Flow', calcCashFlow(m)],
+      ['Tasa de ahorro (%)', calcSavingsRate(m)],
+      ['',''],
+      ['── GLOBAL ──', ''],
+      ['Patrimonio Neto', calcPatrimonio()],
+      ['Dinero disponible', calcDineroDisponible()],
+      ['Capital invertido', calcCartera()],
+      ['Ganancia realizada', calcGananciaTotal()],
+      ['Deuda pendiente', calcTotalDeuda()],
+    ]
+    const wsRes = XLSX.utils.aoa_to_sheet([['Indicador','Valor'], ...resumenRows])
+    wsRes['!cols'] = [{wch:28},{wch:20}]
+    // Style header
+    ;['A1','B1'].forEach(c=>{ if(!wsRes[c]) return; wsRes[c].s = {font:{bold:true,color:{rgb:'FFFFFF'}},fill:{fgColor:{rgb:'00D4AA'}}} })
+    XLSX.utils.book_append_sheet(wb, wsRes, 'Resumen')
+
+    // ─── INGRESOS ──────────────────────────────────────────────
+    const ingHeaders = ['Concepto','Categoría','Importe (€)','Fecha','Cliente','Cuenta','Recurrente','Estado']
+    const ingRows = S.ingresos.map(i=>[
+      i.concepto||'', i.categoria||'', Number(i.importe)||0, i.fecha||'',
+      i.cliente||'', getCuenta(i.cuentaId)?.nombre||'',
+      i.recurrente?'Sí':'No', i.status==='pending'?'Pendiente':'Cobrado'
+    ])
+    const ingTotal = ingRows.reduce((a,r)=>a+(r[2]||0),0)
+    const wsIng = makeSheet(ingHeaders, ingRows, ['TOTAL','',ingTotal,'','','','',''])
+    XLSX.utils.book_append_sheet(wb, wsIng, 'Ingresos')
+
+    // ─── GASTOS ────────────────────────────────────────────────
+    const gasHeaders = ['Concepto','Categoría','Importe (€)','Fecha','Cuenta','Recurrente','Notas']
+    const gasRows = S.gastos
+      .filter(g=>g.tipo!==TX_TYPES.GOAL_TRANSFER) // exclude internal goal transfers
+      .map(g=>[
+        g.concepto||'', g.categoria||'', Number(g.importe)||0, g.fecha||'',
+        getCuenta(g.cuentaId)?.nombre||'', g.recurrente?'Sí':'No', g.notas||''
+      ])
+    const gasTotal = gasRows.reduce((a,r)=>a+(r[2]||0),0)
+    const wsGas = makeSheet(gasHeaders, gasRows, ['TOTAL','',gasTotal,'','','',''])
+    XLSX.utils.book_append_sheet(wb, wsGas, 'Gastos')
+
+    // ─── INVERSIONES ───────────────────────────────────────────
+    const invHeaders = ['Nombre','Categoría','Capital (€)','ROI (%)','Valor actual (€)','Estado','Ganancia (€)','Fecha entrada','Fecha cierre']
+    const invRows = S.inversiones.map(i=>[
+      i.nombre||'', i.categoria||'', Number(i.importe)||0,
+      parseFloat(calcROI(i).toFixed(2)), parseFloat(calcValorInv(i).toFixed(2)),
+      i.cerrada?'Liquidada':'Activa',
+      parseFloat((calcValorInv(i)-Number(i.importe)).toFixed(2)),
+      i.fecha||'', i.fechaCierre||''
+    ])
+    const wsInv = makeSheet(invHeaders, invRows, null)
+    XLSX.utils.book_append_sheet(wb, wsInv, 'Inversiones')
+
+    // ─── DEUDAS ────────────────────────────────────────────────
+    const deuHeaders = ['Nombre','Categoría','Total (€)','Pagado (€)','Pendiente (€)','Interés (%)','Vencimiento','Notas']
+    const deuRows = S.deudas.map(d=>[
+      d.nombre||'', d.categoria||'', Number(d.importeTotal)||0,
+      Number(d.importePagado)||0,
+      (Number(d.importeTotal)||0)-(Number(d.importePagado)||0),
+      d.interes||0, d.vencimiento||'', d.notas||''
+    ])
+    const deuTotal = deuRows.reduce((a,r)=>a+(r[4]||0),0)
+    const wsDeu = makeSheet(deuHeaders, deuRows, ['TOTAL','','','',deuTotal,'','',''])
+    XLSX.utils.book_append_sheet(wb, wsDeu, 'Deudas')
+
+    // ─── OBJETIVOS ─────────────────────────────────────────────
+    const objHeaders = ['Nombre','Categoría','Meta (€)','Ahorrado (€)','% Completado','Fecha objetivo']
+    const objRows = S.objetivos.map(o=>[
+      o.nombre||'', o.categoria||'', Number(o.objetivo)||0, Number(o.actual)||0,
+      o.objetivo ? Math.round((Number(o.actual)||0)/(Number(o.objetivo)||1)*100) : 0,
+      o.fechaObjetivo||''
+    ])
+    const wsObj = makeSheet(objHeaders, objRows, null)
+    XLSX.utils.book_append_sheet(wb, wsObj, 'Objetivos')
+
+    // ─── CLIENTES (if any) ─────────────────────────────────────
+    if ((S.clientes||[]).length) {
+      const cliHeaders = ['Nombre','Empresa','Email','Teléfono','Facturado (€)']
+      const cliRows = (S.clientes||[]).map(c=>{
+        const fac = S.ingresos.filter(i=>i.clienteId===c.id).reduce((a,i)=>a+(Number(i.importe)||0),0)
+        return [c.nombre||'', c.empresa||'', c.email||'', c.telefono||'', fac]
+      })
+      XLSX.utils.book_append_sheet(wb, makeSheet(cliHeaders, cliRows, null), 'Clientes')
+    }
+
+    // ─── PROVEEDORES (if any) ──────────────────────────────────
+    if ((S.proveedores||[]).length) {
+      const provHeaders = ['Nombre','Empresa','Email','Teléfono','Categoría','Total Pagado (€)']
+      const provRows = (S.proveedores||[]).map(p=>{
+        const pag = S.gastos.filter(g=>g.proveedorId===p.id).reduce((a,g)=>a+(Number(g.importe)||0),0)
+        return [p.nombre||'', p.empresa||'', p.email||'', p.telefono||'', p.categoria||'', pag]
+      })
+      XLSX.utils.book_append_sheet(wb, makeSheet(provHeaders, provRows, null), 'Proveedores')
+    }
+
+    // ─── DEVENGOS (if any) ─────────────────────────────────────
+    if ((S.devengos||[]).length) {
+      const devHeaders = ['Concepto','Tipo','Importe (€)','Fecha Devengo','Fecha Cobro','Estado']
+      const devRows = (S.devengos||[]).map(d=>[
+        d.concepto||'', d.tipo||'', Number(d.importe)||0,
+        d.fecha||'', d.fechaCobro||'', d.estado||''
+      ])
+      XLSX.utils.book_append_sheet(wb, makeSheet(devHeaders, devRows, null), 'Devengos')
+    }
+
+    XLSX.writeFile(wb, `MoneyNest_Completo_${todayISO()}.xlsx`)
+    toast(t('toast_excel_exportado'))
+  } catch(e) { toast(t('err_excel'),'error'); console.error(e) }
+}
+
+// ─── THEME ─────────────────────────────────────────────────────
+function toggleTheme() {
+  S.theme = S.theme === 'dark' ? 'light' : 'dark'
+  applyTheme(); save()
+}
+function applyTheme() {
+  document.documentElement.setAttribute('data-theme', S.theme||'dark')
+  const sw = document.getElementById('themeSwitch')
+  const lbl = document.getElementById('theme-label')
+  const topBtn = document.getElementById('topThemeBtn'); if(topBtn) topBtn.textContent = (S.theme==='dark'?'🌙':'☀️')
+  if (sw) sw.classList.toggle('on', S.theme==='dark')
+  if (lbl) lbl.textContent = S.theme==='dark' ? t('theme_dark') : t('theme_light')
+
+  setTimeout(updateSidebarLogo, 0)
+}
+
+// ─── SIDEBAR MOBILE ─────────────────────────────────────────────
+function toggleSidebar() {
+  const sb = document.getElementById('sidebar')
+  const ov = document.getElementById('sidebarOverlay')
+  sb.classList.toggle('open')
+  ov.classList.toggle('open')
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open')
+  document.getElementById('sidebarOverlay').classList.remove('open')
+}
+
+// ─── TOAST — PREMIUM SYSTEM ────────────────────────────────────
+// El sistema premium (premium-ux.js) se carga DESPUÉS de app.js.
+// Esta función actúa como puente: si el sistema premium está listo
+// lo usa; si no, cae al comportamiento legacy.
+let toastTimer = null
+function toast(msg, type='success') {
+  // Si premium-ux.js ya cargó y sobrescribió window.toast, usarlo
+  if (window._mnPremiumToastReady) {
+    window._mnPremiumToast(msg, type)
+    return
+  }
+  // Fallback legacy mientras carga
+  const el = document.getElementById('toast')
+  if (el) {
+    el.textContent = msg
+    el.className = `show ${type}`
+    if (toastTimer) clearTimeout(toastTimer)
+    toastTimer = setTimeout(()=>{ el.className=''; }, 3000)
+  }
+}
+
+// ─── KEYBOARD ──────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    closeAllModals()
+    return
+  }
+  // Enter key: submit the active creation modal form
+  if (e.key === 'Enter') {
+    // Avoid triggering when focus is on a textarea, select, or button
+    const tag = document.activeElement ? document.activeElement.tagName : ''
+    if (tag === 'TEXTAREA' || tag === 'BUTTON' || tag === 'SELECT') return
+
+    const modalMap = {
+      ingresoModal:    guardarIngreso,
+      gastoModal:      guardarGasto,
+      inversionModal:  guardarInversion,
+      deudaModal:      guardarDeuda,
+      objetivoModal:   guardarObjetivo,
+      presupuestoModal:guardarPresupuesto,
+      cuentaModal:     guardarCuenta,
+      pagoModal:       registrarPago,
+      aportarModal:    () => {
+        const btn = document.querySelector('#aportarModal .btn-primary')
+        if (btn) btn.click()
+      }
+    }
+
+    for (const [id, fn] of Object.entries(modalMap)) {
+      const el = document.getElementById(id)
+      if (el && el.classList.contains('open')) {
+        e.preventDefault()
+        fn()
+        return
+      }
+    }
+  }
+})
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => { if (e.target === el) closeModal(el.id) })
+})
+
+// Protect against accidental page close when a modal is open
+window.addEventListener('beforeunload', e => {
+  const hasOpenModal = document.querySelector('.modal-overlay.open')
+  if (hasOpenModal) {
+    e.preventDefault()
+    e.returnValue = ''
+    return ''
+  }
+})
+
+// ════════════════════════════════════════════════════════════════
+// ─── MÓDULO: MODO PERSONAL / EMPRESA ─────────────────────────
+// ════════════════════════════════════════════════════════════════
+const currentMode = 'personal' // Fixed: personal-only app
+
+function toggleMode() {
+  // Mode switching disabled - personal-only app
+}
+
+function updateModeUI() {
+  // Personal-only: nothing to toggle
+}
+
+// ════════════════════════════════════════════════════════════════
+// ─── MÓDULO: IMPUESTOS ────────────────────────────────────────
+// ════════════════════════════════════════════════════════════════
+
+/** Devuelve la reserva fiscal estimada para el mes actual */
+function calcTaxReserved(month) {
+  month = month || currentMonth()
+  const cfg = S.taxConfig || { iva: 21, irpf: 15 }
+  const ing = calcIngresosMes(month)
+  // IVA repercutido + IRPF a retener sobre base imponible
+  const ivaAmount  = ing * (Number(cfg.iva)  / 100)
+  const irpfAmount = ing * (Number(cfg.irpf) / 100)
+  return ivaAmount + irpfAmount
+}
+
+/** Dinero disponible = saldo total de cuentas */
+function calcDineroReal() {
+  return calcDineroDisponible()
+}
+
+function guardarImpuestos() {
+  const iva  = parseFloat(document.getElementById('taxIVA').value)  || 21
+  const irpf = parseFloat(document.getElementById('taxIRPF').value) || 15
+  const regimen = document.getElementById('taxRegimen').value
+  S.taxConfig = { iva, irpf, regimen }
+  save()
+  closeModal('taxModal')
+  updateModeUI()
+  toast('Impuestos configurados ✓')
+}
+
+function abrirTaxModal() {
+  const cfg = S.taxConfig || { iva: 21, irpf: 15, regimen: 'autonomo' }
+  document.getElementById('taxIVA').value   = cfg.iva   || 21
+  document.getElementById('taxIRPF').value  = cfg.irpf  || 15
+  document.getElementById('taxRegimen').value = cfg.regimen || 'autonomo'
+  openModal('taxModal')
+}
+
+// ════════════════════════════════════════════════════════════════
+// ─── MÓDULO: FONDO DE EMERGENCIA ─────────────────────────────
+// ════════════════════════════════════════════════════════════════
+
+/**
+ * Calcula el fondo de emergencia recomendado (gasto medio × 6 meses)
+ * @returns {number} Importe recomendado
+ */
+function calcEmergencyFund() {
+  const months = getMonths(6)
+  const gastosMensuales = months.map(m => calcGastosMes(m)).filter(v => v > 0)
+  if (!gastosMensuales.length) return 0
+  const mediaGastos = gastosMensuales.reduce((a, v) => a + v, 0) / gastosMensuales.length
+  return mediaGastos * 6
+}
+
+/** Porcentaje de cobertura del fondo de emergencia actual */
+function calcEmergencyCoverage() {
+  const target  = calcEmergencyFund()
+  const current = calcDineroDisponible()
+  if (!target) return 100
+  return clamp((current / target) * 100, 0, 100)
+}
+
+// ════════════════════════════════════════════════════════════════
+// ─── MÓDULO: REGLA 50/30/20 ──────────────────────────────────
+// ════════════════════════════════════════════════════════════════
+
+// categoryType en cada gasto: 'necesidad' | 'deseo' | 'ahorro'
+const CAT_TYPES_DEFAULT = {
+  'Vivienda': 'necesidad', 'Alimentación': 'necesidad', 'Transporte': 'necesidad',
+  'Salud': 'necesidad', 'Educación': 'necesidad',
+  'Ocio': 'deseo', 'Ropa': 'deseo', 'Restaurantes': 'deseo',
+  'Suscripciones': 'deseo', 'Tecnología': 'deseo'
+}
+
+/**
+ * Calcula la distribución real 50/30/20 para un mes
+ * @returns {{ necesidad, deseo, ahorro, total, pctNec, pctDes, pctAh }}
+ */
+function calc503020(month) {
+  month = month || currentMonth()
+  const gastos = S.gastos.filter(g => g.fecha && g.fecha.startsWith(month) && g.tipo!==TX_TYPES.GOAL_TRANSFER)
+  let necesidad = 0, deseo = 0
+
+  gastos.forEach(g => {
+    const tipo = g.categoryType || CAT_TYPES_DEFAULT[g.categoria] || 'deseo'
+    if (tipo === 'necesidad') necesidad += Number(g.importe) || 0
+    else deseo += Number(g.importe) || 0
+  })
+
+  const ing     = calcIngresosMes(month)
+  const cf      = ing - calcGastosMes(month)
+  const ahorro  = Math.max(0, cf)
+  const total   = ing || 1
+
+  return {
+    necesidad, deseo, ahorro,
+    total: ing,
+    pctNec: (necesidad / total) * 100,
+    pctDes: (deseo     / total) * 100,
+    pctAh:  (ahorro    / total) * 100
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+// ─── MÓDULO: ASISTENTE DE DEUDAS ─────────────────────────────
+// ════════════════════════════════════════════════════════════════
+
+/**
+ * Método BOLA DE NIEVE — pagar primero las deudas más pequeñas
+ * @returns {Array} deudas ordenadas
+ */
+function debtSnowball() {
+  return [...S.deudas]
+    .filter(d => (Number(d.importeTotal) - Number(d.importePagado || 0)) > 0)
+    .sort((a, b) => {
+      const pendA = Number(a.importeTotal) - Number(a.importePagado || 0)
+      const pendB = Number(b.importeTotal) - Number(b.importePagado || 0)
+      return pendA - pendB
+    })
+}
+
+/**
+ * Método AVALANCHA — pagar primero las deudas con mayor interés
+ * @returns {Array} deudas ordenadas
+ */
+function debtAvalanche() {
+  return [...S.deudas]
+    .filter(d => (Number(d.importeTotal) - Number(d.importePagado || 0)) > 0)
+    .sort((a, b) => Number(b.interes || 0) - Number(a.interes || 0))
+}
+
+/** Calcula cuántos meses aproximados para saldar todas las deudas */
+function calcDebtFreeMonths(monthlyPayment) {
+  if (!monthlyPayment || monthlyPayment <= 0) return null
+  const totalPending = calcTotalDeuda()
+  return Math.ceil(totalPending / monthlyPayment)
+}
+
+// ════════════════════════════════════════════════════════════════
+// ─── MÓDULO: CIERRE DE MES ───────────────────────────────────
+// ════════════════════════════════════════════════════════════════
+
+/**
+ * Genera el informe de cierre de mes
+ * @param {string} month — YYYY-MM
+ * @returns {Object} revisión completa
+ */
+function generateMonthlyReview(month) {
+  month = month || currentMonth()
+  const mp  = prevMonth(month)
+  const ing  = calcIngresosMes(month)
+  const gas  = calcGastosMes(month)
+  const ingP = calcIngresosMes(mp)
+  const gasP = calcGastosMes(mp)
+  const cf   = ing - gas
+
+  // Detectar anomalías
+  const anomalies = []
+
+  if (gas > ing) {
+    anomalies.push({ type: 'danger', msg: `Déficit mensual: gastas ${eur(gas - ing)} más de lo que ingresas.` })
+  }
+  if (gasP > 0 && gas > gasP * 1.3) {
+    anomalies.push({ type: 'warning', msg: `Gastos un ${pct((gas - gasP) / gasP * 100)} superiores al mes anterior.` })
+  }
+  const catMap  = gastosMesByCat(month)
+  const catMapP = gastosMesByCat(mp)
+  Object.entries(catMap).forEach(([cat, val]) => {
+    const prev = catMapP[cat] || 0
+    if (prev > 0 && val > prev * 1.5 && val > 50) {
+      anomalies.push({ type: 'warning', msg: `"${cat}" subió un ${pct((val - prev) / prev * 100)} respecto al mes anterior.` })
+    }
+  })
+
+  // Top gastos del mes
+  const topGastos = [...S.gastos]
+    .filter(g => g.tipo!==TX_TYPES.GOAL_TRANSFER && g.fecha && g.fecha.startsWith(month))
+    .sort((a, b) => Number(b.importe) - Number(a.importe))
+    .slice(0, 5)
+
+  const dist = calc503020(month)
+  const sr   = calcSavingsRate(month)
+
+  return { month, ing, gas, cf, sr, anomalies, topGastos, dist, ingP, gasP }
+}
+
+// ════════════════════════════════════════════════════════════════
+// ─── MÓDULO: PREVISIÓN DE GASTOS ─────────────────────────────
+// ════════════════════════════════════════════════════════════════
+
+/**
+ * Detecta gastos recurrentes y predice los del próximo mes
+ * @returns {Array} gastos esperados próximo mes
+ */
+function predictUpcomingExpenses() {
+  const m = currentMonth()
+  const months3 = [m, prevMonth(m), prevMonth(prevMonth(m))]
+
+  // Agrupar por concepto
+  const conceptMap = {}
+  S.gastos
+    .filter(g => g.tipo!==TX_TYPES.GOAL_TRANSFER && g.fecha && months3.some(mo => g.fecha.startsWith(mo)))
+    .forEach(g => {
+      const key = (g.concepto || '').toLowerCase().trim()
+      if (!key) return
+      if (!conceptMap[key]) conceptMap[key] = []
+      conceptMap[key].push(g)
+    })
+
+  const predicted = []
+  Object.entries(conceptMap).forEach(([key, entries]) => {
+    // Si aparece en 2+ de los últimos 3 meses → recurrente
+    const uniqueMonths = new Set(entries.map(e => e.fecha.slice(0, 7))).size
+    if (uniqueMonths >= 2) {
+      const avgImporte = entries.reduce((a, e) => a + Number(e.importe), 0) / entries.length
+      const last = entries.sort((a, b) => b.fecha.localeCompare(a.fecha))[0]
+      predicted.push({
+        concepto:   last.concepto,
+        categoria:  last.categoria,
+        importe:    avgImporte,
+        confidence: uniqueMonths >= 3 ? 'alta' : 'media'
+      })
+    }
+  })
+
+  // Añadir también los marcados explícitamente como recurrentes
+  S.gastos.filter(g => g.recurrente && g.fecha && g.fecha.startsWith(m)).forEach(g => {
+    const alreadyIn = predicted.find(p => p.concepto.toLowerCase() === (g.concepto || '').toLowerCase())
+    if (!alreadyIn) {
+      predicted.push({ concepto: g.concepto, categoria: g.categoria, importe: Number(g.importe), confidence: 'alta' })
+    }
+  })
+
+  return predicted.sort((a, b) => b.importe - a.importe).slice(0, 10)
+}
+
+// ════════════════════════════════════════════════════════════════
+// ─── MÓDULO: FACTURAS / INGRESOS PENDIENTES ──────────────────
+// ════════════════════════════════════════════════════════════════
+
+/**
+ * Obtiene ingresos marcados como pendientes (status: 'pending')
+ * @returns {Array} facturas pendientes de cobro
+ */
+function getPendingIncome() {
+  return S.ingresos.filter(i => i.status === 'pending')
+}
+
+function getPendingTotal() {
+  return getPendingIncome().reduce((a, i) => a + (Number(i.importe) || 0), 0)
+}
+
+function marcarIngresoCobrado(id) {
+  const idx = S.ingresos.findIndex(i => i.id === id)
+  if (idx < 0) return
+  S.ingresos[idx].status = 'paid'
+  const cuentaId = S.ingresos[idx].cuentaId
+  if (cuentaId) {
+    const c = getCuenta(cuentaId)
+    if (c) c.saldo = (Number(c.saldo) || 0) + (Number(S.ingresos[idx].importe) || 0)
+  }
+  save(); render(); toast('Factura marcada como cobrada ✓')
+}
+
+// ════════════════════════════════════════════════════════════════
+// ─── MÓDULO: PROYECCIÓN FINANCIERA ───────────────────────────
+// ════════════════════════════════════════════════════════════════
+
+/**
+ * Proyecta la evolución del patrimonio para los próximos N meses
+ * @param {number} months — número de meses a proyectar
+ * @returns {Array<{mes, conservador, moderado, optimista}>}
+ */
+function projectWealth(months) {
+  months = months || 12
+  const currentPat = calcPatrimonio()
+  const months6    = getMonths(6)
+
+  // Calcular CF medio de los últimos 6 meses
+  const cfHistory = months6.map(m => calcCashFlow(m)).filter(v => v !== 0)
+  const avgCF     = cfHistory.length
+    ? cfHistory.reduce((a, v) => a + v, 0) / cfHistory.length
+    : 0
+
+  // Rentabilidad media de inversiones activas
+  const activas = S.inversiones.filter(i => !i.cerrada)
+  const avgRoi  = activas.length
+    ? activas.reduce((a, i) => a + (Number(i.rentabilidad) || 0), 0) / activas.length
+    : 5
+  const invMonthly = (calcCartera() * (avgRoi / 100)) / 12
+
+  const scenarios = []
+  let patCons = currentPat
+  let patMod  = currentPat
+  let patOpt  = currentPat
+
+  for (let i = 1; i <= months; i++) {
+    const d    = new Date()
+    d.setMonth(d.getMonth() + i)
+    const mes  = d.toISOString().slice(0, 7)
+
+    patCons += avgCF * 0.7  + invMonthly * 0.8
+    patMod  += avgCF        + invMonthly
+    patOpt  += avgCF * 1.2  + invMonthly * 1.15
+
+    scenarios.push({ mes, conservador: patCons, moderado: patMod, optimista: patOpt })
+  }
+  return scenarios
+}
+
+// ════════════════════════════════════════════════════════════════
+// ─── PÁGINAS NUEVAS: ANÁLISIS & HERRAMIENTAS ─────────────────
+// ════════════════════════════════════════════════════════════════
+
+function renderAnalisis() {
+  const m   = currentMonth()
+  const rev = generateMonthlyReview(m)
+  const d50 = calc503020(m)
+  const ef  = calcEmergencyFund()
+  const efCov = calcEmergencyCoverage()
+  const prev = predictUpcomingExpenses()
+  const pending = getPendingIncome()
+
+  // ── Burn rate ──
+  const avgMonthlySpend = (() => {
+    const months = getMonths(3)
+    const total = months.reduce((a,mo)=>a+calcGastosMes(mo),0)
+    return total/3
+  })()
+  const burnMonths = avgMonthlySpend > 0 ? Math.floor(calcDineroDisponible()/avgMonthlySpend) : 0
+
+  // ── Investment performance ──
+  const invAbiertas = S.inversiones.filter(i=>!i.cerrada)
+  const invCerradas = S.inversiones.filter(i=>i.cerrada)
+  const totalInv = invAbiertas.reduce((a,i)=>a+(Number(i.importe)||0),0)
+  const gananciaLatente = calcGananciaLatente()
+  const gananciaRealizada = calcGananciaTotal()
+  const roiMedio = invCerradas.length ? invCerradas.reduce((a,i)=>a+(Number(i.roiReal)||0),0)/invCerradas.length : 0
+  const tasaAhorro = calcSavingsRate(m)
+
+  // ── Category spending breakdown (uses global period) ──
+  const catMap = (() => {
+    const map = {}
+    S.gastos.filter(g => _gDateInPeriod(g.fecha) && g.tipo !== TX_TYPES.GOAL_TRANSFER)
+      .forEach(g => { const c = g.categoria||'Sin categoría'; map[c]=(map[c]||0)+(Number(g.importe)||0) })
+    return map
+  })()
+  const topCats = Object.entries(catMap).sort((a,b)=>b[1]-a[1]).slice(0,6)
+  const totalGas = Object.values(catMap).reduce((a,v)=>a+v,0)||1
+
+  const anomHtml = rev.anomalies.length
+    ? rev.anomalies.map(a => `
+        <div class="insight-item">
+          <div class="insight-icon" style="background:${a.type==='danger'?'var(--red-dim)':'var(--gold-dim)'}">${a.type==='danger'?'🚨':'⚠️'}</div>
+          <div class="insight-text">${a.msg}</div>
+        </div>`).join('')
+    : '<div class="insight-item"><div class="insight-icon" style="background:var(--green-dim)">✅</div><div class="insight-text"><strong>¡Sin anomalías este mes!</strong> Tus finanzas están en orden.</div></div>'
+
+  const prevRows = prev.length
+    ? prev.map(p => `<tr>
+        <td class="td-main">${p.concepto}</td>
+        <td><span class="tag">${p.categoria||'—'}</span></td>
+        <td class="td-amount td-neg">~${eur(p.importe)}</td>
+        <td><span class="badge badge-${p.confidence==='alta'?'green':'gold'}">${p.confidence==='alta'?'🟢 Alta':'🟡 Media'}</span></td>
+      </tr>`).join('')
+    : '<tr><td colspan="4" style="text-align:center;color:var(--text2);padding:20px">Sin suficientes datos para predecir</td></tr>'
+
+  const pendingRows = pending.length
+    ? pending.map(p => `<tr>
+        <td class="td-main">${p.concepto}</td>
+        <td class="td-amount td-pos">+${eur(p.importe)}</td>
+        <td>${p.cliente||'—'}</td>
+        <td>${fmtDate(p.fecha)}</td>
+        <td><button class="btn btn-primary btn-xs" onclick="marcarIngresoCobrado('${p.id}')">${t('cobrar_btn')}</button></td>
+      </tr>`).join('')
+    : '<tr><td colspan="5" style="text-align:center;color:var(--text2);padding:20px">Sin facturas pendientes</td></tr>'
+
+  const catBreakdown = topCats.map(([cat, val]) => {
+    const pctVal = (val/totalGas*100).toFixed(1)
+    return `<div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;font-size:.8rem;margin-bottom:4px">
+        <span style="color:var(--text);font-weight:600">${catEmoji(cat)} ${cat}</span>
+        <span style="color:var(--text2)">${eur(val)} <strong style="color:var(--text)">${pctVal}%</strong></span>
+      </div>
+      <div class="progress-wrap"><div class="progress-bar progress-accent" style="width:${pctVal}%"></div></div>
+    </div>`
+  }).join('') || '<div style="color:var(--text2);font-size:.85rem;padding:12px 0">Sin gastos este mes.</div>'
+
+  // ── Month-over-month comparisons ──
+  const prevMonth = (() => { const d=new Date(); d.setMonth(d.getMonth()-1); return d.toISOString().slice(0,7) })()
+  const ingM  = calcIngresosMes(m),  ingP  = calcIngresosMes(prevMonth)
+  const gasM  = calcGastosMes(m),    gasP  = calcGastosMes(prevMonth)
+  const tasaP = calcSavingsRate(prevMonth)
+  const momIng  = ingP  > 0 ? ((ingM  - ingP)  / ingP  * 100).toFixed(1) : null
+  const momGas  = gasP  > 0 ? ((gasM  - gasP)  / gasP  * 100).toFixed(1) : null
+  const momTasa = tasaP > 0 ? ((tasaAhorro - tasaP)).toFixed(1) : null
+  const momBadge = (val, inverse) => {
+    if (val === null) return ''
+    const n = parseFloat(val)
+    const good = inverse ? n <= 0 : n >= 0
+    const color = good ? 'var(--green)' : 'var(--red)'
+    const arrow = n >= 0 ? '▲' : '▼'
+    return `<span style="font-size:.72rem;font-weight:700;color:${color};margin-left:6px">${arrow} ${Math.abs(n)}% vs mes ant.</span>`
+  }
+
+  document.getElementById('content').innerHTML = `
+  <div class="section-header">
+    <div><div class="page-h1">📊 ${t('page_analisis')}</div><div class="page-sub">${_gPeriodLabel()} · Métricas avanzadas y predicciones</div></div>
+    <div class="section-actions">
+      <button class="btn btn-secondary btn-sm" onclick="abrirCierreMes()">📋 Cierre de mes</button>
+    </div>
+  </div>
+
+  ${_gFilterBar('renderAnalisis()')}
+
+  <!-- KPIs rápidos -->
+  <div class="kpi-grid kpi-grid-4" style="margin-bottom:20px">
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:var(--gold-dim)">🔥</div>
+      <div class="kpi-label">Burn Rate</div>
+      <div class="kpi-value sm" style="color:${burnMonths>=6?'var(--green)':burnMonths>=3?'var(--gold)':'var(--red)'}">${burnMonths} meses</div>
+      <div class="kpi-sub">Con ${eur(calcDineroDisponible())} disponible</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:var(--green-dim)">💰</div>
+      <div class="kpi-label">Tasa de ahorro</div>
+      <div class="kpi-value sm" style="color:${tasaAhorro>=20?'var(--green)':tasaAhorro>=10?'var(--gold)':'var(--red)'}">${pct(tasaAhorro)}</div>
+      <div style="display:flex;align-items:center;flex-wrap:wrap;margin-top:4px">
+        <span class="kpi-sub" style="margin:0">${tasaAhorro>=20?'Excelente ✅':tasaAhorro>=10?'Mejorable ⚡':'Bajo ⚠️'}</span>${momBadge(momTasa, false)}
+      </div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:var(--indigo-dim)">📈</div>
+      <div class="kpi-label">Cartera inversiones</div>
+      <div class="kpi-value sm">${eur(totalInv)}</div>
+      <div class="kpi-sub">Latente: <span style="color:${gananciaLatente>=0?'var(--green)':'var(--red)'}">${gananciaLatente>=0?'+':''}${eur(gananciaLatente)}</span></div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:var(--accent-dim)">🏆</div>
+      <div class="kpi-label">Ganancias realizadas</div>
+      <div class="kpi-value sm" style="color:${gananciaRealizada>=0?'var(--green)':'var(--red)'}">${gananciaRealizada>=0?'+':''}${eur(gananciaRealizada)}</div>
+      <div class="kpi-sub">ROI medio: ${roiMedio?pct(roiMedio):'—'}</div>
+    </div>
+  </div>
+
+  <!-- Evolución patrimonio + Gasto por categoría -->
+  <div class="grid-2" style="margin-bottom:16px">
+    <div class="card">
+      <div class="card-header"><div class="card-title">📈 Evolución patrimonio neto</div><div class="card-subtitle">Últimos 6 meses</div></div>
+      <div class="chart-container"><canvas id="chartAnalisisPatrimonio"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">🍩 Ingresos vs Gastos</div><div class="card-subtitle">Tendencia mensual</div></div>
+      <div class="chart-container"><canvas id="chartAnalisisTendencia"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Desglose categorías + Fondo emergencia -->
+  <div class="grid-2" style="margin-bottom:16px">
+    <div class="card">
+      <div class="card-header"><div class="card-title">🏷 Desglose por categoría</div><div class="card-subtitle">${monthLabel(m)}</div></div>
+      ${catBreakdown}
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">🛡 Fondo de emergencia</div><div class="card-subtitle">Cobertura recomendada: 6 meses</div></div>
+      <div class="kpi-grid kpi-grid-2">
+        <div class="kpi-card">
+          <div class="kpi-label">Objetivo (6 meses)</div>
+          <div class="kpi-value sm">${eur(ef)}</div>
+          <div class="kpi-sub">Basado en gasto medio</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Cobertura actual</div>
+          <div class="kpi-value sm" style="color:${efCov>=100?'var(--green)':efCov>=50?'var(--gold)':'var(--red)'}">${pct(efCov)}</div>
+          <div class="kpi-sub">${eur(calcDineroDisponible())} disponibles</div>
+        </div>
+      </div>
+      <div style="margin-top:10px">
+        <div class="progress-info">
+          <span class="progress-label">Progreso</span>
+          <span class="progress-pct">${pct(efCov)}</span>
+        </div>
+        <div class="progress-wrap"><div class="progress-bar ${efCov>=100?'progress-ok':efCov>=50?'progress-warn':'progress-danger'}" style="width:${clamp(efCov,0,100)}%"></div></div>
+        ${efCov<100?`<div style="margin-top:8px;font-size:.78rem;color:var(--text2)">Te faltan <strong style="color:var(--text)">${eur(ef-calcDineroDisponible())}</strong> para completarlo.</div>`:'<div style="margin-top:8px;font-size:.78rem;color:var(--green)">✅ ¡Fondo completo!</div>'}
+      </div>
+    </div>
+  </div>
+
+  <!-- 50/30/20 + Anomalías -->
+  <div class="grid-2" style="margin-bottom:20px">
+    <div class="card">
+      <div class="card-header"><div class="card-title">⚖️ Regla 50/30/20</div><div class="card-subtitle">Distribución del gasto mensual</div></div>
+      <div class="rule-bar-wrap">
+        <div class="rule-bar-header">
+          <span class="rule-bar-label"><span style="color:var(--indigo)">■</span> Necesidades</span>
+          <span class="rule-bar-vals">${eur(d50.necesidad)} · <strong>${pct(d50.pctNec)}</strong> <span style="color:var(--text3)">(≤50%)</span></span>
+        </div>
+        <div class="progress-wrap"><div class="progress-bar" style="width:${clamp(d50.pctNec,0,100)}%;background:var(--indigo)"></div></div>
+      </div>
+      <div class="rule-bar-wrap">
+        <div class="rule-bar-header">
+          <span class="rule-bar-label"><span style="color:var(--gold)">■</span> Deseos</span>
+          <span class="rule-bar-vals">${eur(d50.deseo)} · <strong>${pct(d50.pctDes)}</strong> <span style="color:var(--text3)">(≤30%)</span></span>
+        </div>
+        <div class="progress-wrap"><div class="progress-bar" style="width:${clamp(d50.pctDes,0,100)}%;background:var(--gold)"></div></div>
+      </div>
+      <div class="rule-bar-wrap">
+        <div class="rule-bar-header">
+          <span class="rule-bar-label"><span style="color:var(--green)">■</span> Ahorro</span>
+          <span class="rule-bar-vals">${eur(d50.ahorro)} · <strong>${pct(d50.pctAh)}</strong> <span style="color:var(--text3)">(≥20%)</span></span>
+        </div>
+        <div class="progress-wrap"><div class="progress-bar" style="width:${clamp(d50.pctAh,0,100)}%;background:var(--green)"></div></div>
+      </div>
+      <div style="margin-top:8px;font-size:.75rem;color:var(--text3)">💡 Los gastos sin categorizar cuentan como "Deseos".</div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">🔍 Anomalías detectadas</div><div class="card-subtitle">${monthLabel(m)}</div></div>
+      ${anomHtml}
+    </div>
+  </div>
+
+  <!-- Previsión gastos -->
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-header">
+      <div><div class="card-title">🔮 Previsión de gastos próximo mes</div><div class="card-subtitle">Basada en patrones de los últimos 3 meses</div></div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Concepto</th><th>Categoría</th><th>Importe estimado</th><th>Confianza</th></tr></thead>
+        <tbody>${prevRows}</tbody>
+      </table>
+    </div>
+    ${prev.length?`<div style="margin-top:10px;padding:10px 12px;background:var(--bg2);border-radius:var(--radius-sm);font-size:.8rem;color:var(--text2)">Total estimado próximo mes: <strong style="color:var(--text)">${eur(prev.reduce((a,p)=>a+p.importe,0))}</strong></div>`:''}
+  </div>
+
+  <!-- Facturas pendientes -->
+  <div class="card" style="margin-top:16px;margin-bottom:16px">
+    <div class="card-header">
+      <div><div class="card-title">🧾 Facturas pendientes de cobro</div><div class="card-subtitle">Ingresos con estado "pendiente"</div></div>
+      ${pending.length?`<span class="badge badge-gold">${eur(getPendingTotal())} pendiente</span>`:''}
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Concepto</th><th>Importe</th><th>Cliente</th><th>Fecha</th><th></th></tr></thead>
+        <tbody>${pendingRows}</tbody>
+      </table>
+    </div>
+    <div style="margin-top:10px;font-size:.78rem;color:var(--text2)">💡 Marca ingresos como "pendiente" al añadirlos si aún no los has cobrado.</div>
+  </div>
+
+  <div style="height:8px"></div>
+
+  <!-- NEW: Spending patterns + Income consistency -->
+  <div class="grid-2" style="margin-top:24px;margin-bottom:16px">
+    <div class="card">
+      <div class="card-header"><div class="card-title">📅 Patrón de gastos (6 meses)</div><div class="card-subtitle">Evolución por mes</div></div>
+      ${(() => {
+        const months6 = getMonths(6)
+        const spendData = months6.map(mo => ({label: monthLabel(mo), val: calcGastosMes(mo)}))
+        const maxVal = Math.max(...spendData.map(d=>d.val), 1)
+        return spendData.map(d => {
+          const pctW = (d.val/maxVal*100).toFixed(1)
+          const color = d.val===maxVal?'var(--red)':d.val===Math.min(...spendData.map(x=>x.val))?'var(--green)':'var(--accent)'
+          return `<div style="margin-bottom:8px">
+            <div style="display:flex;justify-content:space-between;font-size:.78rem;margin-bottom:3px">
+              <span style="color:var(--text2)">${d.label}</span>
+              <span style="font-weight:700;color:var(--text)">${d.val>0?eur(d.val):'—'}</span>
+            </div>
+            <div class="progress-wrap"><div style="height:100%;width:${pctW}%;background:${color};border-radius:inherit;transition:width .4s ease"></div></div>
+          </div>`
+        }).join('')
+      })()}
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">💰 Consistencia de ingresos</div><div class="card-subtitle">Últimos 6 meses cobrados</div></div>
+      ${(() => {
+        const months6 = getMonths(6)
+        const incData = months6.map(mo => ({label: monthLabel(mo), val: calcIngresosMes(mo)}))
+        const maxVal = Math.max(...incData.map(d=>d.val), 1)
+        const nonZero = incData.filter(d=>d.val>0).length
+        const avg = nonZero ? incData.reduce((a,d)=>a+d.val,0)/nonZero : 0
+        const consistency = nonZero >= 4 ? '✅ Alta' : nonZero >= 2 ? '⚡ Media' : '⚠️ Baja'
+        const consColor = nonZero >= 4 ? 'var(--green)' : nonZero >= 2 ? 'var(--gold)' : 'var(--red)'
+        return `
+          <div style="display:flex;gap:12px;margin-bottom:12px">
+            <div style="flex:1;text-align:center;padding:10px;background:var(--bg2);border-radius:var(--radius-sm)">
+              <div style="font-size:.68rem;color:var(--text2);text-transform:uppercase;letter-spacing:.06em">Media mensual</div>
+              <div style="font-size:1.1rem;font-weight:800;color:var(--text);margin-top:3px">${eur(avg)}</div>
+            </div>
+            <div style="flex:1;text-align:center;padding:10px;background:var(--bg2);border-radius:var(--radius-sm)">
+              <div style="font-size:.68rem;color:var(--text2);text-transform:uppercase;letter-spacing:.06em">Consistencia</div>
+              <div style="font-size:1rem;font-weight:800;color:${consColor};margin-top:3px">${consistency}</div>
+            </div>
+          </div>` +
+          incData.map(d => {
+            const pctW = (d.val/maxVal*100).toFixed(1)
+            return `<div style="margin-bottom:8px">
+              <div style="display:flex;justify-content:space-between;font-size:.78rem;margin-bottom:3px">
+                <span style="color:var(--text2)">${d.label}</span>
+                <span style="font-weight:700;color:${d.val>0?'var(--green)':'var(--text3)'}">${d.val>0?eur(d.val):'Sin ingresos'}</span>
+              </div>
+              <div class="progress-wrap"><div style="height:100%;width:${pctW}%;background:var(--green);border-radius:inherit;opacity:${d.val>0?'1':'0.2'};transition:width .4s ease"></div></div>
+            </div>`
+          }).join('')
+      })()}
+    </div>
+  </div>
+
+  <!-- NEW: Behavioral insights based on real data -->
+  ${(() => {
+    const months3 = getMonths(3)
+    const tips = []
+    // Check saving trend
+    const avgInc = months3.reduce((a,mo)=>a+calcIngresosMes(mo),0)/3
+    const avgGas = months3.reduce((a,mo)=>a+calcGastosMes(mo),0)/3
+    if (avgInc > 0 && avgGas/avgInc > 0.9) tips.push({icon:'⚠️',bg:'var(--red-dim)',txt:`Tus gastos representan el <strong>${((avgGas/avgInc)*100).toFixed(0)}%</strong> de tus ingresos medios. Intenta bajar de 80%.`})
+    if (avgInc > 0 && avgGas/avgInc < 0.6) tips.push({icon:'🌟',bg:'var(--green-dim)',txt:`Excelente: gastas solo el <strong>${((avgGas/avgInc)*100).toFixed(0)}%</strong> de tus ingresos. Considera aumentar inversiones.`})
+    // Check recurring expenses
+    const recGas = S.gastos.filter(g=>g.recurrente&&g.tipo!==TX_TYPES.GOAL_TRANSFER)
+    if (recGas.length > 0) {
+      const totalRec = recGas.reduce((a,g)=>a+(Number(g.importe)||0),0)
+      tips.push({icon:'🔄',bg:'var(--indigo-dim)',txt:`Tienes <strong>${recGas.length} gastos recurrentes</strong> por <strong>${eur(totalRec)}</strong> mensuales. Revísalos periódicamente.`})
+    }
+    // Check top category dominance
+    const catMap = gastosMesByCat(currentMonth())
+    const entries = Object.entries(catMap).sort((a,b)=>b[1]-a[1])
+    const totalG = entries.reduce((a,[,v])=>a+v,0)
+    if (entries.length && totalG > 0 && entries[0][1]/totalG > 0.4) tips.push({icon:'🏷',bg:'var(--gold-dim)',txt:`<strong>${entries[0][0]}</strong> representa el <strong>${((entries[0][1]/totalG)*100).toFixed(0)}%</strong> de tus gastos este mes. ¿Hay margen de optimización?`})
+    // Investments check
+    if (S.inversiones.filter(i=>!i.cerrada).length === 0 && avgInc > 500) tips.push({icon:'📈',bg:'var(--accent-dim)',txt:`No tienes inversiones activas. Con ingresos regulares, considera empezar con un fondo indexado.`})
+    if (!tips.length) tips.push({icon:'✅',bg:'var(--green-dim)',txt:`¡Tus finanzas se ven equilibradas este período! Sigue registrando para obtener más insights personalizados.`})
+    return `<div class="card" style="margin-bottom:16px">
+      <div class="card-header"><div class="card-title">🧠 Insights personalizados</div><div class="card-subtitle">Basados en tus datos reales</div></div>
+      ${tips.map(t=>`<div class="insight-item"><div class="insight-icon" style="background:${t.bg}">${t.icon}</div><div class="insight-text">${t.txt}</div></div>`).join('')}
+    </div>`
+  })()}
+`
+
+  // Charts
+  setTimeout(()=>{
+    const patCtx = document.getElementById('chartAnalisisPatrimonio')
+    if(patCtx){
+      destroyChart('analisisPat')
+      const meses = getMonths(6)
+      charts['analisisPat'] = new Chart(patCtx,{type:'line',data:{labels:meses.map(monthLabel),datasets:[{label:'Patrimonio',data:meses.map(mo=>{const h=S.patrimonio_hist.find(x=>x.mes===mo);return h?h.valor:null}),borderColor:'#00D4AA',backgroundColor:'rgba(0,212,170,0.08)',fill:true,tension:.4,pointRadius:3,borderWidth:2}]},options:{...chartDefaults(),plugins:{...chartDefaults().plugins,legend:{display:false}},scales:{x:{grid:{color:gridColor()},ticks:{color:labelColor(),font:{size:10}}},y:{grid:{color:gridColor()},ticks:{color:labelColor(),font:{size:10},callback:v=>eur(v)}}}}})
+    }
+    // Tendencia ingvsgasto
+    const tendCtx = document.getElementById('chartAnalisisTendencia')
+    if(tendCtx){
+      destroyChart('analisisTend')
+      const meses = getMonths(6)
+      const mesesIngData = meses.map(calcIngresosMes)
+      const mesesGasData = meses.map(calcGastosMes)
+      const allVals = [...mesesIngData, ...mesesGasData].filter(v=>v>0)
+      const nonZero = meses.filter((_,i)=>mesesIngData[i]>0||mesesGasData[i]>0).length
+      const tendBarPct = nonZero <= 1 ? 0.2 : nonZero <= 3 ? 0.5 : 0.75
+      charts['analisisTend'] = new Chart(tendCtx,{type:'bar',data:{labels:meses.map(monthLabel),datasets:[{label:'Ingresos',data:mesesIngData,backgroundColor:'rgba(16,185,129,.75)',borderRadius:5,categoryPercentage:tendBarPct,barPercentage:0.85},{label:'Gastos',data:mesesGasData,backgroundColor:'rgba(244,63,94,.75)',borderRadius:5,categoryPercentage:tendBarPct,barPercentage:0.85}]},options:{...chartDefaults(),plugins:{...chartDefaults().plugins,legend:{display:true,labels:{color:labelColor(),boxWidth:10,font:{size:10}}}},scales:{x:{grid:{color:'transparent'},ticks:{color:labelColor(),font:{size:10}}},y:{grid:{color:gridColor()},ticks:{color:labelColor(),font:{size:10},callback:v=>eur(v)},suggestedMin:0,suggestedMax:allVals.length?Math.max(...allVals)*1.2:100}}}})
+    }
+  },60)
+}
+
+function renderHerramientas() {
+  document.getElementById('content').innerHTML = `
+  <div class="section-header">
+    <div><div class="page-h1">🛠 Herramientas</div><div class="page-sub">Asistentes financieros</div></div>
+  </div>
+  <div>
+    <div id="debtAdvisorCard" class="card"><div class="card-header"><div class="card-title">💳 Asistente de deudas</div><div class="card-subtitle">Estrategias para saldar deudas</div></div>${renderDebtAdvisor()}</div>
+  </div>
+  `
+}
+
+function renderDebtAdvisor() {
+  if (!S.deudas.length) return `
+    <div class="empty">
+      <div class="empty-icon">🎉</div>
+      <div class="empty-title">¡Sin deudas!</div>
+      <div class="empty-sub">Enhorabuena — una posición financiera envidiable.</div>
+      <button class="btn btn-ghost btn-sm" onclick="goTo('deudas')">Ver sección deudas →</button>
+    </div>`
+
+  const pendienteTotal = calcTotalDeuda()
+  const interesMedio = S.deudas.length ? S.deudas.reduce((a,d)=>a+(Number(d.interes)||0),0)/S.deudas.length : 0
+  const snowball  = debtSnowball()
+  const avalanche = debtAvalanche()
+
+  const makeList = (arr) => arr.map((d, i) => {
+    const pend = Number(d.importeTotal) - Number(d.importePagado || 0)
+    return `<div class="debt-order-item">
+      <div class="debt-order-num">${i + 1}</div>
+      <div class="debt-order-info">
+        <div class="debt-order-name">${d.nombre}</div>
+        <div class="debt-order-meta">Pendiente: <strong style="color:var(--text)">${eur(pend)}</strong> · ${d.interes ? '<span style="color:var(--gold)">'+pct(d.interes)+' int.</span>' : 'Sin interés'}</div>
+      </div>
+    </div>`
+  }).join('')
+
+  // Estrategias rápidas
+  const strats = [
+    { icon:'🐢', name:'Conservador', mul:0.6, color:'var(--text2)' },
+    { icon:'⚖️', name:'Moderado',    mul:1.0, color:'var(--accent)' },
+    { icon:'🚀', name:'Agresivo',    mul:1.6, color:'var(--red)' },
+  ]
+  const stratHtml = strats.map(s => {
+    const {monthlyPayment, months} = calcDebtStrategy(pendienteTotal, interesMedio, s.mul)
+    return `<div style="flex:1;padding:10px;border-radius:var(--radius-sm);background:var(--bg2);border:1px solid var(--border);text-align:center">
+      <div style="font-size:1.2rem">${s.icon}</div>
+      <div style="font-size:.75rem;font-weight:700;color:${s.color};margin:4px 0">${s.name}</div>
+      <div style="font-size:.8rem;font-weight:700;color:var(--text)">${eur(monthlyPayment)}<span style="font-size:.65rem;color:var(--text2)">/mes</span></div>
+      <div style="font-size:.68rem;color:var(--text2)">${fmtMonths(months)}</div>
+    </div>`
+  }).join('')
+
+  return `
+  <div style="display:flex;gap:8px;margin-bottom:14px">${stratHtml}</div>
+  <div class="tabs" style="margin-bottom:12px">
+    <div class="tab active" id="tab-snowball" onclick="switchDebtTab('snowball')">❄️ Bola de nieve</div>
+    <div class="tab" id="tab-avalanche" onclick="switchDebtTab('avalanche')">🌊 Avalancha</div>
+  </div>
+  <div id="debt-snowball">
+    <div style="font-size:.78rem;color:var(--text2);margin-bottom:10px;padding:7px 10px;background:var(--bg2);border-radius:6px">
+      <strong style="color:var(--text)">Bola de nieve:</strong> empieza por la deuda más pequeña para ganar impulso psicológico.
+    </div>
+    ${makeList(snowball)}
+  </div>
+  <div id="debt-avalanche" style="display:none">
+    <div style="font-size:.78rem;color:var(--text2);margin-bottom:10px;padding:7px 10px;background:var(--bg2);border-radius:6px">
+      <strong style="color:var(--text)">Avalancha:</strong> empieza por la de mayor interés — ahorras más dinero a largo plazo.
+    </div>
+    ${makeList(avalanche)}
+  </div>
+  <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
+    <div style="font-size:.78rem;color:var(--text2);font-weight:600;margin-bottom:8px">🧮 Calculadora personalizada</div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <input type="number" id="monthlyPayInput" placeholder="€ / mes que puedes pagar" style="flex:1">
+      <button class="btn btn-primary btn-sm" onclick="calcDebtFree()">Calcular</button>
+    </div>
+    <div id="debtFreeResult" style="margin-top:8px;font-size:.82rem;color:var(--text2)"></div>
+  </div>`
+}
+
+function switchDebtTab(tab) {
+  document.getElementById('debt-snowball').style.display  = tab==='snowball'  ? 'block':'none'
+  document.getElementById('debt-avalanche').style.display = tab==='avalanche' ? 'block':'none'
+  document.querySelectorAll('#debtAdvisorCard .tab').forEach(t=>t.classList.remove('active'))
+  document.getElementById('tab-'+tab).classList.add('active')
+}
+
+function calcDebtFree() {
+  const monthly = parseFloat(document.getElementById('monthlyPayInput').value)
+  const result  = document.getElementById('debtFreeResult')
+  if (!monthly || monthly <= 0) { result.textContent = 'Introduce un importe válido.'; return }
+  const months  = calcDebtFreeMonths(monthly)
+  if (!months)  { result.innerHTML = '<span style="color:var(--green)">✅ Sin deudas pendientes.</span>'; return }
+  result.innerHTML = `⏱ Estarías libre de deudas en aprox. <strong style="color:var(--accent)">${fmtMonths(months)}</strong> pagando <strong style="color:var(--text)">${eur(monthly)}/mes</strong>.`
+}
+
+function renderProjection() {
+  const scenarios = projectWealth(12)
+  if (!scenarios.length) return '<div class="empty"><div class="empty-icon">📊</div><div class="empty-title">Sin datos suficientes</div></div>'
+
+  const last = scenarios[scenarios.length - 1]
+  const curr = calcPatrimonio()
+
+  return `
+  <div class="kpi-grid kpi-grid-3" style="margin-bottom:16px">
+    <div class="proj-scenario">
+      <div class="proj-dot" style="background:var(--text3)"></div>
+      <div><div style="font-size:.72rem;color:var(--text2);font-weight:600">Conservador</div><div style="font-size:.9rem;font-weight:700;color:var(--text)">${eur(last.conservador)}</div></div>
+    </div>
+    <div class="proj-scenario">
+      <div class="proj-dot" style="background:var(--accent)"></div>
+      <div><div style="font-size:.72rem;color:var(--text2);font-weight:600">Moderado</div><div style="font-size:.9rem;font-weight:700;color:var(--accent)">${eur(last.moderado)}</div></div>
+    </div>
+    <div class="proj-scenario">
+      <div class="proj-dot" style="background:var(--green)"></div>
+      <div><div style="font-size:.72rem;color:var(--text2);font-weight:600">Optimista</div><div style="font-size:.9rem;font-weight:700;color:var(--green)">${eur(last.optimista)}</div></div>
+    </div>
+  </div>
+  <div class="chart-container" style="height:160px"><canvas id="chartProjection"></canvas></div>
+  <div style="margin-top:10px;font-size:.75rem;color:var(--text3)">Proyección a 12 meses basada en tu cash flow histórico e inversiones.</div>`
+}
+
+function renderProjectionChart() {
+  const ctx = document.getElementById('chartProjection')
+  if (!ctx) return
+  destroyChart('projection')
+  const sc = projectWealth(12)
+  const labels = sc.map(s => monthLabel(s.mes))
+  charts['projection'] = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label:'Optimista',   data: sc.map(s=>s.optimista),   borderColor:'#10B981', borderDash:[],  fill:false, tension:.4, pointRadius:0, borderWidth:2 },
+        { label:'Moderado',    data: sc.map(s=>s.moderado),    borderColor:'#00D4AA', borderDash:[],  fill:'+1',  tension:.4, pointRadius:0, borderWidth:2, backgroundColor:'rgba(0,212,170,0.06)' },
+        { label:'Conservador', data: sc.map(s=>s.conservador), borderColor:'#475569', borderDash:[4,3],fill:false,tension:.4, pointRadius:0, borderWidth:1.5 }
+      ]
+    },
+    options: { ...chartDefaults(),
+      plugins: { ...chartDefaults().plugins, legend:{ display:true, labels:{ color:labelColor(), boxWidth:10, font:{size:10} } } },
+      scales: {
+        x: { grid:{color:gridColor()}, ticks:{color:labelColor(),font:{size:10}} },
+        y: { grid:{color:gridColor()}, ticks:{color:labelColor(),font:{size:10},callback:v=>eur(v)} }
+      }
+    }
+  })
+}
+
+function renderTaxSummary() {
+  const m   = currentMonth()
+  const cfg = S.taxConfig || { iva:21, irpf:15 }
+  const ing = calcIngresosMes(m)
+  const gas = calcGastosMes(m)
+  // IVA repercutido (cobrado a clientes en facturas emitidas)
+  const ivaRepercutido = ing * (Number(cfg.iva) / 100)
+  // IVA soportado (pagado a proveedores, deducible)
+  const ivaSoportado   = gas * (Number(cfg.iva) / 100)
+  // IVA a liquidar (diferencia a ingresar a Hacienda)
+  const ivaLiquidar    = Math.max(0, ivaRepercutido - ivaSoportado)
+  const irpf           = ing * (Number(cfg.irpf) / 100)
+  const totalReserva   = ivaLiquidar + irpf
+  const net            = ing - totalReserva
+  const reservaPct     = ing > 0 ? (totalReserva / ing * 100) : 0
+
+  return `
+  <div class="kpi-grid kpi-grid-3" style="margin-bottom:16px">
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:var(--green-dim)">💶</div>
+      <div class="kpi-label">Ingresos brutos</div>
+      <div class="kpi-value sm">${eur(ing)}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:var(--gold-dim)">🧾</div>
+      <div class="kpi-label">Reserva fiscal</div>
+      <div class="kpi-value sm" style="color:var(--gold)">${eur(totalReserva)}</div>
+      <div class="kpi-sub">${pct(reservaPct)} de los ingresos</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:var(--accent-dim)">✅</div>
+      <div class="kpi-label">Ingreso neto real</div>
+      <div class="kpi-value sm" style="color:var(--green)">${eur(net)}</div>
+    </div>
+  </div>
+  <div class="stat-row"><span class="stat-key">IVA repercutido (emitido, ${cfg.iva}%)</span><span class="stat-val" style="color:var(--gold)">${eur(ivaRepercutido)}</span></div>
+  <div class="stat-row"><span class="stat-key">IVA soportado (deducible, ${cfg.iva}%)</span><span class="stat-val" style="color:var(--green)">−${eur(ivaSoportado)}</span></div>
+  <div class="stat-row"><span class="stat-key"><strong>IVA a liquidar</strong></span><span class="stat-val" style="color:var(--gold)"><strong>${eur(ivaLiquidar)}</strong></span></div>
+  <div class="stat-row"><span class="stat-key">IRPF / IS retenido (${cfg.irpf}%)</span><span class="stat-val" style="color:var(--gold)">${eur(irpf)}</span></div>
+  <div style="margin-top:12px;padding:10px 12px;background:var(--gold-dim);border-radius:var(--radius-sm);border:1px solid rgba(245,158,11,.15)">
+    <div style="font-size:.78rem;color:var(--gold);font-weight:700">⚠️ Reserva total a apartar este mes: ${eur(totalReserva)}</div>
+    <div style="font-size:.72rem;color:var(--text2);margin-top:4px">Estimación orientativa. Consulta con tu asesor fiscal para importes definitivos.</div>
+  </div>`
+}
+
+// ─── CIERRE DE MES ─────────────────────────────────────────────
+function abrirCierreMes() {
+  const rev = generateMonthlyReview(currentMonth())
+  const anomHtml = rev.anomalies.map(a => `
+    <div class="insight-item" style="margin-bottom:8px">
+      <div class="insight-icon" style="background:${a.type==='danger'?'var(--red-dim)':'var(--gold-dim)'}">${a.type==='danger'?'🚨':'⚠️'}</div>
+      <div class="insight-text">${a.msg}</div>
+    </div>`).join('') || '<div class="insight-item"><div class="insight-icon" style="background:var(--green-dim)">✅</div><div class="insight-text"><strong>¡Sin anomalías!</strong></div></div>'
+
+  document.getElementById('monthlyBody').innerHTML = `
+  <div class="kpi-grid kpi-grid-3" style="margin-bottom:14px">
+    <div class="kpi-card"><div class="kpi-label">Ingresos</div><div class="kpi-value sm td-pos">+${eur(rev.ing)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Gastos</div><div class="kpi-value sm td-neg">-${eur(rev.gas)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Cash Flow</div><div class="kpi-value sm" style="color:${rev.cf>=0?'var(--accent)':'var(--red)'}">${rev.cf>=0?'+':''}${eur(rev.cf)}</div></div>
+  </div>
+  <div style="margin-bottom:16px"><div style="font-size:.82rem;font-weight:700;color:var(--text2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em">Anomalías</div>${anomHtml}</div>
+  <div style="margin-bottom:16px">
+    <div style="font-size:.82rem;font-weight:700;color:var(--text2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em">Top 5 gastos del mes</div>
+    ${rev.topGastos.map(g=>`<div class="stat-row"><span class="stat-key">${g.concepto} <span class="tag" style="margin-left:4px">${g.categoria||'—'}</span></span><span class="stat-val td-neg">-${eur(g.importe)}</span></div>`).join('')}
+  </div>
+  <div style="font-size:.82rem;font-weight:700;color:var(--text2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em">Tasa de ahorro</div>
+  <div class="progress-info"><span class="progress-label">${pct(rev.sr)}</span><span class="progress-pct" style="color:${rev.sr>=20?'var(--green)':rev.sr>=10?'var(--gold)':'var(--red)'}">${rev.sr>=20?'Excelente':rev.sr>=10?'Mejorable':'Bajo'}</span></div>
+  <div class="progress-wrap"><div class="progress-bar ${rev.sr>=20?'progress-ok':rev.sr>=10?'progress-warn':'progress-danger'}" style="width:${clamp(rev.sr,0,100)}%"></div></div>`
+
+  openModal('monthlyModal')
+}
+
+// ════════════════════════════════════════════════════════════════
+// ─── MÓDULO: ONBOARDING — PREMIUM SPLIT EXPERIENCE ───────────
+// ════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════
+// ─── ONBOARDING — PREMIUM FINTECH FLOW v2 ────────────────────
+//  5 steps: Lang → Name → Appearance → Account → Start
+// ════════════════════════════════════════════════════════════════
+const OB_TOTAL = 5
+let obStep = 1
+let obData = { nombre: '', email: '', password: '', mode: 'personal', lang: 'es', theme: 'dark', startTutorial: false, loadDemo: false }
+
+// ── Left panel: ambient visuals that evolve with each step ────
+function _obLeftHTML(step) {
+  const brand = `
+    <div class="ob-brand">
+      <div class="ob-brand-icon">
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+          <path d="M4 16 L8 9 L11 13 L15 7 L19 11" stroke="#0A0E17" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <span class="ob-brand-name">MoneyNest</span>
+    </div>`
+
+  if (step === 1) return `
+    <div class="ob-left-content">
+      ${brand}
+      <div class="ob-left-hero">
+        <div class="ob-globe">🌍</div>
+        <div class="ob-left-title">Tu idioma,<br>tu dinero.</div>
+        <div class="ob-left-sub">MoneyNest habla tu idioma. Elige cómo quieres ver tu vida financiera.</div>
+      </div>
+      <div class="ob-left-langs-preview">
+        <div class="ob-lang-flag">🇪🇸</div><div class="ob-lang-flag">🇺🇸</div>
+        <div class="ob-lang-flag">🇫🇷</div><div class="ob-lang-flag">🇩🇪</div>
+        <div class="ob-lang-flag">🇮🇹</div><div class="ob-lang-flag">🇵🇹</div>
+      </div>
+    </div>`
+
+  if (step === 2) return `
+    <div class="ob-left-content">
+      ${brand}
+      <div class="ob-left-hero">
+        <div class="ob-globe">👤</div>
+        <div class="ob-left-title">Hola,<br><span id="obLeftName" style="color:var(--ob-accent)">${obData.nombre || '…'}</span></div>
+        <div class="ob-left-sub">Tu nombre aparecerá en tu dashboard y en tus informes personalizados.</div>
+      </div>
+      <div class="ob-left-stat-card">
+        <div class="ob-stat-row"><span class="ob-stat-dot green"></span><span class="ob-stat-lbl">Datos 100% locales</span></div>
+        <div class="ob-stat-row"><span class="ob-stat-dot blue"></span><span class="ob-stat-lbl">Sin rastreo</span></div>
+        <div class="ob-stat-row"><span class="ob-stat-dot accent"></span><span class="ob-stat-lbl">Cifrado en tu dispositivo</span></div>
+      </div>
+    </div>`
+
+  if (step === 3) return `
+    <div class="ob-left-content">
+      ${brand}
+      <div class="ob-left-hero">
+        <div class="ob-globe">${obData.theme === 'light' ? '☀️' : '🌙'}</div>
+        <div class="ob-left-title">Tu apariencia,<br>en tiempo real.</div>
+        <div class="ob-left-sub">Estás viendo el resultado ahora mismo. Puedes cambiarlo cuando quieras.</div>
+      </div>
+      <div class="ob-left-theme-demo">
+        <div class="ob-theme-mini-preview" id="obThemePreviewLeft">
+          <div class="ob-mini-topbar"></div>
+          <div class="ob-mini-sidebar"></div>
+          <div class="ob-mini-content">
+            <div class="ob-mini-card"></div>
+            <div class="ob-mini-card ob-mini-card--sm"></div>
+          </div>
+        </div>
+      </div>
+    </div>`
+
+  if (step === 4) return `
+    <div class="ob-left-content">
+      ${brand}
+      <div class="ob-left-hero">
+        <div class="ob-globe">🔐</div>
+        <div class="ob-left-title">Tu cuenta,<br>solo tuya.</div>
+        <div class="ob-left-sub">Tus datos nunca salen de este dispositivo. Nosotros no los vemos.</div>
+      </div>
+      <div class="ob-left-stat-card">
+        <div class="ob-stat-row"><span class="ob-stat-dot green"></span><span class="ob-stat-lbl">Almacenamiento local cifrado</span></div>
+        <div class="ob-stat-row"><span class="ob-stat-dot blue"></span><span class="ob-stat-lbl">Sin servidores de terceros</span></div>
+        <div class="ob-stat-row"><span class="ob-stat-dot accent"></span><span class="ob-stat-lbl">7 días de prueba Pro incluidos</span></div>
+      </div>
+    </div>`
+
+  // step 5
+  const nombre = obData.nombre || 'Usuario'
+  return `
+    <div class="ob-left-content">
+      ${brand}
+      <div class="ob-visual-preview">
+        <div class="ob-preview-header">
+          <div class="ob-preview-dot" style="background:#F43F5E"></div>
+          <div class="ob-preview-dot" style="background:#F59E0B"></div>
+          <div class="ob-preview-dot" style="background:#10B981"></div>
+          <div class="ob-preview-title-bar"></div>
+        </div>
+        <div class="ob-preview-body" style="flex-direction:column;gap:8px">
+          <div style="padding:6px 2px;font-size:.7rem;font-weight:700;color:rgba(255,255,255,0.5)">Hola, <span style="color:#00D4AA">${nombre}</span> 👋</div>
+          <div class="ob-kpi-row">
+            <div class="ob-kpi-mini"><div class="ob-kpi-lbl">Ahorro</div><div class="ob-kpi-val green">€0</div></div>
+            <div class="ob-kpi-mini"><div class="ob-kpi-lbl">Gastos</div><div class="ob-kpi-val red">€0</div></div>
+          </div>
+          <div style="background:rgba(0,212,170,0.08);border:1px solid rgba(0,212,170,0.15);border-radius:8px;padding:8px 10px;font-size:.62rem;color:rgba(255,255,255,0.45)">
+            Todo listo para empezar 🚀
+          </div>
+        </div>
+      </div>
+      <div class="ob-feats">
+        <div class="ob-feat"><div class="ob-feat-icon">🔒</div><div class="ob-feat-text"><strong>${t('ob_feat_priv')}</strong>${t('ob_feat_priv_sub')}</div></div>
+        <div class="ob-feat"><div class="ob-feat-icon">⚡</div><div class="ob-feat-text"><strong>${t('ob_feat_gratis')}</strong>${t('ob_feat_gratis_sub')}</div></div>
+      </div>
+    </div>`
+}
+
+// ── Right panel: interactive step content ─────────────────────
+function _obRightHTML(step) {
+  const backBtn = obStep > 1
+    ? `<button class="ob-back-btn" onclick="obPrev()">${t('ob_atras')}</button>`
+    : ''
+
+  // ── STEP 1: Language ─────────────────────────────────────────
+  if (step === 1) {
+    const langs = [['es','🇪🇸','Español'],['en','🇺🇸','English'],['ca','🏴','Català'],['fr','🇫🇷','Français'],['de','🇩🇪','Deutsch'],['pt','🇵🇹','Português'],['it','🇮🇹','Italiano']]
+    return `
+      <div class="ob-step-pill"><div class="ob-step-pill-dot"></div>Paso 1 de ${OB_TOTAL}</div>
+      <div class="ob-headline">Bienvenido a<br><span class="ob-headline-accent">MoneyNest</span></div>
+      <p class="ob-lead">Antes de empezar, elige tu idioma.</p>
+      <div class="ob-lang-grid">
+        ${langs.map(([code, flag, name]) => `
+          <div class="ob-lang-tile ${obData.lang === code ? 'selected' : ''}" onclick="obSelectLang('${code}')">
+            <span class="ob-lang-tile-flag">${flag}</span>
+            <span class="ob-lang-tile-name">${name}</span>
+          </div>`).join('')}
+      </div>
+      <div class="ob-actions-row" style="margin-top:auto">
+        <button class="ob-next-btn" onclick="obNext()">
+          Continuar <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="display:inline;vertical-align:middle"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>`
+  }
+
+  // ── STEP 2: Name ─────────────────────────────────────────────
+  if (step === 2) return `
+    <div class="ob-step-pill"><div class="ob-step-pill-dot"></div>Paso 2 de ${OB_TOTAL}</div>
+    <div class="ob-headline">${t('ob_s1_h1')}<br>${t('ob_s1_h2')}</div>
+    <p class="ob-lead">${t('ob_s1_lead')}</p>
+    <div class="ob-name-wrap">
+      <span class="ob-name-prefix">👤</span>
+      <input class="ob-name-input" id="obNombre" type="text" placeholder="${t('ob_s1_placeholder')}" maxlength="40"
+        value="${obData.nombre}" autocomplete="given-name"
+        oninput="obData.nombre=this.value;var el=document.getElementById('obLeftName');if(el)el.textContent=this.value||'…'"
+        onkeydown="if(event.key==='Enter') obNext()">
+    </div>
+    <p class="ob-name-hint">${t('ob_s1_hint')}</p>
+    <div class="ob-actions-row">
+      ${backBtn}
+      <button class="ob-next-btn" onclick="obNext()">
+        ${t('ob_s1_cta')} <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="display:inline;vertical-align:middle"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>`
+
+  // ── STEP 3: Appearance ───────────────────────────────────────
+  if (step === 3) return `
+    <div class="ob-step-pill"><div class="ob-step-pill-dot"></div>Paso 3 de ${OB_TOTAL}</div>
+    <div class="ob-headline">${t('ob_s2_h1')}<br>${t('ob_s2_h2')}</div>
+    <p class="ob-lead">${t('ob_s2_lead')}</p>
+    <div class="ob-theme-cards" id="obThemeCards">
+      <div class="ob-theme-card ${obData.theme === 'dark' ? 'selected' : ''}" onclick="obSelectTheme('dark')">
+        <div class="ob-theme-preview ob-theme-preview--dark">
+          <div class="ob-tp-bar"></div><div class="ob-tp-side"></div>
+          <div class="ob-tp-body"><div class="ob-tp-card"></div><div class="ob-tp-card ob-tp-card--sm"></div></div>
+        </div>
+        <div class="ob-theme-card-label">🌙 ${t('ob_oscuro')}<div class="ob-theme-check">${obData.theme === 'dark' ? '✓' : ''}</div></div>
+      </div>
+      <div class="ob-theme-card ${obData.theme === 'light' ? 'selected' : ''}" onclick="obSelectTheme('light')">
+        <div class="ob-theme-preview ob-theme-preview--light">
+          <div class="ob-tp-bar"></div><div class="ob-tp-side"></div>
+          <div class="ob-tp-body"><div class="ob-tp-card"></div><div class="ob-tp-card ob-tp-card--sm"></div></div>
+        </div>
+        <div class="ob-theme-card-label">☀️ ${t('ob_claro')}<div class="ob-theme-check">${obData.theme === 'light' ? '✓' : ''}</div></div>
+      </div>
+      <div class="ob-theme-card ${obData.theme === 'auto' ? 'selected' : ''}" onclick="obSelectTheme('auto')">
+        <div class="ob-theme-preview ob-theme-preview--auto">
+          <div class="ob-tp-half ob-tp-half--dark"></div><div class="ob-tp-half ob-tp-half--light"></div>
+        </div>
+        <div class="ob-theme-card-label">⚙️ Auto<div class="ob-theme-check">${obData.theme === 'auto' ? '✓' : ''}</div></div>
+      </div>
+    </div>
+    <div class="ob-actions-row">
+      ${backBtn}
+      <button class="ob-next-btn" onclick="obNext()">
+        ${t('ob_s2_cta')} <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="display:inline;vertical-align:middle"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>`
+
+  // ── STEP 4: Email / Password ──────────────────────────────────
+  if (step === 4) return `
+    <div class="ob-step-pill"><div class="ob-step-pill-dot"></div>Paso 4 de ${OB_TOTAL}</div>
+    <div class="ob-headline">Crea tu<br><span class="ob-headline-accent">acceso seguro</span></div>
+    <p class="ob-lead">Tu cuenta protege tus datos en este dispositivo. Opcional — puedes saltarla.</p>
+    <div class="ob-fields">
+      <div class="ob-field-wrap">
+        <label class="ob-field-label">Correo electrónico</label>
+        <div class="ob-input-wrap">
+          <span class="ob-input-icon">✉️</span>
+          <input class="ob-field-input" id="obEmail" type="email" placeholder="tu@email.com"
+            value="${obData.email}" autocomplete="email"
+            oninput="obData.email=this.value"
+            onkeydown="if(event.key==='Enter')document.getElementById('obPassword')?.focus()">
+        </div>
+      </div>
+      <div class="ob-field-wrap">
+        <label class="ob-field-label">Contraseña</label>
+        <div class="ob-input-wrap">
+          <span class="ob-input-icon">🔑</span>
+          <input class="ob-field-input" id="obPassword" type="password" placeholder="Mínimo 8 caracteres"
+            value="${obData.password}" autocomplete="new-password"
+            oninput="obData.password=this.value;_obCheckPwStrength(this.value)"
+            onkeydown="if(event.key==='Enter')obNext()">
+          <button class="ob-pw-toggle" onclick="_obTogglePw()" tabindex="-1">👁</button>
+        </div>
+        <div class="ob-pw-strength" id="obPwStrength" style="display:none">
+          <div class="ob-pw-bar"><div class="ob-pw-fill" id="obPwFill"></div></div>
+          <span class="ob-pw-label" id="obPwLabel"></span>
+        </div>
+      </div>
+    </div>
+    <button class="ob-skip-link" onclick="obData.email='';obData.password='';obNext()">Saltar por ahora →</button>
+    <div class="ob-actions-row">
+      ${backBtn}
+      <button class="ob-next-btn" onclick="obNext()">
+        Continuar <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="display:inline;vertical-align:middle"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>`
+
+  // ── STEP 5: Start mode ───────────────────────────────────────
+  const nombre = obData.nombre || 'Usuario'
+  return `
+    <div class="ob-step-pill"><div class="ob-step-pill-dot"></div>Paso 5 de ${OB_TOTAL}</div>
+    <div class="ob-headline">${t('ob_s3_h1')}<br>${t('ob_s3_h2')}</div>
+    <p class="ob-lead">${t('ob_s3_lead')}</p>
+    <div class="ob-options" id="obOptions">
+      <div class="ob-opt ${obData.loadDemo ? 'selected' : ''}" onclick="obSelectOpt('demo')">
+        <div class="ob-opt-emoji">🔍</div>
+        <div class="ob-opt-info"><div class="ob-opt-label">${t('ob_opt_demo_lbl')}</div><div class="ob-opt-sub">${t('ob_opt_demo_sub')}</div></div>
+        <div class="ob-opt-radio"><div class="ob-opt-radio-dot"></div></div>
+      </div>
+      <div class="ob-opt ${!obData.startTutorial && !obData.loadDemo ? 'selected' : ''}" onclick="obSelectOpt('direct')">
+        <div class="ob-opt-emoji">⚡</div>
+        <div class="ob-opt-info"><div class="ob-opt-label">${t('ob_opt_direct_lbl')}</div><div class="ob-opt-sub">${t('ob_opt_direct_sub')}</div></div>
+        <div class="ob-opt-radio"><div class="ob-opt-radio-dot"></div></div>
+      </div>
+      <div class="ob-opt ${obData.startTutorial === true && !obData.loadDemo ? 'selected' : ''}" onclick="obSelectOpt('tutorial')">
+        <div class="ob-opt-emoji">🎓</div>
+        <div class="ob-opt-info"><div class="ob-opt-label">${t('ob_opt_tutorial_lbl')}</div><div class="ob-opt-sub">${t('ob_opt_tutorial_sub')}</div></div>
+        <div class="ob-opt-radio"><div class="ob-opt-radio-dot"></div></div>
+      </div>
+    </div>
+    <div class="ob-actions-row">
+      ${backBtn}
+      <button class="ob-next-btn ob-next-btn--finish" onclick="obNext()">
+        🚀 ${t('ob_s3_cta')}
+      </button>
+    </div>`
+}
+
+function obSelectOpt(mode) {
+  if (mode === 'tutorial') { obData.startTutorial = true;  obData.loadDemo = false }
+  if (mode === 'demo')     { obData.startTutorial = false; obData.loadDemo = true  }
+  if (mode === 'direct')   { obData.startTutorial = false; obData.loadDemo = false }
+  document.querySelectorAll('#obOptions .ob-opt').forEach(el => el.classList.remove('selected'))
+  const map = { demo: 0, direct: 1, tutorial: 2 }
+  const idx = map[mode]
+  const els = document.querySelectorAll('#obOptions .ob-opt')
+  if (els[idx]) els[idx].classList.add('selected')
+}
+
+function obRender(direction) {
+  const bar = document.getElementById('obGlobalBar')
+  if (bar) {
+    bar.style.transition = 'width .4s cubic-bezier(.4,0,.2,1)'
+    bar.style.width = ((obStep / OB_TOTAL) * 100) + '%'
+  }
+  // Update step dots
+  for (let i = 1; i <= OB_TOTAL; i++) {
+    const dot = document.getElementById('obDot' + i)
+    if (!dot) continue
+    dot.classList.toggle('active', i === obStep)
+    dot.classList.toggle('done', i < obStep)
+  }
+  const leftPanel = document.getElementById('obLeftPanel')
+  if (leftPanel) {
+    leftPanel.style.transition = 'opacity .25s'
+    leftPanel.style.opacity = '0'
+    setTimeout(() => {
+      leftPanel.innerHTML = _obLeftHTML(obStep)
+      leftPanel.style.opacity = '1'
+    }, 120)
+  }
+  const contentArea = document.getElementById('obContentArea')
+  if (!contentArea) return
+  const exitClass  = direction === 'back' ? 'ob-enter' : 'ob-exit'
+  const enterClass = direction === 'back' ? 'ob-exit'  : 'ob-enter'
+  contentArea.classList.add(exitClass)
+  setTimeout(() => {
+    contentArea.innerHTML = _obRightHTML(obStep)
+    contentArea.classList.remove(exitClass)
+    contentArea.classList.add(enterClass)
+    requestAnimationFrame(() => requestAnimationFrame(() => contentArea.classList.remove(enterClass)))
+    if (obStep === 2) setTimeout(() => document.getElementById('obNombre')?.focus(), 80)
+    if (obStep === 4) setTimeout(() => document.getElementById('obEmail')?.focus(), 80)
+    // Apply real-time theme preview on step 3
+    if (obStep === 3) _obApplyThemePreview(obData.theme)
+  }, 160)
+}
+
+function _obUpdateLeftLive() { /* handled per-step in obRender */ }
+
+function obSelectLang(l) {
+  obData.lang = l
+  _currentLang = l
+  document.querySelectorAll('.ob-lang-tile').forEach(el => el.classList.remove('selected'))
+  const sel = document.querySelector(`.ob-lang-tile[onclick*="'${l}'"]`)
+  if (sel) sel.classList.add('selected')
+  // Re-render right panel text in new language (smooth)
+  const contentArea = document.getElementById('obContentArea')
+  if (contentArea) {
+    contentArea.style.transition = 'opacity .12s'
+    contentArea.style.opacity = '0'
+    setTimeout(() => { contentArea.innerHTML = _obRightHTML(obStep); contentArea.style.opacity = '1' }, 120)
+  }
+}
+
+function obSelectTheme(theme) {
+  obData.theme = theme
+  // Real-time preview — apply to whole app immediately
+  _obApplyThemePreview(theme)
+  document.querySelectorAll('#obThemeCards .ob-theme-card').forEach((el, i) => {
+    const isSelected = (theme === 'dark' && i === 0) || (theme === 'light' && i === 1) || (theme === 'auto' && i === 2)
+    el.classList.toggle('selected', isSelected)
+    const check = el.querySelector('.ob-theme-check')
+    if (check) check.textContent = isSelected ? '✓' : ''
+  })
+  // Update left panel globe emoji
+  const globe = document.querySelector('#obLeftPanel .ob-globe')
+  if (globe) globe.textContent = theme === 'light' ? '☀️' : theme === 'auto' ? '⚙️' : '🌙'
+}
+
+function _obApplyThemePreview(theme) {
+  let resolved = theme
+  if (theme === 'auto') resolved = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  document.documentElement.setAttribute('data-theme', resolved)
+}
+
+function _obCheckPwStrength(pw) {
+  const bar   = document.getElementById('obPwStrength')
+  const fill  = document.getElementById('obPwFill')
+  const label = document.getElementById('obPwLabel')
+  if (!bar || !fill || !label) return
+  if (!pw) { bar.style.display = 'none'; return }
+  bar.style.display = 'flex'
+  let score = 0
+  if (pw.length >= 8)  score++
+  if (/[A-Z]/.test(pw)) score++
+  if (/[0-9]/.test(pw)) score++
+  if (/[^A-Za-z0-9]/.test(pw)) score++
+  const levels = [
+    { pct: '25%', color: '#F43F5E', text: 'Muy débil' },
+    { pct: '50%', color: '#F59E0B', text: 'Débil' },
+    { pct: '75%', color: '#6366F1', text: 'Buena' },
+    { pct: '100%', color: '#00D4AA', text: 'Fuerte ✓' },
+  ]
+  const lv = levels[Math.max(0, score - 1)]
+  fill.style.width     = lv.pct
+  fill.style.background = lv.color
+  label.textContent    = lv.text
+  label.style.color    = lv.color
+}
+
+function _obTogglePw() {
+  const inp = document.getElementById('obPassword')
+  if (!inp) return
+  inp.type = inp.type === 'password' ? 'text' : 'password'
+}
+
+function obNext() {
+  if (obStep === OB_TOTAL) { finishOnboarding(); return }
+  obStep++
+  obRender('forward')
+}
+
+function obPrev() {
+  if (obStep <= 1) return
+  obStep--
+  obRender('back')
+}
+
+
+
+// ═══════════════════════════════════════════════════════════════
+// CINEMATIC INTRO
+// ═══════════════════════════════════════════════════════════════
+function runCinematicIntro(onComplete) {
+  const intro = document.getElementById('mnIntro')
+  if (!intro) { onComplete(); return }
+
+  intro.style.display = 'flex'
+
+  // Phase 1: fade in background (0ms)
+  const bg = document.getElementById('mnIntroBg')
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      if (bg) bg.classList.add('visible')
+    })
+  })
+
+  // Phase 2: reveal content (150ms)
+  setTimeout(() => {
+    const content = document.getElementById('mnIntroContent')
+    if (content) content.classList.add('visible')
+    const wordmark = document.getElementById('mnIntroWordmark')
+    if (wordmark) wordmark.classList.add('visible')
+    const tagline = document.getElementById('mnIntroTagline')
+    if (tagline) tagline.classList.add('visible')
+  }, 150)
+
+  // Phase 3: trigger SVG stroke animation (250ms)
+  setTimeout(() => {
+    const svg = document.getElementById('mnIntroSvg')
+    if (svg) svg.classList.add('animate')
+  }, 250)
+
+  // Phase 4: hold, then fade out (2100ms total)
+  setTimeout(() => {
+    intro.classList.add('fade-out')
+    setTimeout(() => {
+      intro.style.display = 'none'
+      onComplete()
+    }, 500)
+  }, 2100)
+}
+
+// ─── DEMO DATA ────────────────────────────────────────────────
+const DEMO_FLAG = 'mn7_demo_mode'
+function isDemoMode() { try { return localStorage.getItem(DEMO_FLAG) === 'true' } catch(e){ return false } }
+
+function loadDemoData(scenario, nombreOverride) {
+  try { localStorage.setItem(DEMO_FLAG, 'true') } catch(e){}
+  const hoy = new Date()
+  const m0 = hoy.toISOString().slice(0,7)
+  const m1 = new Date(hoy.getFullYear(), hoy.getMonth()-1, 1).toISOString().slice(0,7)
+  const m2 = new Date(hoy.getFullYear(), hoy.getMonth()-2, 1).toISOString().slice(0,7)
+  const d = (mes, dia) => `${mes}-${String(dia).padStart(2,'0')}`
+
+  // Helper: slight randomness so amounts look human
+  const jitter = (base, pct=0.08) => Math.round(base * (1 + (Math.random()-0.5)*pct))
+
+  // Scenario config
+  const sc = scenario || 'standard'
+  const scenarios = {
+    standard:  { nombre:'Alex García',     salario:2950, extra:580,  alquiler:900,  ahorroBase:9200 },
+    freelance: { nombre:'Sara López',      salario:0,    extra:4200, alquiler:850,  ahorroBase:6500 },
+    family:    { nombre:'Familia Martín',  salario:5200, extra:300,  alquiler:1100, ahorroBase:15000 },
+    investor:  { nombre:'Carlos Rueda',    salario:3800, extra:1200, alquiler:0,    ahorroBase:28000 },
+  }
+  const cfg = scenarios[sc] || scenarios.standard
+
+  S.usuario.nombre = nombreOverride || cfg.nombre || 'Demo'
+
+  // ── CUENTAS ────────────────────────────────────────────────────
+  const saldoCorriente = sc === 'freelance' ? 1850 : sc === 'family' ? 4200 : sc === 'investor' ? 6800 : 2870
+  const saldoAhorro    = cfg.ahorroBase
+  S.cuentas = [
+    { id:'dc1', nombre: sc==='family'?'BBVA Familia':'BBVA Corriente', tipo:'banco',    saldo: saldoCorriente, color:'#00D4AA' },
+    { id:'dc2', nombre:'ING Ahorro',     tipo:'ahorro',   saldo: saldoAhorro, color:'#6366F1' },
+    { id:'dc3', nombre:'Revolut',        tipo:'banco',    saldo: sc==='investor'?1200:340, color:'#F59E0B' },
+    { id:'dc4', nombre:'Efectivo',       tipo:'efectivo', saldo:95, color:'#10B981' },
+  ]
+
+  // ── INGRESOS: 3 meses, varias fuentes ─────────────────────────
+  const salNombre = sc==='freelance' ? 'Proyecto principal' : sc==='family' ? 'Nómina titular' : 'Nómina'
+  const salario   = cfg.salario
+  const extra     = cfg.extra
+  const extraNom  = sc==='freelance' ? 'Proyecto secundario' : sc==='family' ? 'Nómina pareja' : sc==='investor' ? 'Dividendos cartera' : 'Proyecto freelance'
+  S.ingresos = [
+    // Mes actual
+    ...(salario > 0 ? [{ id:'di01', concepto:`${salNombre} ${new Date(hoy.getFullYear(),hoy.getMonth()).toLocaleString('es',{month:'long'})}`, importe:salario, categoria:'Salario', fecha:d(m0,'01'), cuentaId:'dc1', status:'cobrado', recurrente:true }] : []),
+    { id:'di02', concepto: extraNom,          importe:extra,  categoria: sc==='freelance'?'Freelance':sc==='investor'?'Dividendos':'Freelance', fecha:d(m0,'08'), cuentaId:'dc3', status:'cobrado' },
+    { id:'di03', concepto:'Dividendos ETF',   importe: sc==='investor'?340:94, categoria:'Dividendos', fecha:d(m0,'15'), cuentaId:'dc2', status:'cobrado' },
+    { id:'di04', concepto:'Alquiler habitación', importe:380, categoria:'Alquiler', fecha:d(m0,'05'), cuentaId:'dc1', status:'pendiente' },
+    // Mes anterior
+    ...(salario > 0 ? [{ id:'di05', concepto:`${salNombre} (mes anterior)`, importe:jitter(salario,.03), categoria:'Salario', fecha:d(m1,'01'), cuentaId:'dc1', status:'cobrado', recurrente:true }] : []),
+    { id:'di06', concepto: extraNom,          importe:jitter(extra,.15), categoria: sc==='freelance'?'Freelance':sc==='investor'?'Dividendos':'Freelance', fecha:d(m1,'22'), cuentaId:'dc3', status:'cobrado' },
+    { id:'di07', concepto:'Dividendos ETF',   importe: sc==='investor'?jitter(340,.08):88, categoria:'Dividendos', fecha:d(m1,'15'), cuentaId:'dc2', status:'cobrado' },
+    // Hace 2 meses
+    ...(salario > 0 ? [{ id:'di08', concepto:`${salNombre} (hace 2 meses)`, importe:jitter(salario,.03), categoria:'Salario', fecha:d(m2,'01'), cuentaId:'dc1', status:'cobrado', recurrente:true }] : []),
+    { id:'di09', concepto:'Bono / ingreso extra', importe: sc==='investor'?800:750, categoria:'Bono', fecha:d(m2,'07'), cuentaId:'dc1', status:'cobrado' },
+    { id:'di10', concepto:'Venta artículo',    importe:145, categoria:'Otros', fecha:d(m2,'19'), cuentaId:'dc3', status:'cobrado' },
+    { id:'di11', concepto:'Dividendos ETF',    importe: sc==='investor'?jitter(340,.05):91, categoria:'Dividendos', fecha:d(m2,'15'), cuentaId:'dc2', status:'cobrado' },
+  ].filter(Boolean)
+
+  // ── GASTOS: 55+ transacciones distribuidas en 3 meses ─────────
+  const alq = cfg.alquiler
+  const g = []
+
+  // ─ MES ACTUAL (m0) ─
+  // Fijos recurrentes
+  if (alq > 0) g.push(['dg01','Alquiler', alq, 'Vivienda', m0,'01','dc1',true])
+  g.push(['dg02','Gym Urban Sports',   jitter(40),  'Salud',         m0,'01','dc1',true])
+  g.push(['dg03','Netflix',            jitter(18),  'Suscripciones', m0,'05','dc3',true])
+  g.push(['dg04','Spotify',            jitter(10),  'Suscripciones', m0,'05','dc3',true])
+  g.push(['dg05','Amazon Prime',       jitter(5),   'Suscripciones', m0,'07','dc3',true])
+  g.push(['dg06','Seguro médico',      jitter(55),  'Salud',         m0,'02','dc1',true])
+  // Alimentación (compras semanales)
+  g.push(['dg07','Mercadona',          jitter(82),  'Alimentación',  m0,'04','dc1'])
+  g.push(['dg08','Lidl',               jitter(47),  'Alimentación',  m0,'11','dc1'])
+  g.push(['dg09','Mercadona',          jitter(91),  'Alimentación',  m0,'18','dc1'])
+  g.push(['dg10','Frutas mercado',     jitter(14),  'Alimentación',  m0,'20','dc4'])
+  g.push(['dg11','Mercadona',          jitter(78),  'Alimentación',  m0,'25','dc1'])
+  // Cafés / pequeños
+  g.push(['dg12','Café Avenida',       jitter(3),   'Restaurantes',  m0,'06','dc4'])
+  g.push(['dg13','Café',               jitter(2),   'Restaurantes',  m0,'08','dc4'])
+  g.push(['dg14','Café Starbucks',     jitter(6),   'Restaurantes',  m0,'13','dc3'])
+  g.push(['dg15','Café',               jitter(3),   'Restaurantes',  m0,'17','dc4'])
+  g.push(['dg16','Café Cortado',       jitter(2),   'Restaurantes',  m0,'22','dc4'])
+  // Restaurantes
+  g.push(['dg17','Restaurante Mesón',  jitter(38),  'Restaurantes',  m0,'09','dc1'])
+  g.push(['dg18','Sushi bar',          jitter(52),  'Restaurantes',  m0,'16','dc3'])
+  // Transporte
+  g.push(['dg19','Gasolina BP',        jitter(68),  'Transporte',    m0,'10','dc1'])
+  g.push(['dg20','Tren AVE',           jitter(42),  'Transporte',    m0,'14','dc1'])
+  // Ocio / personal
+  g.push(['dg21','Cine',               jitter(12),  'Ocio',          m0,'12','dc3'])
+  g.push(['dg22','Farmacia',           jitter(24),  'Salud',         m0,'15','dc4'])
+  g.push(['dg23','H&M ropa',           jitter(75),  'Ropa',          m0,'19','dc1'])
+
+  // ─ MES ANTERIOR (m1) ─
+  // Fijos recurrentes
+  if (alq > 0) g.push(['dg24','Alquiler', alq, 'Vivienda', m1,'01','dc1',true])
+  g.push(['dg25','Gym Urban Sports',   jitter(40),  'Salud',         m1,'01','dc1',true])
+  g.push(['dg26','Netflix',            jitter(18),  'Suscripciones', m1,'05','dc3',true])
+  g.push(['dg27','Spotify',            jitter(10),  'Suscripciones', m1,'05','dc3',true])
+  g.push(['dg28','Amazon Prime',       jitter(5),   'Suscripciones', m1,'07','dc3',true])
+  g.push(['dg29','Seguro médico',      jitter(55),  'Salud',         m1,'02','dc1',true])
+  // Alimentación
+  g.push(['dg30','Mercadona',          jitter(89),  'Alimentación',  m1,'05','dc1'])
+  g.push(['dg31','Carrefour',          jitter(63),  'Alimentación',  m1,'12','dc1'])
+  g.push(['dg32','Mercadona',          jitter(74),  'Alimentación',  m1,'19','dc1'])
+  g.push(['dg33','Panadería',          jitter(8),   'Alimentación',  m1,'23','dc4'])
+  g.push(['dg34','Mercadona',          jitter(55),  'Alimentación',  m1,'26','dc1'])
+  // Cafés
+  g.push(['dg35','Café',               jitter(2),   'Restaurantes',  m1,'03','dc4'])
+  g.push(['dg36','Café Cortado',       jitter(3),   'Restaurantes',  m1,'09','dc4'])
+  g.push(['dg37','Starbucks',          jitter(5),   'Restaurantes',  m1,'15','dc3'])
+  g.push(['dg38','Café',               jitter(2),   'Restaurantes',  m1,'21','dc4'])
+  // Restaurantes
+  g.push(['dg39','Cena cumpleaños',    jitter(88),  'Restaurantes',  m1,'20','dc1'])
+  g.push(['dg40','Almuerzo trabajo',   jitter(14),  'Restaurantes',  m1,'10','dc3'])
+  // Transporte
+  g.push(['dg41','Gasolina',           jitter(61),  'Transporte',    m1,'08','dc1'])
+  g.push(['dg42','Metro mensual',      jitter(20),  'Transporte',    m1,'01','dc1',true])
+  // Educación / ocio
+  g.push(['dg43','Udemy curso',        jitter(18),  'Educación',     m1,'14','dc3'])
+  g.push(['dg44','Concierto entrada',  jitter(45),  'Ocio',          m1,'24','dc1'])
+
+  // ─ HACE 2 MESES (m2) ─
+  // Fijos recurrentes
+  if (alq > 0) g.push(['dg45','Alquiler', alq, 'Vivienda', m2,'01','dc1',true])
+  g.push(['dg46','Gym Urban Sports',   jitter(40),  'Salud',         m2,'01','dc1',true])
+  g.push(['dg47','Netflix',            jitter(18),  'Suscripciones', m2,'05','dc3',true])
+  g.push(['dg48','Spotify',            jitter(10),  'Suscripciones', m2,'05','dc3',true])
+  g.push(['dg49','Amazon Prime',       jitter(5),   'Suscripciones', m2,'07','dc3',true])
+  g.push(['dg50','Seguro médico',      jitter(55),  'Salud',         m2,'02','dc1',true])
+  // Alimentación
+  g.push(['dg51','Mercadona',          jitter(77),  'Alimentación',  m2,'06','dc1'])
+  g.push(['dg52','Lidl',               jitter(44),  'Alimentación',  m2,'13','dc1'])
+  g.push(['dg53','Mercadona',          jitter(83),  'Alimentación',  m2,'20','dc1'])
+  g.push(['dg54','Mercado ecológico',  jitter(22),  'Alimentación',  m2,'24','dc4'])
+  // Cafés
+  g.push(['dg55','Café',               jitter(3),   'Restaurantes',  m2,'04','dc4'])
+  g.push(['dg56','Café Cortado',       jitter(2),   'Restaurantes',  m2,'11','dc4'])
+  g.push(['dg57','Café Starbucks',     jitter(5),   'Restaurantes',  m2,'18','dc3'])
+  // Restaurantes / ocio
+  g.push(['dg58','Tapas bar',          jitter(28),  'Restaurantes',  m2,'17','dc1'])
+  g.push(['dg59','Teatro',             jitter(32),  'Ocio',          m2,'22','dc3'])
+  g.push(['dg60','Gasolina',           jitter(72),  'Transporte',    m2,'11','dc1'])
+  g.push(['dg61','Metro mensual',      jitter(20),  'Transporte',    m2,'01','dc1',true])
+  g.push(['dg62','Libro técnico',      jitter(28),  'Educación',     m2,'16','dc2'])
+  g.push(['dg63','Farmacia',           jitter(19),  'Salud',         m2,'27','dc4'])
+
+  S.gastos = g.map(([id,concepto,importe,categoria,mes,dia,cuentaId,recurrente]) => ({
+    id, concepto, importe, categoria,
+    fecha: `${mes}-${String(dia).padStart(2,'0')}`,
+    cuentaId, recurrente: !!recurrente, _demo: true
+  }))
+
+  // ── INVERSIONES ────────────────────────────────────────────────
+  S.inversiones = [
+    { id:'dinv1', nombre:'ETF World MSCI',      importe:5000, rentabilidad:13.2, categoria:'ETF',           fecha:d(m2,'15'), cuentaId:'dc2', cerrada:false },
+    { id:'dinv2', nombre:'Bitcoin',             importe:600,  rentabilidad:-6.4, categoria:'Cripto',        fecha:d(m1,'20'), cuentaId:'dc3', cerrada:false },
+    { id:'dinv3', nombre:'Acciones Inditex',    importe:1400, rentabilidad:7.8,  categoria:'Acciones',      fecha:d(m2,'03'), cuentaId:'dc2', cerrada:false },
+    { id:'dinv4', nombre:'Fondo indexado S&P',  importe:2500, rentabilidad:14.5, categoria:'Fondo indexado',fecha:d(m2,'10'), cuentaId:'dc2', cerrada:false },
+  ]
+
+  // ── DEUDAS ─────────────────────────────────────────────────────
+  S.deudas = [
+    { id:'dd1', nombre:'Préstamo coche',   importeTotal:9200, importePagado:4100, interes:4.2, categoria:'Préstamo personal', vencimiento:'2027-06-01', pagos:[] },
+    { id:'dd2', nombre:'Tarjeta Visa',     importeTotal:950,  importePagado:320,  interes:17,  categoria:'Tarjeta crédito',   vencimiento:'2026-02-01', pagos:[] },
+  ]
+
+  // ── OBJETIVOS ──────────────────────────────────────────────────
+  S.objetivos = [
+    { id:'do1', nombre:'Fondo de emergencia', objetivo:10000, actual:9200, categoria:'Emergencia', color:'#00D4AA', emoji:'🛡️', fechaObjetivo:'2025-09-01' },
+    { id:'do2', nombre:'Vacaciones Japón',    objetivo:4000,  actual:1450, categoria:'Viaje',      color:'#6366F1', emoji:'✈️', fechaObjetivo:'2026-03-01' },
+    { id:'do3', nombre:'MacBook Pro M4',      objetivo:2800,  actual:700,  categoria:'Tecnología', color:'#F59E0B', emoji:'💻', fechaObjetivo:'2026-06-01' },
+  ]
+
+  // ── PRESUPUESTOS ───────────────────────────────────────────────
+  S.presupuestos = {
+    'Alimentación':  300,
+    'Transporte':    110,
+    'Restaurantes':  130,
+    'Ocio':          100,
+    'Suscripciones':  50,
+    'Ropa':          120,
+  }
+
+  // ── PATRIMONIO HISTÓRICO ───────────────────────────────────────
+  const basePatr = 19500
+  S.patrimonio_hist = []
+  for (let i = 5; i >= 0; i--) {
+    const dt  = new Date(hoy.getFullYear(), hoy.getMonth()-i, 1)
+    const mes = dt.toISOString().slice(0,7)
+    const growth = (5-i) * 380 + Math.round(Math.random()*300 - 60)
+    S.patrimonio_hist.push({ mes, valor: basePatr + growth })
+  }
+}
+
+function clearDemoData() {
+  try { localStorage.removeItem(DEMO_FLAG) } catch(e){}
+  const nombre = S.usuario.nombre
+  const theme  = S.theme
+  S = defaultState()
+  S.usuario.nombre = nombre === 'Demo' ? 'Usuario' : (nombre || 'Usuario')
+  S.theme = theme
+  save()
+  // Remove all demo UI elements
+  ;['demo-mode-chip','demoFab','demoFabReal','demoPanelModal'].forEach(id => {
+    const el = document.getElementById(id)
+    if (el) el.remove()
+  })
+  render()
+  // Show the "real mode" subtle FAB
+  setTimeout(_renderDemoFab, 300)
+  toast('✅ Modo real activado — app lista para tus datos')
+}
+
+function showDemoChip() { _renderDemoFab() }  // Alias kept for compatibility
+
+// ─── DEMO FAB & PANEL ──────────────────────────────────────────
+let _demoPanelOpen = false
+
+function _renderDemoFab() {
+  // Remove any existing FABs or chips
+  ['demo-mode-chip','demoFab','demoFabReal','demoPanelModal'].forEach(id => {
+    const el = document.getElementById(id)
+    if (el) el.remove()
+  })
+  // 2. MODO DEMO: Only render FAB when in demo mode
+  if (isDemoMode()) {
+    // Gold FAB when demo is active
+    const fab = document.createElement('button')
+    fab.id = 'demoFab'
+    fab.innerHTML = `<span class="fab-dot"></span><span class="fab-label">Modo demo<span class="fab-sub">Datos de ejemplo activos</span></span>`
+    fab.title = 'Gestionar modo demo'
+    fab.onclick = toggleDemoPanel
+    document.body.appendChild(fab)
+
+    // Build panel
+    const panel = document.createElement('div')
+    panel.id = 'demoPanelModal'
+    panel.innerHTML = _buildDemoPanel()
+    document.body.appendChild(panel)
+
+    // Close on outside click
+    document.addEventListener('pointerdown', _demoOutsideClick, { capture: true })
+  }
+}
+
+function _demoOutsideClick(e) {
+  const panel = document.getElementById('demoPanelModal')
+  const fab   = document.getElementById('demoFab') || document.getElementById('demoFabReal')
+  if (!panel || !panel.classList.contains('open')) return
+  if (panel.contains(e.target) || (fab && fab.contains(e.target))) return
+  panel.classList.remove('open')
+  _demoPanelOpen = false
+}
+
+function toggleDemoPanel() {
+  const panel = document.getElementById('demoPanelModal')
+  if (!panel) return
+  _demoPanelOpen = !panel.classList.contains('open')
+  panel.classList.toggle('open', _demoPanelOpen)
+}
+
+function _buildDemoPanel() {
+  if (isDemoMode()) {
+    return `
+      <div class="dpm-title">🟡 Modo demo activo</div>
+      <div class="dpm-sub">Explora la app con datos de ejemplo. Tus datos reales están intactos.</div>
+      <div class="dpm-sep"></div>
+      <div class="dpm-row">
+        <div class="dpm-label">Perfil del escenario</div>
+        <select class="dpm-select" id="dpmScenario" onchange="demoScenarioPreview(this.value)">
+          <option value="standard">👤 Perfil estándar — Asalariado con ahorro</option>
+          <option value="freelance">💼 Freelance — Ingresos variables</option>
+          <option value="family">👨‍👩‍👧 Familia — Dos ingresos, más gastos</option>
+          <option value="investor">📈 Inversor activo — Cartera diversificada</option>
+        </select>
+      </div>
+      <div class="dpm-actions">
+        <button class="dpm-btn-gold" onclick="reloadDemoWithScenario()">🔄 Recargar con este perfil</button>
+        <button class="dpm-btn-ghost" onclick="goTo('configuracion');toggleDemoPanel()">⚙️ Ver en Configuración</button>
+        <button class="dpm-btn-danger" onclick="toggleDemoPanel();confirmar('¿Salir del modo demo y borrar los datos de ejemplo?',()=>{clearDemoData()},{titulo:\'Salir del demo\',icono:\'🏁\',btnLabel:\'Salir del demo\'})">🏁 Salir al modo real</button>
+      </div>`
+  } else {
+    return `
+      <div class="dpm-title">🔍 Explorar con datos demo</div>
+      <div class="dpm-sub">Activa datos de ejemplo para ver todas las funciones sin introducir datos propios.</div>
+      <div class="dpm-sep"></div>
+      <div class="dpm-row">
+        <div class="dpm-label">Nombre del usuario demo</div>
+        <input class="dpm-input" id="dpmNombre" type="text" placeholder="Ej: María García" maxlength="30">
+      </div>
+      <div class="dpm-row">
+        <div class="dpm-label">Perfil del escenario</div>
+        <select class="dpm-select" id="dpmScenario">
+          <option value="standard">👤 Perfil estándar — Asalariado con ahorro</option>
+          <option value="freelance">💼 Freelance — Ingresos variables</option>
+          <option value="family">👨‍👩‍👧 Familia — Dos ingresos, más gastos</option>
+          <option value="investor">📈 Inversor activo — Cartera diversificada</option>
+        </select>
+      </div>
+      <div class="dpm-actions">
+        <button class="dpm-btn-gold" onclick="activateDemoWithConfig()">🚀 Activar modo demo</button>
+      </div>`
+  }
+}
+
+function demoScenarioPreview(val) { /* future: live preview */ }
+
+function activateDemoWithConfig() {
+  const nombre   = (document.getElementById('dpmNombre')?.value || '').trim() || 'Demo'
+  const scenario = document.getElementById('dpmScenario')?.value || 'standard'
+  toggleDemoPanel()
+  loadDemoData(scenario, nombre)
+  save()
+  render()
+  _renderDemoFab()
+  toast('✅ Modo demo activado — explora sin límites')
+}
+
+function reloadDemoWithScenario() {
+  const scenario = document.getElementById('dpmScenario')?.value || 'standard'
+  const nombre   = S.usuario.nombre || 'Demo'
+  toggleDemoPanel()
+  loadDemoData(scenario, nombre)
+  save()
+  render()
+  _renderDemoFab()
+  toast('🔄 Escenario recargado: ' + scenario)
+}
+
+function finishOnboarding() {
+  if (obData.nombre) S.usuario.nombre = obData.nombre
+  S.usuario.mode = 'personal'
+  // Apply theme — resolve 'auto' to system preference
+  if (obData.theme) {
+    let resolved = obData.theme
+    if (resolved === 'auto') resolved = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+    S.theme = resolved
+  }
+  // Register email if provided (local auth)
+  if (obData.email && typeof patchUser === 'function') {
+    patchUser({ email: obData.email, createdAt: Date.now() })
+  }
+  if (obData.lang) { _currentLang = obData.lang; try { localStorage.setItem(LANG_STORAGE_KEY, obData.lang) } catch(e){} }
+  _setObSeen()
+  document.getElementById('onboardingOverlay').style.display = 'none'
+  document.body.style.overflow = ''
+  applyTheme()
+  updateModeUI()
+  if (obData.loadDemo) {
+    loadDemoData('standard', obData.nombre || 'Demo')
+    _setTutDone()
+    save()
+    render()
+    toast('Datos de ejemplo cargados — explora libremente')
+    _renderDemoFab()
+    return
+  }
+  save()
+  render()
+  if (obData.startTutorial === true) {
+    setTimeout(() => startTutorial(), 400)
+  } else {
+    _setTutDone()
+    toast(`${t('hola')} ${S.usuario.nombre || 'Usuario'}! 🎉`)
+  }
+}
+
+function skipOnboarding() {
+  _setObSeen()
+  _setTutDone()
+  document.getElementById('onboardingOverlay').style.display = 'none'
+  document.body.style.overflow = ''
+  render()
+  _updateSidebarLang()
+  toast(t('page_configuracion') + ' — ⚙️')
+}
+
+// ─── ONBOARDING FLAGS (persistent, never fail silently) ────────
+const OB_FLAG_KEY  = 'mn7_ob_seen'    // 'true' after onboarding
+const TUT_FLAG_KEY = 'mn7_tut_done'   // 'true' after tutorial
+
+function _obFlagSeen()  { return localStorage.getItem(OB_FLAG_KEY)  === 'true' }
+function _tutFlagDone() { return localStorage.getItem(TUT_FLAG_KEY) === 'true' }
+function _setObSeen()   { try { localStorage.setItem(OB_FLAG_KEY,  'true') } catch(e){} }
+function _setTutDone()  { try { localStorage.setItem(TUT_FLAG_KEY, 'true') } catch(e){} }
+
+function checkOnboarding() {
+  if (!_obFlagSeen()) {
+    obStep = 1
+    obData = { nombre:'', email:'', password:'', mode:'personal', lang:'es', theme:'dark', startTutorial:false, loadDemo:false }
+    // Run cinematic intro first, then reveal onboarding
+    runCinematicIntro(() => {
+      obRender()
+      const ov = document.getElementById('onboardingOverlay')
+      if (ov) {
+        ov.style.display = 'flex'
+        requestAnimationFrame(() => ov.classList.add('ob-visible'))
+        document.body.style.overflow = 'hidden'
+      }
+    })
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+// ─── MÓDULO: TUTORIAL INTERACTIVO ────────────────────────────
+// Tutorial uses MOCK data — never touches real S state
+// ════════════════════════════════════════════════════════════════
+let tutStep = 0
+let _tutMockActive = false
+
+// ── Inject / remove mock data ──────────────────────────────────
+function _tutInjectMock() {
+  if (_tutMockActive) return
+  _tutMockActive = true
+  const today = todayISO()
+  const cuentaId = S.cuentas[0]?.id || 'c1'
+
+  // Fake income
+  S.ingresos.unshift({
+    id: '__tut_ing__', concepto: '💼 Salario (demo)', importe: 2500,
+    categoria: 'Salario', fecha: today, cuentaId, _tutorial: true
+  })
+  // Update account saldo temporarily
+  const cuenta = getCuenta(cuentaId)
+  if (cuenta) cuenta._tutSaldoOrig = cuenta.saldo
+  if (cuenta) cuenta.saldo = (Number(cuenta.saldo)||0) + 2500
+
+  // Fake investment
+  S.inversiones.unshift({
+    id: '__tut_inv__', nombre: '📈 Fondo indexado S&P500 (demo)',
+    importe: 500, categoria: 'Fondo indexado', rentabilidad: 8,
+    fecha: today, cuentaId, cerrada: false, _tutorial: true
+  })
+  if (cuenta) cuenta.saldo = Math.max(0, (Number(cuenta.saldo)||0) - 500)
+
+  // Fake physical asset
+  if (!S.assets) S.assets = []
+  S.assets.unshift({
+    id: '__tut_asset__', nombre: '🚗 Audi A3 (demo)', tipo: 'vehicle',
+    valorCompra: 22000, valor: 18000, fecha: todayISO(), status: 'active',
+    depreciacion: false, depPct: 0, notas: 'Demo tutorial', _tutorial: true
+  })
+
+  save()
+}
+
+function _tutClearMock() {
+  if (!_tutMockActive) return
+  _tutMockActive = false
+  S.ingresos = S.ingresos.filter(i => !i._tutorial)
+  S.gastos   = S.gastos.filter(g => !g._tutorial)
+  S.inversiones = S.inversiones.filter(i => !i._tutorial)
+  S.assets   = (S.assets||[]).filter(a => !a._tutorial)
+  // Restore account saldo
+  S.cuentas.forEach(c => {
+    if (c._tutSaldoOrig !== undefined) {
+      c.saldo = c._tutSaldoOrig
+      delete c._tutSaldoOrig
+    }
+  })
+  save()
+}
+
+// ── Tutorial steps ─────────────────────────────────────────────
+const TUT_STEPS = [
+  { title: 'Bienvenido al tour 👋',
+    text: 'Tour rápido con datos de demo. Tus datos reales no se tocarán.',
+    target: null, page: 'dashboard' },
+  { title: 'Patrimonio neto',
+    text: 'Tu riqueza real: liquidez + inversiones + activos físicos − deudas.',
+    target: '.patrimonio-hero', page: 'dashboard' },
+  { title: 'KPIs del mes',
+    text: 'Ingresos, gastos y cash flow. El porcentaje compara con el mes anterior.',
+    target: '.kpi-grid', page: 'dashboard' },
+  { title: 'Ingresos',
+    text: 'Registra tus entradas. Demo: salario de 2.500 € ya añadido.',
+    target: '#nav-ingresos', page: 'ingresos' },
+  { title: 'Gastos',
+    text: 'Registra y categoriza tus salidas. Usa presupuestos para controlar límites.',
+    target: '#nav-gastos', page: 'gastos' },
+  { title: 'Inversiones',
+    text: 'Sigue tu cartera. Pulsa Liquidar para cerrar posiciones con ganancia/pérdida.',
+    target: '#nav-inversiones', page: 'inversiones' },
+  { title: 'Deudas',
+    text: 'Gestiona préstamos con 3 estrategias: Conservador, Moderado o Agresivo.',
+    target: '#nav-deudas', page: 'deudas' },
+  { title: 'Objetivos',
+    text: 'Define metas financieras. MoneyNest calcula cuándo las alcanzarás.',
+    target: '#nav-objetivos', page: 'objetivos' },
+  { title: 'Análisis avanzado',
+    text: 'Burn rate, regla 50/30/20, fondo de emergencia y predicciones.',
+    target: '#nav-analisis', page: 'analisis' },
+  { title: '¡Listo! 🎉',
+    text: 'Demo eliminada. Añade tus cuentas reales y empieza a registrar.',
+    target: null, page: 'dashboard' }
+]
+
+function startTutorial() {
+  tutStep = 0
+  _tutInjectMock()
+  destroyAllCharts()
+  renderDashboard()
+  currentPage = 'dashboard'
+  document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'))
+  const nav = document.getElementById('nav-dashboard')
+  if (nav) nav.classList.add('active')
+  document.getElementById('tutorialOverlay').style.display = 'block'
+  renderTutStep()
+}
+
+function renderTutStep() {
+  const step    = TUT_STEPS[tutStep]
+  const overlay = document.getElementById('tutorialOverlay')
+  const hl      = document.getElementById('tutHighlight')
+  const tooltip = document.getElementById('tutTooltip')
+  if (!overlay || !step) return
+
+  // Navigate to step page
+  const pageFns = {
+    dashboard:renderDashboard, ingresos:renderIngresos, gastos:renderGastos,
+    inversiones:renderInversiones, deudas:renderDeudas, cuentas:renderCuentas,
+    objetivos:renderObjetivos, presupuestos:renderPresupuestos,
+    analisis:renderAnalisis, configuracion:renderConfiguracion,
+    patrimonio:renderPatrimonio, billing:renderBilling
+  }
+  if (step.page && step.page !== currentPage) {
+    currentPage = step.page
+    destroyAllCharts()
+    if (pageFns[step.page]) pageFns[step.page]()
+    document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'))
+    const nav = document.getElementById('nav-'+step.page)
+    if (nav) nav.classList.add('active')
+    const contentEl = document.getElementById('content')
+    if (contentEl) contentEl.scrollTop = 0
+  }
+
+  // Update tooltip text
+  const gi = (id) => document.getElementById(id)
+  if (gi('tutTitle'))   gi('tutTitle').textContent   = step.title
+  if (gi('tutText'))    gi('tutText').innerHTML      = step.text
+  if (gi('tutStepNum')) gi('tutStepNum').textContent = `Paso ${tutStep+1} de ${TUT_STEPS.length}`
+  if (gi('tutCounter')) gi('tutCounter').textContent = `${tutStep+1}/${TUT_STEPS.length}`
+  const dotsEl = gi('tutDots')
+  if (dotsEl) dotsEl.innerHTML = TUT_STEPS.map((_,i)=>`<div class="tut-dot${i===tutStep?' active':''}"></div>`).join('')
+  if (gi('tutNextBtn')) gi('tutNextBtn').textContent = tutStep === TUT_STEPS.length-1 ? 'Finalizar ✓' : 'Siguiente →'
+  if (gi('tutBack'))    gi('tutBack').style.display  = tutStep > 0 ? 'inline-flex' : 'none'
+
+  // Animate in
+  tooltip.style.opacity = '0'
+  tooltip.style.transform = 'translateY(4px)'
+  tooltip.style.display = 'block'
+  tooltip.className = 'tut-tooltip'
+  requestAnimationFrame(() => {
+    tooltip.style.transition = 'opacity .15s ease, transform .15s ease'
+    tooltip.style.opacity = '1'
+    tooltip.style.transform = 'translateY(0)'
+  })
+
+  setTimeout(() => {
+    const ttW = 320, ttH = 200
+    const targetEl = step.target ? document.querySelector(step.target) : null
+
+    if (targetEl) {
+      targetEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+      setTimeout(() => {
+        const r = targetEl.getBoundingClientRect()
+        // Highlight box
+        hl.style.cssText = [
+          'display:block', 'position:fixed', 'pointer-events:none', 'z-index:9998',
+          `top:${r.top-5}px`, `left:${r.left-5}px`,
+          `width:${r.width+10}px`, `height:${r.height+10}px`,
+          'border:2px solid var(--accent)', 'border-radius:8px',
+          'box-shadow:0 0 0 4000px rgba(0,0,0,0.5)',
+          'transition:all .15s ease'
+        ].join(';')
+        // Position tooltip
+        const sp = window.innerWidth - r.right - 12
+        const sl = r.left - 12
+        let tL, tT
+        if (sp >= ttW)      { tL = r.right+12;      tT = Math.max(12, r.top) }
+        else if (sl >= ttW) { tL = r.left-ttW-12;   tT = Math.max(12, r.top) }
+        else                { tL = Math.max(12, r.left); tT = r.bottom+12 }
+        tL = Math.max(12, Math.min(tL, window.innerWidth-ttW-12))
+        tT = Math.max(12, Math.min(tT, window.innerHeight-ttH-12))
+        tooltip.style.cssText = `display:block;position:fixed;top:${tT}px;left:${tL}px;max-width:${ttW}px;z-index:9999;opacity:1;transform:none;transition:none`
+      }, 85)
+    } else {
+      if (hl) hl.style.cssText = 'display:none'
+      const tL = Math.max(12, (window.innerWidth-ttW)/2)
+      const tT = Math.max(12, (window.innerHeight-ttH)/2)
+      tooltip.style.cssText = `display:block;position:fixed;top:${tT}px;left:${tL}px;max-width:${ttW}px;z-index:9999;opacity:1;transform:none;transition:none`
+    }
+  }, 72)
+}
+
+function tutNext() {
+  if (tutStep >= TUT_STEPS.length - 1) { endTutorial(); return }
+  tutStep++
+  renderTutStep()
+}
+function tutPrev() {
+  if (tutStep <= 0) return
+  tutStep--
+  renderTutStep()
+}
+function endTutorial() {
+  _tutClearMock()
+  _setTutDone()
+  const ov = document.getElementById('tutorialOverlay')
+  const hl = document.getElementById('tutHighlight')
+  const tt = document.getElementById('tutTooltip')
+  if (ov) ov.style.display = 'none'
+  if (hl) hl.style.cssText = 'display:none'
+  if (tt) tt.style.display = 'none'
+  destroyAllCharts()
+  currentPage = 'dashboard'
+  render()
+  toast('¡Tour completado! 🎉 Añade tus cuentas reales para empezar.')
+}
+function lanzarTutorial() { startTutorial() }
+
+
+// ══════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
+// PROVEEDORES (disabled in personal mode)
+// ══════════════════════════════════════════════════════════════
+var _provSearch = ""
+
+function renderProveedores() { goTo('dashboard') }
+
+function resetProveedorForm() {
+  document.getElementById("proveedorId").value = ""
+  document.getElementById("proveedorModalTitle").textContent = "Nuevo Proveedor"
+  ;["proveedorNombre","proveedorEmpresa","proveedorEmail","proveedorTelefono","proveedorCategoria","proveedorNotas"].forEach(function(id){ document.getElementById(id).value = "" })
+  document.getElementById("proveedorColor").value = "#6366F1"
+  document.getElementById("proveedorAvatar").value = ""
+  document.getElementById("proveedorAvatarEmoji").style.display = "block"
+  document.getElementById("proveedorAvatarImg").style.display = "none"
+  document.getElementById("proveedorAvatarImg").src = ""
+}
+
+function editarProveedor(id) {
+  var p = (S.proveedores||[]).find(function(x){ return x.id===id })
+  if (!p) return
+  resetProveedorForm()
+  document.getElementById("proveedorId").value = id
+  document.getElementById("proveedorModalTitle").textContent = "Editar Proveedor"
+  document.getElementById("proveedorNombre").value = p.nombre||""
+  document.getElementById("proveedorEmpresa").value = p.empresa||""
+  document.getElementById("proveedorEmail").value = p.email||""
+  document.getElementById("proveedorTelefono").value = p.telefono||""
+  document.getElementById("proveedorCategoria").value = p.categoria||""
+  document.getElementById("proveedorNotas").value = p.notas||""
+  document.getElementById("proveedorColor").value = p.color||"#6366F1"
+  document.getElementById("proveedorAvatar").value = p.avatar||""
+  if (p.avatar) {
+    document.getElementById("proveedorAvatarEmoji").style.display = "none"
+    document.getElementById("proveedorAvatarImg").style.display = "block"
+    document.getElementById("proveedorAvatarImg").src = p.avatar
+  }
+  openModal("proveedorModal")
+}
+
+function guardarProveedor() {
+  var nombre = document.getElementById("proveedorNombre").value.trim()
+  if (!nombre) { toast("El nombre es requerido","error"); return }
+  if (!S.proveedores) S.proveedores = []
+  var id = document.getElementById("proveedorId").value
+  var data = {
+    nombre: nombre,
+    empresa: document.getElementById("proveedorEmpresa").value.trim(),
+    email: document.getElementById("proveedorEmail").value.trim(),
+    telefono: document.getElementById("proveedorTelefono").value.trim(),
+    categoria: document.getElementById("proveedorCategoria").value.trim(),
+    notas: document.getElementById("proveedorNotas").value.trim(),
+    color: document.getElementById("proveedorColor").value||"#6366F1",
+    avatar: document.getElementById("proveedorAvatar").value||null
+  }
+  if (id) {
+    var idx = S.proveedores.findIndex(function(x){ return x.id===id })
+    if (idx>=0) S.proveedores[idx] = Object.assign({}, S.proveedores[idx], data)
+  } else {
+    S.proveedores.push(Object.assign({id:uid()}, data))
+  }
+  save(); closeModal("proveedorModal"); render(); toast("Proveedor guardado ✓")
+}
+
+function borrarProveedor(id) {
+  confirmar("¿Eliminar este proveedor?", function(){
+    S.proveedores = (S.proveedores||[]).filter(function(x){ return x.id!==id })
+    save(); render(); toast("Proveedor eliminado")
+  }, {titulo:"Eliminar proveedor",icono:"🗑️"})
+}
+
+function previewProveedorAvatar(input) {
+  var file = input.files[0]
+  if (!file) return
+  var reader = new FileReader()
+  reader.onload = function(e) {
+    document.getElementById("proveedorAvatar").value = e.target.result
+    document.getElementById("proveedorAvatarEmoji").style.display = "none"
+    document.getElementById("proveedorAvatarImg").style.display = "block"
+    document.getElementById("proveedorAvatarImg").src = e.target.result
+  }
+  reader.readAsDataURL(file)
+}
+
+function nuevoGastoProveedor(proveedorId) {
+  resetGastoForm()
+  window._gastoProveedorId = proveedorId
+  setTimeout(function(){
+    var sel = document.getElementById("gastoProveedor")
+    if (sel) sel.value = proveedorId
+  }, 50)
+  openModal("gastoModal")
+}
+
+function poblarClienteSelect(selectId, selectedId) {
+  // Personal mode — cliente link is hidden field, nothing to populate
+}
+
+function poblarProveedorSelect(selectId, selectedId) {
+  const sel = document.getElementById(selectId)
+  if (!sel || sel.type === 'hidden') return
+  sel.innerHTML = '<option value="">Sin proveedor</option>' +
+    (S.proveedores||[]).map(p =>
+      `<option value="${p.id}" ${p.id===(selectedId||'')?'selected':''}>${p.nombre}${p.empresa?' ('+p.empresa+')':''}</option>`
+    ).join('')
+}
+
+function exportarProveedores() {
+  try {
+    var wb = XLSX.utils.book_new()
+    var headers = ["Nombre","Empresa","Email","Teléfono","Categoría","Total Pagado (€)","Facturas"]
+    var rows = (S.proveedores||[]).map(function(p) {
+      var gastado = S.gastos.filter(function(g){ return g.proveedorId===p.id }).reduce(function(a,g){ return a+(Number(g.importe)||0) },0)
+      var facturas = S.gastos.filter(function(g){ return g.proveedorId===p.id }).length
+      return [p.nombre||"",p.empresa||"",p.email||"",p.telefono||"",p.categoria||"",gastado,facturas]
+    })
+    var ws = XLSX.utils.aoa_to_sheet([headers].concat(rows))
+    ws["!cols"] = headers.map(function(h){ return {wch:Math.max(h.length,14)} })
+    XLSX.utils.book_append_sheet(wb, ws, "Proveedores")
+    XLSX.writeFile(wb, "MoneyNest_Proveedores_"+todayISO()+".xlsx")
+    toast("Proveedores exportados ✓")
+  } catch(e) { toast("Error al exportar","error") }
+}
+
+// ══════════════════════════════════════════════════════════════
+// DEVENGO
+// ══════════════════════════════════════════════════════════════
+var _devSearch = "", _devTipoFilter = "", _devEstadoFilter = ""
+
+function renderDevengo() { goTo('dashboard') }
+
+// ─── FAQ ───────────────────────────────────────────────────────
+if (!window._faqOpen) window._faqOpen = {}
+function toggleFAQ(id) {
+  window._faqOpen[id] = !window._faqOpen[id]
+  const body = document.getElementById('faq-body-'+id)
+  const arrow = document.getElementById('faq-arrow-'+id)
+  if (body) body.style.display = window._faqOpen[id] ? 'block' : 'none'
+  if (arrow) arrow.textContent = window._faqOpen[id] ? '▲' : '▼'
+}
+
+function renderFAQ() {
+  const faqs = [
+    { group: '🚀 Primeros pasos', color: 'var(--accent)', items: [
+      { q: '¿Cómo añado un ingreso?', a: 'Ve a la sección <strong>Ingresos</strong> desde la barra lateral. Haz clic en <strong>+ Nuevo ingreso</strong>. Rellena el importe, categoría, fecha y descripción opcional. Pulsa <strong>Guardar</strong>.' },
+      { q: '¿Cómo añado un gasto?', a: 'Ve a la sección <strong>Gastos</strong>. Pulsa <strong>+ Nuevo gasto</strong>. Introduce el importe, elige la categoría (con emoji), la fecha y una descripción. Guarda y aparecerá en la lista y en el dashboard automáticamente.' },
+      { q: '¿Cómo creo categorías personalizadas?', a: 'En <strong>Configuración → Categorías</strong> encontrarás las listas de ingresos y gastos. Escribe el nombre en el campo de texto y pulsa <strong>Añadir</strong>. El emoji se asigna automáticamente según el nombre.' },
+    ]},
+    { group: '📚 Conceptos financieros', color: 'var(--indigo)', items: [
+      { q: '¿Qué es el patrimonio neto?', a: 'El patrimonio neto es la diferencia entre todos tus activos (cuentas, inversiones, inmuebles…) y tus pasivos (deudas). Refleja tu riqueza real en un momento dado. MoneyNest lo calcula automáticamente en la sección <strong>Patrimonio</strong>.' },
+      { q: '¿Cómo funciona el análisis?', a: 'El <strong>Análisis</strong> cruza tus datos de ingresos, gastos, inversiones y deudas para generar insights personalizados: tasa de ahorro, categorías con mayor gasto, evolución mensual, proyecciones y regla 50/30/20.' },
+      { q: '¿Cómo interpreto los gráficos?', a: 'Los gráficos de líneas muestran evolución temporal. Los de dona muestran distribución por categorías. Los KPI con <span style="color:var(--green)">▲</span> verde indican mejora respecto al período anterior; en <span style="color:var(--red)">▼</span> rojo indican empeoramiento.' },
+    ]},
+    { group: '💳 Deudas', color: 'var(--red)', items: [
+      { q: '¿Qué es una estrategia de pago?', a: 'Es un plan para liquidar tus deudas de forma ordenada. MoneyNest ofrece tres ritmos: <strong>Conservador</strong> 🐢 (pagos bajos), <strong>Moderado</strong> ⚖️ (equilibrado) y <strong>Agresivo</strong> 🚀 (máxima velocidad de liquidación).' },
+      { q: '¿Cuál es la diferencia entre Bola de nieve y Avalancha?', a: '<strong>❄️ Bola de nieve:</strong> pagas primero la deuda más pequeña para ganar motivación psicológica.<br><strong>🌊 Avalancha:</strong> pagas primero la de mayor interés, ahorrando más dinero a largo plazo. Ambas son válidas; elige la que mejor se adapte a ti.' },
+      { q: '¿Cómo se calcula el tiempo para quedar libre de deudas?', a: 'MoneyNest usa la fórmula financiera estándar de amortización: considera el saldo pendiente total, el interés medio anual de tus deudas y el pago mensual estimado según la estrategia. El resultado es orientativo.' },
+    ]},
+    { group: '📦 Datos y dispositivos', color: 'var(--gold)', items: [
+      { q: '¿Cómo exporto mis datos?', a: 'Ve a <strong>Configuración → Importar / Exportar datos</strong>. Puedes exportar un informe completo en PDF o Excel, o descargar una copia de seguridad en JSON con todos tus datos.' },
+      { q: '¿Cómo importo una copia de seguridad?', a: 'En <strong>Configuración → Importar / Exportar datos</strong>, pulsa <strong>Importar copia de seguridad</strong> y selecciona tu archivo .json. Todos los datos se restaurarán. <em>⚠️ Esto sobreescribe los datos actuales.</em>' },
+      { q: '¿Cómo traslado MoneyNest a otro dispositivo?', a: '<strong>Paso 1:</strong> Exporta desde <em>Configuración → Copia de seguridad (JSON)</em>.<br><strong>Paso 2:</strong> En el nuevo dispositivo, abre MoneyNest.<br><strong>Paso 3:</strong> Ve a <em>Configuración → Importar</em>.<br><strong>Paso 4:</strong> Selecciona el archivo .json. ¡Listo!' },
+      { q: '¿Qué pasa si reseteo la app?', a: 'El reset elimina <strong>todos los datos permanentemente</strong>: ingresos, gastos, inversiones, deudas, objetivos y configuración. Solo hazlo si estás seguro. Exporta siempre una copia de seguridad antes.' },
+    ]},
+    { group: '⚙️ Uso de la app', color: 'var(--green)', items: [
+      { q: '¿Cómo cambio el idioma?', a: 'Ve a <strong>Configuración → Idioma</strong> y haz clic en el idioma que quieres. El cambio es inmediato. Idiomas disponibles: 🇪🇸 Español, 🇺🇸 English, 🇮🇹 Italiano, 🇫🇷 Français, 🇩🇪 Deutsch, 🇵🇹 Português.' },
+      { q: '¿Por qué no aparecen mis datos?', a: 'Los datos se guardan en el navegador (localStorage). Asegúrate de usar el mismo navegador y dispositivo. Si limpiaste el caché, los datos pueden haberse perdido. Usa siempre la exportación JSON como respaldo regular.' },
+      { q: '¿Cómo reseteo la app correctamente?', a: '<strong>Paso 1:</strong> Exporta tu copia de seguridad.<br><strong>Paso 2:</strong> Ve a Configuración → <em>Zona de peligro</em>.<br><strong>Paso 3:</strong> Haz clic en <em>Resetear todo</em>.<br><strong>Paso 4:</strong> Confirma. La app vuelve al estado inicial.' },
+    ]},
+  ]
+
+  let faqHtml = faqs.map((group, gi) => {
+    const items = group.items.map((item, qi) => {
+      const id = `faq-${gi}-${qi}`
+      const isOpen = window._faqOpen && window._faqOpen[id]
+      return `
+      <div class="faq-item" id="faqitem-${id}">
+        <button class="faq-q" onclick="toggleFAQ('${id}')" aria-expanded="${isOpen}">
+          <span class="faq-q-text">${item.q}</span>
+          <span class="faq-chevron" id="faq-arrow-${id}">${isOpen ? '▲' : '▼'}</span>
+        </button>
+        <div class="faq-a" id="faq-body-${id}" style="display:${isOpen?'block':'none'}">${item.a}</div>
+      </div>`
+    }).join('')
+
+    return `
+    <div class="faq-group">
+      <div class="faq-group-header">
+        <span class="faq-group-dot" style="background:${group.color}"></span>
+        <span class="faq-group-title">${group.group}</span>
+      </div>
+      <div class="faq-group-items">${items}</div>
+    </div>`
+  }).join('')
+
+  document.getElementById('content').innerHTML = `
+  <div class="section-header">
+    <div>
+      <div class="page-h1">❓ ${t('page_faq')}</div>
+      <div class="page-sub">Guías paso a paso y respuestas a las preguntas más frecuentes</div>
+    </div>
+  </div>
+  <div class="faq-layout">
+    <div class="faq-main">
+      ${faqHtml}
+    </div>
+    <div class="faq-sidebar">
+      <div class="faq-help-card">
+        <div class="faq-help-icon">💡</div>
+        <div class="faq-help-title">¿No encuentras tu respuesta?</div>
+        <div class="faq-help-sub">Envíanos tu pregunta o sugerencia y la tendremos en cuenta en la próxima versión.</div>
+        <button class="btn btn-primary" style="width:100%;margin-top:12px" onclick="goTo('sugerencias')">Ir a Sugerencias →</button>
+      </div>
+      <div class="faq-help-card" style="margin-top:12px">
+        <div class="faq-help-title" style="font-size:.82rem">⚡ Acceso rápido</div>
+        <div style="display:flex;flex-direction:column;gap:6px;margin-top:10px">
+          <button class="btn btn-ghost btn-sm" style="justify-content:flex-start;text-align:left" onclick="goTo('dashboard')">📊 Dashboard</button>
+          <button class="btn btn-ghost btn-sm" style="justify-content:flex-start;text-align:left" onclick="goTo('configuracion')">⚙️ Configuración</button>
+          <button class="btn btn-ghost btn-sm" style="justify-content:flex-start;text-align:left" onclick="goTo('analisis')">📈 Análisis</button>
+        </div>
+      </div>
+    </div>
+  </div>`
+}
+
+// ─── SUGERENCIAS ───────────────────────────────────────────────
+try { if (!window._sugerencias) window._sugerencias = JSON.parse(localStorage.getItem('mn_sugerencias')||'[]') } catch(e) { window._sugerencias = [] }
+
+function saveSugerencia() {
+  const input = document.getElementById('sug-input')
+  const cat = document.getElementById('sug-cat')
+  const tipoEl = document.querySelector('input[name="sug-tipo"]:checked')
+  if (!input) return
+  const text = (input.value||'').trim()
+  if (!text) { toast('Escribe una sugerencia primero','error'); return }
+  const sug = { id: Date.now(), text, categoria: cat?.value||'General', tipo: tipoEl?.value||'Sugerencia', fecha: new Date().toISOString().slice(0,10), votos: 0 }
+  window._sugerencias.unshift(sug)
+  try { localStorage.setItem('mn_sugerencias', JSON.stringify(window._sugerencias)) } catch(e) {}
+  toast('¡Sugerencia guardada! Gracias 🙏','success')
+  renderSugerencias()
+}
+
+function votarSugerencia(id) {
+  const sug = window._sugerencias.find(s=>s.id===id)
+  if (sug) sug.votos = (sug.votos||0)+1
+  try { localStorage.setItem('mn_sugerencias', JSON.stringify(window._sugerencias)) } catch(e) {}
+  renderSugerencias()
+}
+
+function borrarSugerencia(id) {
+  window._sugerencias = window._sugerencias.filter(s=>s.id!==id)
+  try { localStorage.setItem('mn_sugerencias', JSON.stringify(window._sugerencias)) } catch(e) {}
+  renderSugerencias()
+}
+
+function copiarEmailSugerencias() {
+  const email = 'invest.grid.main@gmail.com'
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(email).then(()=>toast('Email copiado al portapapeles 📋')).catch(()=>{
+      _copiarEmailFallback(email)
+    })
+  } else {
+    _copiarEmailFallback(email)
+  }
+}
+function _copiarEmailFallback(email) {
+  const ta = document.createElement('textarea')
+  ta.value = email; ta.style.position='fixed'; ta.style.opacity='0'
+  document.body.appendChild(ta); ta.select()
+  try { document.execCommand('copy'); toast('Email copiado al portapapeles 📋') }
+  catch(e) { toast('Copia manualmente: '+email,'error') }
+  document.body.removeChild(ta)
+}
+
+function enviarSugerenciaEmail() {
+  const input = document.getElementById('sug-input')
+  const cat = document.getElementById('sug-cat')
+  const tipoEl = document.querySelector('input[name="sug-tipo"]:checked')
+  if (!input) return
+  const text = (input.value||'').trim()
+  if (!text) { toast('Escribe un mensaje primero','error'); return }
+  const tipo = tipoEl?.value || 'Sugerencia'
+  const categoria = cat?.value || 'General'
+  const subject = encodeURIComponent(`[MoneyNest] ${tipo}: ${categoria}`)
+  const body = encodeURIComponent(`Tipo: ${tipo}\nCategoría: ${categoria}\n\n${text}\n\n---\nMoneyNest v${VERSION} · ${_currentLang.toUpperCase()}`)
+  window.location.href = `mailto:invest.grid.main@gmail.com?subject=${subject}&body=${body}`
+}
+
+function renderSugerencias() {
+  try { if (!window._sugerencias) window._sugerencias = JSON.parse(localStorage.getItem('mn_sugerencias')||'[]') } catch(e) { window._sugerencias = [] }
+  const cats = ['General','UI / Diseño','Nuevas funciones','Rendimiento','Idioma / Traducción','Otro']
+  const list = (window._sugerencias||[]).map(s=>`
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;margin-bottom:8px;display:flex;gap:12px;align-items:flex-start">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:.88rem;font-weight:600;color:var(--text);margin-bottom:5px">${s.text}</div>
+        <div style="font-size:.73rem;color:var(--text3)">${s.fecha} · <span style="background:var(--border);padding:2px 8px;border-radius:99px;font-weight:600;color:var(--text2)">${s.categoria}</span>${s.tipo?` · <span style="font-size:.7rem;color:var(--accent)">${s.tipo}</span>`:''}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0">
+        <button onclick="votarSugerencia(${s.id})" style="background:var(--accent-dim);border:1px solid rgba(0,212,170,.2);color:var(--accent);border-radius:8px;padding:4px 10px;font-size:.78rem;font-weight:700;cursor:pointer;min-width:52px">👍 ${s.votos||0}</button>
+        <button onclick="borrarSugerencia(${s.id})" style="background:transparent;border:none;color:var(--text3);font-size:.72rem;cursor:pointer" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--text3)'">✕ Eliminar</button>
+      </div>
+    </div>`).join('') || `<div class="empty"><div class="empty-icon">💬</div><div class="empty-title">Aún no hay sugerencias</div><div class="empty-sub">¡Sé el primero en proponer una mejora para MoneyNest!</div></div>`
+
+  document.getElementById('content').innerHTML = `
+  <div class="section-header">
+    <div><div class="page-h1">💡 ${t('page_sugerencias')}</div><div class="page-sub">Propón mejoras — se guardan localmente en tu dispositivo</div></div>
+  </div>
+  <div style="max-width:680px">
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title" style="margin-bottom:14px">✍️ Nueva sugerencia</div>
+      <div class="form-group">
+        <label>Tipo</label>
+        <div style="display:flex;gap:10px;margin-bottom:4px">
+          <label style="display:flex;align-items:center;gap:7px;padding:9px 14px;border-radius:var(--radius-sm);border:1.5px solid var(--border2);background:var(--bg2);cursor:pointer;flex:1;font-size:.85rem;font-weight:600;color:var(--text2);transition:all .15s" id="sug-tipo-label-sug">
+            <input type="radio" name="sug-tipo" value="Sugerencia" id="sug-tipo-sug" checked style="accent-color:var(--accent)" onchange="document.getElementById('sug-tipo-label-sug').style.borderColor='var(--accent)';document.getElementById('sug-tipo-label-sug').style.color='var(--accent)';document.getElementById('sug-tipo-label-preg').style.borderColor='var(--border2)';document.getElementById('sug-tipo-label-preg').style.color='var(--text2)'">
+            💡 ${t('sug_tipo_sug')}
+          </label>
+          <label style="display:flex;align-items:center;gap:7px;padding:9px 14px;border-radius:var(--radius-sm);border:1.5px solid var(--border2);background:var(--bg2);cursor:pointer;flex:1;font-size:.85rem;font-weight:600;color:var(--text2);transition:all .15s" id="sug-tipo-label-preg">
+            <input type="radio" name="sug-tipo" value="Pregunta" id="sug-tipo-preg" style="accent-color:var(--accent)" onchange="document.getElementById('sug-tipo-label-preg').style.borderColor='var(--accent)';document.getElementById('sug-tipo-label-preg').style.color='var(--accent)';document.getElementById('sug-tipo-label-sug').style.borderColor='var(--border2)';document.getElementById('sug-tipo-label-sug').style.color='var(--text2)'">
+            ❓ ${t('sug_tipo_preg')}
+          </label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Categoría</label>
+        <select id="sug-cat">${cats.map(c=>`<option value="${c}">${c}</option>`).join('')}</select>
+      </div>
+      <div class="form-group">
+        <label>Mensaje</label>
+        <textarea id="sug-input" placeholder="${t('sug_placeholder')}" style="min-height:90px;-webkit-user-select:text;user-select:text"></textarea>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <button class="btn btn-primary" onclick="saveSugerencia()">${t('sug_guardar')}</button>
+        <button class="btn btn-secondary" onclick="enviarSugerenciaEmail()">${t('sug_enviar_email')}</button>
+        <button class="btn btn-ghost" onclick="copiarEmailSugerencias()" title="Copiar email" style="font-size:.78rem;padding:7px 10px">📋 Copiar email</button>
+      </div>
+      <div style="margin-top:10px;padding:8px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span style="font-size:.72rem;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.04em">Contacto:</span>
+        <span style="font-size:.82rem;font-weight:700;color:var(--accent);user-select:text;-webkit-user-select:text">invest.grid.main@gmail.com</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header" style="margin-bottom:12px">
+        <div class="card-title">📋 Sugerencias enviadas</div>
+        <span class="badge badge-accent">${(window._sugerencias||[]).length}</span>
+      </div>
+      ${list}
+    </div>
+  </div>`
+
+  // Highlight the initially-selected radio
+  setTimeout(()=>{
+    const lbl = document.getElementById('sug-tipo-label-sug')
+    if (lbl) { lbl.style.borderColor='var(--accent)'; lbl.style.color='var(--accent)' }
+  }, 0)
+}
+
+
+function abrirDevengoModal() {
+  document.getElementById("devengoId").value = ""
+  document.getElementById("devengoModalTitle").textContent = "Nuevo Devengo"
+  ;["devengoConcepto","devengoImporte","devengoNotas"].forEach(function(id){ document.getElementById(id).value = "" })
+  document.getElementById("devengoTipo").value = "ingreso"
+  document.getElementById("devengoFecha").value = todayISO()
+  document.getElementById("devengoCobro").value = ""
+  document.getElementById("devengoEstado").value = "pendiente"
+  var sel = document.getElementById("devengoContacto")
+  if (sel) {
+    var clis = (S.clientes||[]).map(function(c){ return "<option value=\""+c.id+"\">👥 "+c.nombre+"</option>" }).join("")
+    var pros = (S.proveedores||[]).map(function(p){ return "<option value=\""+p.id+"\">🏭 "+p.nombre+"</option>" }).join("")
+    sel.innerHTML = "<option value=\"\">Sin asociar</option>" + clis + pros
+  }
+  openModal("devengoModal")
+}
+
+function editarDevengo(id) {
+  var d = (S.devengos||[]).find(function(x){ return x.id===id })
+  if (!d) return
+  abrirDevengoModal()
+  setTimeout(function(){
+    document.getElementById("devengoId").value = id
+    document.getElementById("devengoModalTitle").textContent = "Editar Devengo"
+    document.getElementById("devengoConcepto").value = d.concepto||""
+    document.getElementById("devengoImporte").value = d.importe||""
+    document.getElementById("devengoTipo").value = d.tipo||"ingreso"
+    document.getElementById("devengoFecha").value = d.fecha||todayISO()
+    document.getElementById("devengoCobro").value = d.fechaCobro||""
+    document.getElementById("devengoEstado").value = d.estado||"pendiente"
+    document.getElementById("devengoNotas").value = d.notas||""
+    var s = document.getElementById("devengoContacto"); if(s) s.value = d.contactoId||""
+  }, 60)
+}
+
+function guardarDevengo() {
+  var concepto = document.getElementById("devengoConcepto").value.trim()
+  var importe = parseFloat(document.getElementById("devengoImporte").value)
+  if (!concepto || !importe || importe<=0) { toast("Concepto e importe requeridos","error"); return }
+  if (!S.devengos) S.devengos = []
+  var id = document.getElementById("devengoId").value
+  var data = {
+    concepto: concepto, importe: importe,
+    tipo: document.getElementById("devengoTipo").value,
+    fecha: document.getElementById("devengoFecha").value||todayISO(),
+    fechaCobro: document.getElementById("devengoCobro").value||"",
+    contactoId: document.getElementById("devengoContacto").value||null,
+    estado: document.getElementById("devengoEstado").value,
+    notas: document.getElementById("devengoNotas").value.trim()
+  }
+  if (id) {
+    var idx = S.devengos.findIndex(function(x){ return x.id===id })
+    if (idx>=0) S.devengos[idx] = Object.assign({}, S.devengos[idx], data)
+  } else {
+    S.devengos.push(Object.assign({id:uid()}, data))
+  }
+  save(); closeModal("devengoModal"); render(); toast("Devengo guardado ✓")
+}
+
+function borrarDevengo(id) {
+  confirmar("¿Eliminar este registro de devengo?", function(){
+    S.devengos = (S.devengos||[]).filter(function(x){ return x.id!==id })
+    save(); render(); toast("Devengo eliminado")
+  }, {titulo:"Eliminar devengo",icono:"🗑️"})
+}
+
+function marcarDevengoCobrado(id) {
+  var idx = (S.devengos||[]).findIndex(function(x){ return x.id===id })
+  if (idx<0) return
+  S.devengos[idx].estado = "cobrado"
+  S.devengos[idx].fechaCobro = S.devengos[idx].fechaCobro || todayISO()
+  save(); render(); toast("Marcado como cobrado/pagado ✓")
+}
+
+function exportarDevengos() {
+  try {
+    var wb = XLSX.utils.book_new()
+    var headers = ["Concepto","Tipo","Importe (€)","Fecha Devengo","Fecha Cobro/Pago","Contacto","Estado","Notas"]
+    function getNombre(cid) {
+      var c = (S.clientes||[]).find(function(x){ return x.id===cid }); if(c) return c.nombre
+      var p = (S.proveedores||[]).find(function(x){ return x.id===cid }); if(p) return p.nombre
+      return ""
+    }
+    var rows = (S.devengos||[]).map(function(d){
+      return [d.concepto||"",d.tipo||"",Number(d.importe)||0,d.fecha||"",d.fechaCobro||"",getNombre(d.contactoId),d.estado||"",d.notas||""]
+    })
+    var ws = XLSX.utils.aoa_to_sheet([headers].concat(rows))
+    ws["!cols"] = headers.map(function(h){ return {wch:Math.max(h.length,14)} })
+    XLSX.utils.book_append_sheet(wb, ws, "Devengo")
+    XLSX.writeFile(wb, "MoneyNest_Devengo_"+todayISO()+".xlsx")
+    toast("Devengos exportados ✓")
+  } catch(e) { toast("Error al exportar","error") }
+}
+
+
+
+function verDetalleCuenta(cuentaId) {
+  const cuenta = getCuenta(cuentaId)
+  if (!cuenta) return
+  const ings = S.ingresos.filter(i=>i.cuentaId===cuentaId).sort((a,b)=>b.fecha?.localeCompare(a.fecha||'')||0)
+  const gas  = S.gastos.filter(g=>g.cuentaId===cuentaId).sort((a,b)=>b.fecha?.localeCompare(a.fecha||'')||0)
+  const invs = S.inversiones.filter(i=>i.cuentaId===cuentaId).sort((a,b)=>b.fecha?.localeCompare(a.fecha||'')||0)
+
+  const allMov = [
+    ...ings.map(i=>({...i, _tipo:'ingreso', _sign:'+', _color:'var(--green)'})),
+    ...gas.map(g=>({...g, _tipo:'gasto', _sign:'−', _color:'var(--red)'})),
+    ...invs.map(i=>({...i, _tipo:'inversion', _sign:'−', _color:'var(--gold)', concepto:i.nombre, importe:i.importe}))
+  ].sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''))
+
+  const rows = allMov.slice(0,50).map(m=>{
+    const tipoBadge = m._tipo==='ingreso'
+      ? '<span class="badge badge-green">💰 Ingreso</span>'
+      : m._tipo==='gasto'
+        ? '<span class="badge badge-red">💳 Gasto</span>'
+        : '<span class="badge badge-gold">📈 Inversión</span>'
+    return `<tr>
+      <td>${fmtDate(m.fecha)}</td>
+      <td class="td-main">${m.concepto||'—'}</td>
+      <td>${tipoBadge}</td>
+      <td class="td-amount" style="color:${m._color}">${m._sign}${eur(m.importe)}</td>
+      <td><span class="tag">${m.categoria||'—'}</span></td>
+    </tr>`
+  }).join('') || '<tr><td colspan="5"><div class="empty"><div class="empty-icon">📋</div><div class="empty-title">Sin movimientos</div></div></td></tr>'
+
+  const totalEnt = ings.reduce((a,i)=>a+(Number(i.importe)||0),0)
+  const totalSal = gas.reduce((a,g)=>a+(Number(g.importe)||0),0) + invs.filter(i=>!i.cerrada).reduce((a,i)=>a+(Number(i.importe)||0),0)
+
+  document.getElementById('content').innerHTML = `
+  <div class="section-header">
+    <div>
+      <div class="page-h1" style="display:flex;align-items:center;gap:10px">
+        <button class="btn btn-ghost btn-sm" onclick="goTo('cuentas')" style="font-size:.85rem">← Cuentas</button>
+        <span style="width:12px;height:12px;border-radius:50%;background:${cuenta.color||'#00D4AA'};display:inline-block"></span>
+        ${cuenta.nombre}
+      </div>
+      <div class="page-sub">Historial completo de movimientos</div>
+    </div>
+    <div class="section-actions">
+      <button class="btn-edit" onclick="editarCuenta('${cuentaId}')">✏ Editar cuenta</button>
+    </div>
+  </div>
+
+  <div class="kpi-grid kpi-grid-4" style="margin-bottom:16px">
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:var(--accent-dim)">💰</div>
+      <div class="kpi-label">Saldo disponible</div>
+      <div class="kpi-value" style="color:var(--accent)">${eur(cuenta.saldo||0)}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:var(--green-dim)">📥</div>
+      <div class="kpi-label">Total entradas</div>
+      <div class="kpi-value sm" style="color:var(--green)">${eur(totalEnt)}</div>
+      <div class="kpi-sub">${ings.length} ingresos</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:var(--red-dim)">📤</div>
+      <div class="kpi-label">Total salidas</div>
+      <div class="kpi-value sm" style="color:var(--red)">${eur(totalSal)}</div>
+      <div class="kpi-sub">${gas.length} gastos · ${invs.filter(i=>!i.cerrada).length} inversiones activas</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:var(--indigo-dim)">📊</div>
+      <div class="kpi-label">Total movimientos</div>
+      <div class="kpi-value">${allMov.length}</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">📋 Movimientos</div>
+      <span style="font-size:.78rem;color:var(--text2)">${allMov.length > 50 ? 'Mostrando últimos 50' : allMov.length + ' movimientos'}</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Fecha</th><th>Concepto</th><th>Tipo</th><th>Importe</th><th>Categoría</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  </div>`
+}
+
+
+function mostrarSaldoCuenta() {
+  const sel = document.getElementById('invCuenta')
+  const hint = document.getElementById('invCuentaSaldoHint')
+  if (!sel || !hint) return
+  const cuentaId = sel.value
+  if (!cuentaId) { hint.textContent = 'Selecciona una cuenta para ver el saldo disponible'; hint.style.color='var(--text3)'; return }
+  const cuenta = getCuenta(cuentaId)
+  if (!cuenta) return
+  const saldo = Number(cuenta.saldo)||0
+  hint.textContent = '💰 Disponible: ' + eur(saldo)
+  hint.style.color = saldo > 0 ? 'var(--green)' : 'var(--red)'
+}
+
+// ════════════════════════════════════════════════════════════════
+// ─── MÓDULO: PATRIMONIO ──────────────────────────────────────
+// ════════════════════════════════════════════════════════════════
+
+function renderPatrimonio() {
+  if (!S.assets) S.assets = []
+  const pat       = calcPatrimonio()
+  const dis       = calcDineroDisponible()
+  const cartera   = calcCartera()
+  const assetsVal = calcAssetsValue()
+  const deuda     = calcTotalDeuda()
+  const m         = currentMonth()
+  const mp        = prevMonth(m)
+  const patP      = (() => { const h = S.patrimonio_hist.find(h=>h.mes===mp); return h ? h.valor : null })()
+  const patDelta  = patP !== null ? ((pat - patP) / Math.abs(patP || 1)) * 100 : null
+
+  // Investment aggregates
+  const invAbiertas = S.inversiones.filter(i=>!i.cerrada)
+  const totalInv    = invAbiertas.reduce((a,i)=>a+(Number(i.importe)||0),0)
+  const totalRet    = calcGananciaLatente()
+  const totalRealiz = calcGananciaTotal()
+  const roiPct      = totalInv ? (totalRet/totalInv*100) : 0
+
+  // Accounts
+  const cuentasHtml = S.cuentas.map(c=>`
+    <div onclick="verDetalleCuenta('${c.id}')" style="display:flex;align-items:center;justify-content:space-between;
+      padding:10px 12px;border-radius:var(--radius-sm);background:var(--bg2);
+      border:1px solid var(--border);margin-bottom:6px;cursor:pointer;transition:all .15s"
+      onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="width:10px;height:10px;border-radius:50%;background:${c.color||'#00D4AA'};flex-shrink:0"></span>
+        <div>
+          <div style="font-size:.88rem;font-weight:600;color:var(--text)">${c.nombre}</div>
+          <div style="font-size:.7rem;color:var(--text2)">${c.tipo||'banco'}</div>
+        </div>
+      </div>
+      <span style="font-size:.95rem;font-weight:700;color:var(--text)">${eur(c.saldo||0)}</span>
+    </div>`).join('')
+
+  // Assets — active & sold
+  const activeAssets = S.assets.filter(a=>a.status==='active')
+  const soldAssets   = S.assets.filter(a=>a.status==='sold')
+
+  function getAssetIcon(tipo) {
+    const icons = {vehicle:'🚗',property:'🏠',electronics:'💻',jewelry:'💎',business:'🏢',other:'📦'}
+    return icons[tipo] || '📦'
+  }
+  function getAssetBg(tipo) {
+    const bgs = {vehicle:'var(--gold-dim)',property:'var(--indigo-dim)',electronics:'var(--accent-dim)',jewelry:'var(--red-dim)',business:'var(--green-dim)',other:'var(--border)'}
+    return bgs[tipo] || 'var(--border)'
+  }
+  function getAssetLabel(tipo, customLabel) {
+    if (tipo==='__custom__' || (customLabel && tipo==='other')) return customLabel||'Otro'
+    const labels = {vehicle:'Vehículo',property:'Inmueble',electronics:'Electrónica',jewelry:'Joyería / Arte',business:'Negocio',other:'Otro'}
+    return labels[tipo] || tipo
+  }
+  function assetCurrentVal(a) {
+    let val = Number(a.valor)||0
+    if (a.depreciacion && a.depPct && a.fecha) {
+      const years = (Date.now()-new Date(a.fecha).getTime())/(1000*60*60*24*365.25)
+      val = val*Math.pow(1-(Number(a.depPct)||0)/100,Math.max(0,years))
+    }
+    return val
+  }
+
+  function renderAssetCard(a, isSold) {
+    const cv = assetCurrentVal(a)
+    const vc = Number(a.valorCompra)||Number(a.valor)||0
+    const gainLoss = cv - vc
+    const icon = getAssetIcon(a.tipo)
+    const bg   = isSold ? 'var(--border)' : getAssetBg(a.tipo)
+    const label = getAssetLabel(a.tipo, a.tipoCustom)
+    return `<div style="padding:14px 0;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+        <div style="display:flex;align-items:center;gap:10px;min-width:0">
+          <div style="width:36px;height:36px;border-radius:9px;background:${bg};display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0">${icon}</div>
+          <div style="min-width:0">
+            <div style="font-size:.9rem;font-weight:700;color:${isSold?'var(--text2)':'var(--text)'}">${a.nombre}</div>
+            <div style="font-size:.7rem;color:var(--text2)">${label}${a.fecha?' · Compra: '+fmtDate(a.fecha):''}${a.fechaVenta?' · Venta: '+fmtDate(a.fechaVenta):''}</div>
+          </div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-size:.95rem;font-weight:700;color:${isSold?'var(--text2)':'var(--text)'}">${eur(cv)}</div>
+          ${vc&&vc!==cv?`<div style="font-size:.68rem;color:${gainLoss>=0?'var(--green)':'var(--red)'}">${gainLoss>=0?'▲':'▼'} ${eur(Math.abs(gainLoss))} vs compra</div>`:''}
+          ${a.valorCompra?`<div style="font-size:.65rem;color:var(--text3)">Compra: ${eur(a.valorCompra)}</div>`:''}
+        </div>
+      </div>
+      ${!isSold?`<div style="display:flex;gap:6px;margin-top:10px;align-items:center">
+        <button class="btn-edit" onclick="editarAsset('${a.id}')" style="font-size:.72rem">✏ Editar</button>
+        <button class="btn btn-ghost btn-sm" style="font-size:.72rem;padding:3px 10px" onclick="quickUpdateAssetValue('${a.id}')">💰 Actualizar valor</button>
+        <button class="btn btn-ghost btn-sm" style="font-size:.72rem;padding:3px 10px" onclick="marcarAssetVendido('${a.id}')">🔴 Vender</button>
+        <button class="btn-del" onclick="borrarAsset('${a.id}')" style="font-size:.72rem;margin-left:auto">🗑</button>
+      </div>`:`<div style="margin-top:6px"><button class="btn-del" onclick="borrarAsset('${a.id}')" style="font-size:.72rem">🗑 Eliminar</button></div>`}
+    </div>`
+  }
+
+  const assetsListHtml = activeAssets.length
+    ? activeAssets.map(a=>renderAssetCard(a,false)).join('')
+    : (window.mnEmptyStates ? window.mnEmptyStates.activos() : '<div class="empty"><div class="empty-icon">🏠</div><div class="empty-title">Sin activos físicos</div></div>')
+
+  document.getElementById('content').innerHTML = `
+  <div class="section-header" style="margin-bottom:16px">
+    <div>
+      <div class="page-h1">🏛 Patrimonio Neto</div>
+      <div class="page-sub">Vista completa de tu riqueza financiera</div>
+    </div>
+  </div>
+
+  <!-- NET WORTH HERO -->
+  <div class="pat-hero">
+    <div class="pat-nw-label">Patrimonio Neto Total</div>
+    <div class="pat-nw-row">
+      <div class="pat-nw-value">${eur(pat)}</div>
+      ${patDelta!==null?`<span class="kpi-delta ${deltaClass(patDelta)}" style="font-size:.88rem">${deltaIcon(patDelta)} ${pct(Math.abs(patDelta))} vs. mes ant.</span>`:'<span class="kpi-delta neu">Primer registro</span>'}
+    </div>
+    <div class="pat-breakdown">
+      <div class="pat-bd-item">
+        <div class="pat-bd-label">💰 Liquidez</div>
+        <div class="pat-bd-value" style="color:var(--accent)">${eur(dis)}</div>
+      </div>
+      <div class="pat-bd-item">
+        <div class="pat-bd-label">📈 Inversiones</div>
+        <div class="pat-bd-value" style="color:var(--indigo)">${eur(cartera)}</div>
+      </div>
+      <div class="pat-bd-item">
+        <div class="pat-bd-label">🏠 Activos físicos</div>
+        <div class="pat-bd-value" style="color:var(--gold)">${eur(assetsVal)}</div>
+      </div>
+      <div class="pat-bd-item">
+        <div class="pat-bd-label">${t('deudas_lbl')}</div>
+        <div class="pat-bd-value" style="color:${deuda>0?'var(--red)':'var(--green)'}">${deuda>0?'−'+eur(deuda):'Sin deudas ✅'}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SPLIT VIEW: LEFT = Accounts + Investments | RIGHT = Physical Assets -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px" class="pat-split-grid">
+
+    <!-- LEFT PANEL -->
+    <div style="display:flex;flex-direction:column;gap:16px">
+
+      <!-- Accounts -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">${t('cuentas_lbl')}</div>
+            <div class="card-subtitle">Total liquidez: ${eur(dis)}</div>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="goTo('cuentas')" style="font-size:.75rem">Gestionar →</button>
+        </div>
+        ${cuentasHtml||(window.mnEmptyStates ? window.mnEmptyStates.cuentas() : '<div class="empty"><div class="empty-icon">🏦</div><div class="empty-title">Sin cuentas</div></div>')}
+      </div>
+
+      <!-- Investments summary -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">📈 Activos Financieros</div>
+            <div class="card-subtitle">Cartera de inversión</div>
+          </div>
+          <span class="pat-inv-link" onclick="goTo('inversiones')">Ver detalle →</span>
+        </div>
+        <div class="kpi-grid kpi-grid-3" style="margin-bottom:0">
+          <div class="kpi-card">
+            <div class="kpi-label">Capital</div>
+            <div class="kpi-value sm">${eur(totalInv)}</div>
+            <div class="kpi-sub">${invAbiertas.length} activa${invAbiertas.length!==1?'s':''}</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Ganancia latente</div>
+            <div class="kpi-value sm" style="color:${totalRet>=0?'var(--green)':'var(--red)'}">${totalRet>=0?'+':''}${eur(totalRet)}</div>
+            <div class="kpi-sub">No realizada</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Rendimiento</div>
+            <div class="kpi-value sm" style="color:${roiPct>=0?'var(--green)':'var(--red)'}">${roiPct>=0?'+':''}${pct(roiPct)}</div>
+            <div class="kpi-sub">Realizado: ${eur(totalRealiz)}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Wealth evolution chart -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">📊 Evolución del patrimonio</div>
+          <div class="card-subtitle">Últimos 12 meses</div>
+        </div>
+        ${S.patrimonio_hist.length>=2
+          ?`<div class="chart-container"><canvas id="chartPatrimonioPage"></canvas></div>`
+          :(window.mnEmptyStates ? window.mnEmptyStates.pocoDatos() : `<div class="empty"><div class="empty-icon">📈</div><div class="empty-title">Pocos datos</div></div>`)}
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL: Physical Assets -->
+    <div class="card" style="display:flex;flex-direction:column">
+      <div class="card-header" style="flex-shrink:0">
+        <div>
+          <div class="card-title">🏠 Activos Físicos</div>
+          <div class="card-subtitle">${activeAssets.length} activo${activeAssets.length!==1?'s':''} · ${eur(assetsVal)}</div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="openModal('assetModal');resetAssetForm()">+ Añadir</button>
+      </div>
+      <div style="flex:1;overflow-y:auto">
+        ${assetsListHtml}
+        ${soldAssets.length?`
+        <details style="margin-top:8px">
+          <summary style="font-size:.75rem;color:var(--text2);cursor:pointer;padding:8px 0;border-top:1px solid var(--border)">
+            📦 Ver ${soldAssets.length} activo${soldAssets.length!==1?'s':''} vendido${soldAssets.length!==1?'s':''}
+          </summary>
+          <div style="opacity:.6">${soldAssets.map(a=>renderAssetCard(a,true)).join('')}</div>
+        </details>`:''}
+      </div>
+    </div>
+  </div>`
+
+  if (S.patrimonio_hist.length >= 2) {
+    setTimeout(renderChartPatrimonioPage, 80)
+  }
+}
+
+function renderChartPatrimonioPage() {
+  const ctx = document.getElementById('chartPatrimonioPage')
+  if (!ctx) return
+  const hist = S.patrimonio_hist.slice(-12)
+  const labels = hist.map(h=>monthLabel(h.mes))
+  const data   = hist.map(h=>h.valor)
+  const ch = new Chart(ctx,{
+    type:'line',
+    data:{labels,datasets:[{
+      label:'Patrimonio neto',data,
+      borderColor:'var(--accent)',backgroundColor:'rgba(0,212,170,0.08)',
+      fill:true,tension:.4,pointRadius:4,pointBackgroundColor:'var(--accent)'
+    }]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{x:{grid:{color:'var(--border)'},ticks:{color:'var(--text2)',font:{size:11}}},
+              y:{grid:{color:'var(--border)'},ticks:{color:'var(--text2)',font:{size:11},callback:v=>eur(v)}}}}
+  })
+  charts['chartPatrimonioPage'] = ch
+}
+
+// ─── ASSET CRUD ────────────────────────────────────────────────
+function checkAssetCustomCat() {
+  const sel = document.getElementById('assetTipo')
+  const box = document.getElementById('assetTipoCustom')
+  if (!sel || !box) return
+  box.style.display = sel.value === '__custom__' ? 'block' : 'none'
+}
+
+function resetAssetForm() {
+  document.getElementById('assetId').value = ''
+  document.getElementById('assetModalTitle').textContent = 'Nuevo Activo Físico'
+  document.getElementById('assetNombre').value = ''
+  document.getElementById('assetTipo').value = 'vehicle'
+  document.getElementById('assetTipoCustom').style.display = 'none'
+  document.getElementById('assetTipoCustomInput').value = ''
+  document.getElementById('assetValorCompra').value = ''
+  document.getElementById('assetValor').value = ''
+  document.getElementById('assetFecha').value = ''
+  document.getElementById('assetFechaVenta').value = ''
+  document.getElementById('assetEstado').value = 'active'
+  document.getElementById('assetNotas').value = ''
+  document.getElementById('assetDepPct').value = ''
+  document.getElementById('assetDepPct').disabled = true
+  const sw = document.getElementById('depToggleSwitch')
+  if (sw) sw.classList.remove('on')
+}
+
+function toggleDepreciacion() {
+  const sw  = document.getElementById('depToggleSwitch')
+  const inp = document.getElementById('assetDepPct')
+  if (!sw || !inp) return
+  const isOn = sw.classList.toggle('on')
+  inp.disabled = !isOn
+  if (!isOn) inp.value = ''
+}
+
+function editarAsset(id) {
+  const a = (S.assets||[]).find(x=>x.id===id)
+  if (!a) return
+  resetAssetForm()
+  document.getElementById('assetId').value = id
+  document.getElementById('assetModalTitle').textContent = 'Editar Activo'
+  document.getElementById('assetNombre').value = a.nombre||''
+  // Handle legacy tipo values
+  const tipoVal = a.tipo==='car'?'vehicle':a.tipo==='house'?'property':a.tipo||'other'
+  document.getElementById('assetTipo').value = tipoVal
+  if (a.tipoCustom) {
+    document.getElementById('assetTipo').value = '__custom__'
+    document.getElementById('assetTipoCustom').style.display = 'block'
+    document.getElementById('assetTipoCustomInput').value = a.tipoCustom
+  }
+  document.getElementById('assetValorCompra').value = a.valorCompra||a.valor||''
+  document.getElementById('assetValor').value  = a.valor||''
+  document.getElementById('assetFecha').value  = a.fecha||''
+  document.getElementById('assetFechaVenta').value = a.fechaVenta||''
+  document.getElementById('assetEstado').value = a.status||'active'
+  document.getElementById('assetNotas').value  = a.notas||''
+  if (a.depreciacion) {
+    const sw = document.getElementById('depToggleSwitch')
+    if (sw) sw.classList.add('on')
+    document.getElementById('assetDepPct').disabled = false
+    document.getElementById('assetDepPct').value = a.depPct||''
+  }
+  openModal('assetModal')
+}
+
+function guardarAsset() {
+  const nombre = document.getElementById('assetNombre').value.trim()
+  const valor  = parseFloat(document.getElementById('assetValor').value)
+  if (!nombre) { toast('El nombre es obligatorio','error'); return }
+  if (isNaN(valor)||valor<0) { toast('Introduce un valor actual válido','error'); return }
+  if (!S.assets) S.assets = []
+  const id   = document.getElementById('assetId').value
+  const depOn = document.getElementById('depToggleSwitch')?.classList.contains('on')
+  const tipoSel = document.getElementById('assetTipo').value
+  const tipoFinal = tipoSel === '__custom__' ? 'other' : tipoSel
+  const tipoCustom = tipoSel === '__custom__' ? document.getElementById('assetTipoCustomInput').value.trim() : null
+  const valorCompra = parseFloat(document.getElementById('assetValorCompra').value) || valor
+  const data = {
+    nombre,
+    tipo:       tipoFinal,
+    tipoCustom: tipoCustom||null,
+    valorCompra,
+    valor,
+    fecha:      document.getElementById('assetFecha').value||null,
+    fechaVenta: document.getElementById('assetFechaVenta').value||null,
+    status:     document.getElementById('assetEstado').value,
+    notas:      document.getElementById('assetNotas').value.trim(),
+    depreciacion: depOn,
+    depPct: depOn ? parseFloat(document.getElementById('assetDepPct').value)||0 : 0
+  }
+  if (id) {
+    const idx = S.assets.findIndex(x=>x.id===id)
+    if (idx>=0) S.assets[idx] = {...S.assets[idx],...data}
+  } else {
+    S.assets.push({id:uid(),...data})
+  }
+  recordPatrimonio()
+  save()
+  closeModal('assetModal')
+  if (currentPage==='patrimonio') renderPatrimonio()
+  toast('Activo guardado ✓')
+}
+
+function borrarAsset(id) {
+  confirmar('¿Eliminar este activo?', ()=>{
+    S.assets = (S.assets||[]).filter(x=>x.id!==id)
+    recordPatrimonio()
+    save()
+    if (currentPage==='patrimonio') renderPatrimonio()
+    toast('Activo eliminado')
+  }, {titulo:'Eliminar activo',icono:'🗑️'})
+}
+
+function marcarAssetVendido(id) {
+  const a = (S.assets||[]).find(x=>x.id===id)
+  if (!a) return
+  // Build account options for the sale proceeds
+  const cuentaOpts = S.cuentas.map(c=>`<option value="${c.id}">${c.nombre} (${eur(c.saldo||0)})</option>`).join('')
+  const currentVal = (() => {
+    let val = Number(a.valor)||0
+    if (a.depreciacion && a.depPct && a.fecha) {
+      const years = (Date.now()-new Date(a.fecha).getTime())/(1000*60*60*24*365.25)
+      val = val*Math.pow(1-(Number(a.depPct)||0)/100,Math.max(0,years))
+    }
+    return val
+  })()
+
+  // Use confirm modal body for sale dialog
+  const body = document.getElementById('confirmBody')
+  const btn  = document.getElementById('confirmBtn')
+  if (!body || !btn) return
+  body.innerHTML = `
+    <div class="confirm-icon">🏷</div>
+    <div class="confirm-title">Vender activo</div>
+    <div class="confirm-msg" style="text-align:left;margin-top:12px">
+      <div style="font-size:.88rem;color:var(--text2);margin-bottom:12px">
+        Vender <strong style="color:var(--text)">${a.nombre}</strong> generará un ingreso automático en la cuenta seleccionada.
+      </div>
+      <div class="form-group" style="margin-bottom:10px">
+        <label style="font-size:.8rem">Valor de venta (€)</label>
+        <input type="number" id="_saleValue" value="${currentVal.toFixed(2)}" step="0.01" min="0"
+          style="width:100%;padding:8px 12px;background:var(--bg2);border:1.5px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);font-size:.9rem;margin-top:4px">
+      </div>
+      <div class="form-group">
+        <label style="font-size:.8rem">Cuenta que recibe el dinero *</label>
+        <select id="_saleCuenta" style="width:100%;padding:8px 12px;background:var(--bg2);border:1.5px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);font-size:.85rem;margin-top:4px">
+          <option value="">— Selecciona cuenta —</option>
+          ${cuentaOpts}
+        </select>
+      </div>
+    </div>`
+  btn.textContent = '💰 Confirmar venta'
+  btn.className = 'btn btn-primary btn-sm'
+  btn.onclick = () => {
+    const saleVal  = parseFloat(document.getElementById('_saleValue')?.value) || 0
+    const cuentaId = document.getElementById('_saleCuenta')?.value
+    if (!cuentaId) { toast(t('err_selecciona_cuenta'),'error'); return }
+    // Create income transaction
+    S.ingresos.push({
+      id: uid(),
+      concepto: `Venta: ${a.nombre}`,
+      importe: saleVal,
+      categoria: 'Venta',
+      fecha: todayISO(),
+      cuentaId,
+      status: 'paid',
+      notas: `Activo vendido · Valor compra: ${eur(Number(a.valorCompra)||Number(a.valor)||0)}`
+    })
+    // Update account balance
+    const cuenta = getCuenta(cuentaId)
+    if (cuenta) cuenta.saldo = (Number(cuenta.saldo)||0) + saleVal
+    // Mark asset as sold
+    a.status = 'sold'
+    a.fechaVenta = todayISO()
+    recordPatrimonio()
+    save()
+    closeModal('confirmModal')
+    render()
+    toast(`Activo vendido · +${eur(saleVal)} ingresado ✓`)
+  }
+  openModal('confirmModal')
+}
+
+function quickUpdateAssetValue(id) {
+  const a = (S.assets||[]).find(x=>x.id===id)
+  if (!a) return
+  const body = document.getElementById('confirmBody')
+  const btn  = document.getElementById('confirmBtn')
+  if (!body || !btn) return
+  body.innerHTML = `
+    <div class="confirm-icon">💰</div>
+    <div class="confirm-title">Actualizar valor actual</div>
+    <div class="confirm-msg" style="text-align:left;margin-top:12px">
+      <div style="font-size:.82rem;color:var(--text2);margin-bottom:10px"><strong>${a.nombre}</strong> — Valor actual: <strong>${eur(Number(a.valor)||0)}</strong></div>
+      <div class="form-group">
+        <label style="font-size:.8rem">Nuevo valor de mercado (€)</label>
+        <input type="number" id="_quickVal" value="${a.valor||''}" step="0.01" min="0"
+          style="width:100%;padding:8px 12px;background:var(--bg2);border:1.5px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);font-size:.9rem;margin-top:4px">
+      </div>
+    </div>`
+  btn.textContent = '✓ Actualizar'
+  btn.className = 'btn btn-primary btn-sm'
+  btn.onclick = () => {
+    const newVal = parseFloat(document.getElementById('_quickVal')?.value)
+    if (isNaN(newVal) || newVal < 0) { toast('Valor inválido','error'); return }
+    a.valor = newVal
+    recordPatrimonio()
+    save()
+    closeModal('confirmModal')
+    if (currentPage === 'patrimonio') renderPatrimonio()
+    toast(`Valor actualizado: ${eur(newVal)} ✓`)
+  }
+  openModal('confirmModal')
+}
+
+function assetIcon(tipo) {
+  if (tipo==='car') return {icon:'🚗',bg:'var(--gold-dim)'}
+  if (tipo==='house') return {icon:'🏠',bg:'var(--indigo-dim)'}
+  return {icon:'📦',bg:'var(--border)'}
+}
+
+// ─── RENDER: full routing ──────────────────────────────────────
+function renderBilling() {
+  if (window.MNBillingUI && window.MNBillingUI.renderBillingPage) {
+    window.MNBillingUI.renderBillingPage();
+  } else {
+    document.getElementById('content').innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:center;height:300px;color:var(--text2);font-size:.9rem">
+        Cargando Billing Center…
+      </div>`;
+  }
+}
+
+function render() {
+  if (!S) return // Safety: S must be loaded before rendering
+  updateTopBar()
+  updateBadges()
+  syncBottomNav(currentPage)
+  // Show or hide demo mode FAB
+  const hasDemoFab  = !!document.getElementById('demoFab')
+  const hasRealFab  = !!document.getElementById('demoFabReal')
+  const isDemo      = isDemoMode()
+  if (isDemo && !hasDemoFab)  _renderDemoFab()
+  if (!isDemo && !hasRealFab) _renderDemoFab()
+  const fn = {
+    dashboard:    renderDashboard,
+    ingresos:     renderIngresos,
+    gastos:       renderGastos,
+    inversiones:  renderInversiones,
+    deudas:       renderDeudas,
+    objetivos:    renderObjetivos,
+    presupuestos: renderPresupuestos,
+    cuentas:      renderCuentas,
+    analisis:     renderAnalisis,
+    configuracion:renderConfiguracion,
+    billing:      renderBilling,
+    patrimonio:   renderPatrimonio,
+    faq:          renderFAQ,
+    sugerencias:  renderSugerencias,
+  }
+  const pageKeyMap = {
+    dashboard:'nav_dashboard', ingresos:'nav_ingresos', gastos:'nav_gastos',
+    inversiones:'nav_inversiones', deudas:'nav_deudas', objetivos:'nav_objetivos',
+    presupuestos:'nav_presupuestos', cuentas:'nav_cuentas',
+    analisis:'nav_analisis', configuracion:'nav_configuracion',
+    patrimonio:'nav_patrimonio', faq:'nav_faq', sugerencias:'nav_sugerencias', billing:'nav_billing',
+  }
+  const el = document.getElementById('pageTitle')
+  if (el) el.textContent = pageKeyMap[currentPage] ? t(pageKeyMap[currentPage]) : currentPage
+  const renderFn = fn[currentPage]
+  if (renderFn) {
+    destroyAllCharts()
+    document.getElementById('content').innerHTML = ''
+    renderFn()
+    if (currentPage === 'analisis') setTimeout(renderProjectionChart, 80)
+  }
+}
+
+// ─── PATCH: init() — personal-only ─────────────────────────────
+// ─── FINANCIAL HEALTH SCORE ────────────────────────────────────
+function calcHealthScore() {
+  const m  = currentMonth()
+  const mp = prevMonth(m)
+  const ing  = calcIngresosMes(m)
+  const gas  = calcGastosMes(m)
+  const ingP = calcIngresosMes(mp)
+  const gasP = calcGastosMes(mp)
+
+  // Need at least some data to compute a meaningful score
+  const totalTx = S.ingresos.length + S.gastos.length
+  if (totalTx < 3) return 0
+
+  // ── FACTOR 1: Savings rate (weight 40 pts) ─────────────────────
+  let f1 = 0
+  if (ing > 0) {
+    const sr = (ing - gas) / ing * 100
+    if (sr >= 30)      f1 = 40
+    else if (sr >= 20) f1 = 32
+    else if (sr >= 10) f1 = 22
+    else if (sr >= 0)  f1 = 10
+    else               f1 = 0   // deficit
+  }
+
+  // ── FACTOR 2: Expense stability month-over-month (weight 20 pts) ─
+  let f2 = 10 // neutral if no previous month data
+  if (gasP > 0 && gas > 0) {
+    const variation = Math.abs(gas - gasP) / gasP * 100
+    if (variation <= 10)      f2 = 20
+    else if (variation <= 20) f2 = 15
+    else if (variation <= 35) f2 = 8
+    else                      f2 = 2
+  }
+
+  // ── FACTOR 3: Category balance — no single cat > 50% of expenses (weight 20 pts) ─
+  let f3 = 20
+  if (gas > 0) {
+    const catMap = gastosMesByCat(m)
+    const topVal = Math.max(...Object.values(catMap).map(Number))
+    const topPct = topVal / gas * 100
+    if (topPct > 80)      f3 = 2
+    else if (topPct > 65) f3 = 8
+    else if (topPct > 50) f3 = 14
+    else                  f3 = 20
+  }
+
+  // ── FACTOR 4: Recurring burden — % of income locked in recurring (weight 20 pts) ─
+  let f4 = 20
+  if (ing > 0) {
+    const recurringGas = S.gastos
+      .filter(g => g.recurrente && (g.fecha||'').startsWith(m))
+      .reduce((a,g) => a + (Number(g.importe)||0), 0)
+    const recurPct = recurringGas / ing * 100
+    if (recurPct <= 30)      f4 = 20
+    else if (recurPct <= 45) f4 = 14
+    else if (recurPct <= 60) f4 = 8
+    else                     f4 = 2
+  }
+
+  return Math.min(100, Math.max(0, Math.round(f1 + f2 + f3 + f4)))
+}
+
+// Returns the 4 individual factor scores for display purposes
+function calcHealthFactors() {
+  const m  = currentMonth()
+  const mp = prevMonth(m)
+  const ing  = calcIngresosMes(m)
+  const gas  = calcGastosMes(m)
+  const gasP = calcGastosMes(mp)
+
+  const sr = ing > 0 ? (ing - gas) / ing * 100 : 0
+  const savingsOk = sr >= 20
+
+  let stabilityOk = true
+  if (gasP > 0 && gas > 0) {
+    stabilityOk = Math.abs(gas - gasP) / gasP * 100 <= 20
+  }
+
+  let balanceOk = true
+  if (gas > 0) {
+    const catMap = gastosMesByCat(m)
+    const topVal = Math.max(...Object.values(catMap).map(Number))
+    balanceOk = topVal / gas * 100 <= 50
+  }
+
+  let recurOk = true
+  if (ing > 0) {
+    const rec = S.gastos.filter(g=>g.recurrente&&(g.fecha||'').startsWith(m)).reduce((a,g)=>a+(Number(g.importe)||0),0)
+    recurOk = rec / ing * 100 <= 45
+  }
+
+  return [
+    { label: 'Ahorro',      ok: savingsOk },
+    { label: 'Estabilidad', ok: stabilityOk },
+    { label: 'Distribución',ok: balanceOk },
+    { label: 'Fijos',       ok: recurOk },
+  ]
+}
+
+function healthScoreLabel(score) {
+  if (score >= 80) return { label: '¡Excelente!',  color: 'var(--green)' }
+  if (score >= 65) return { label: 'Muy buena',    color: 'var(--accent)' }
+  if (score >= 45) return { label: 'En progreso',  color: 'var(--gold)' }
+  if (score >= 25) return { label: 'Mejorable',    color: 'var(--gold)' }
+  if (score === 0) return { label: 'Sin datos',    color: 'var(--text3)' }
+  return             { label: 'Crítica',           color: 'var(--red)' }
+}
+
+function renderHealthScore() {
+  const score   = calcHealthScore()
+  const factors = calcHealthFactors()
+  const { label, color } = healthScoreLabel(score)
+  const eom    = calcEOMBalance()
+  const r      = 22
+  const circum = 2 * Math.PI * r
+  const dashOff = score > 0 ? circum - (score / 100) * circum : circum
+
+  const factorDots = factors.map(f => `
+    <div class="hsc-factor">
+      <div class="hsc-factor-dot" style="background:${f.ok ? 'var(--green)' : 'var(--red)'}"></div>
+      <span>${f.label}</span>
+    </div>`).join('')
+
+  return `<div class="health-score-compact">
+    <div class="hsc-ring-wrap">
+      <svg width="56" height="56" viewBox="0 0 56 56">
+        <circle cx="28" cy="28" r="${r}" fill="none" stroke="var(--border)" stroke-width="5"/>
+        <circle cx="28" cy="28" r="${r}" fill="none"
+          stroke="${color}" stroke-width="5"
+          stroke-linecap="round"
+          stroke-dasharray="${circum}"
+          stroke-dashoffset="${dashOff}"
+          id="healthRingFill" style="transition:stroke-dashoffset 1.2s cubic-bezier(0.4,0,0.2,1)"/>
+      </svg>
+      <div class="hsc-num" id="healthScoreNum">${score > 0 ? 0 : '—'}</div>
+    </div>
+    <div class="hsc-info">
+      <div class="hsc-title">${t('salud_financiera')}</div>
+      <div class="hsc-label" style="color:${color}">${label}</div>
+      <div class="hsc-factors">${factorDots}</div>
+    </div>
+    <div class="hsc-eom">
+      <div class="hsc-eom-label">${t('fin_de_mes')}</div>
+      <div class="hsc-eom-val" style="color:${eom>=0?'var(--accent)':'var(--red)'}">${eom>=0?'+':''}${eur(eom)}</div>
+      <div class="hsc-eom-sub">${eom>=0?t('estimado'):t('posible_deficit')}</div>
+    </div>
+  </div>`
+}
+
+// ─── END OF MONTH BALANCE PREDICTION ───────────────────────────
+function calcEOMBalance() {
+  const m = currentMonth()
+  const today = new Date()
+  const daysInMonth = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate()
+  const dayOfMonth  = today.getDate()
+  const daysLeft    = daysInMonth - dayOfMonth
+  const hoyStr      = today.toISOString().slice(0,10)
+
+  // 1. Base: saldo real actual en todas las cuentas
+  const saldoActual = calcDineroDisponible()
+
+  // 2. Ingresos pendientes de cobro este mes (status 'pending' con fecha en el mes)
+  const ingresosPendientes = S.ingresos
+    .filter(i => i.status === 'pending' && (i.fecha||'').startsWith(m))
+    .reduce((a,i) => a + (Number(i.importe)||0), 0)
+
+  // 3. Gastos recurrentes que faltan por ocurrir este mes
+  const gastosRecurrentesPendientes = S.gastos
+    .filter(g => {
+      if (g.tipo === TX_TYPES.GOAL_TRANSFER) return false
+      if (!g.recurrente) return false
+      // Tiene fecha futura en el mes actual
+      if ((g.fecha||'').startsWith(m) && g.fecha > hoyStr) return true
+      // Es recurrente de meses anteriores (se asume que repetirá)
+      if (g.fecha && g.fecha < hoyStr && !(g.fecha||'').startsWith(m)) return true
+      return false
+    })
+    .reduce((a,g) => a + (Number(g.importe)||0), 0)
+
+  // 4. Proyección conservadora del gasto no-recurrente restante
+  //    (ritmo diario de lo ya gastado × días que quedan × 0.7)
+  const gastosMes   = calcGastosMes(m)
+  const gastosDiario = dayOfMonth > 0 ? gastosMes / dayOfMonth : 0
+  const gastosRestantes = gastosDiario * daysLeft * 0.7
+
+  return Math.round(saldoActual + ingresosPendientes - gastosRecurrentesPendientes - gastosRestantes)
+}
+
+// ─── STREAK TRACKING ───────────────────────────────────────────
+function updateStreak() {
+  const today = todayISO()
+  if (!S.streak) S.streak = { count: 0, lastDate: '' }
+  if (S.streak.lastDate === today) return // already recorded today
+  const yesterday = new Date()
+  yesterday.setDate(yesterday.getDate() - 1)
+  const yd = yesterday.toISOString().slice(0,10)
+  if (S.streak.lastDate === yd) {
+    S.streak.count = (S.streak.count || 0) + 1
+  } else if (S.streak.lastDate !== today) {
+    S.streak.count = 1
+  }
+  S.streak.lastDate = today
+  save()
+}
+
+function getStreak() {
+  if (!S.streak) return 0
+  const today = todayISO()
+  const yesterday = new Date()
+  yesterday.setDate(yesterday.getDate() - 1)
+  const yd = yesterday.toISOString().slice(0,10)
+  if (S.streak.lastDate !== today && S.streak.lastDate !== yd) return 0
+  return S.streak.count || 0
+}
+
+// ─── TIP OF THE DAY ────────────────────────────────────────────
+const TIPS = [
+  { icon:'💡', text:'<strong>Regla del 50/30/20:</strong> destina el 50% a necesidades, 30% a deseos y 20% a ahorro e inversión.' },
+  { icon:'🏦', text:'<strong>Fondo de emergencia:</strong> mantén entre 3 y 6 meses de gastos en una cuenta de fácil acceso.' },
+  { icon:'📈', text:'<strong>Interés compuesto:</strong> con la regla del 72, divide 72 entre tu rentabilidad anual para saber en cuántos años doblas tu dinero.' },
+  { icon:'🔄', text:'<strong>Gastos recurrentes:</strong> revisa tus suscripciones cada trimestre. El coste medio oculto es de 180€/año.' },
+  { icon:'🎯', text:'<strong>Objetivos SMART:</strong> tus metas financieras deben ser específicas, medibles y con fecha límite.' },
+  { icon:'💳', text:'<strong>Deuda buena vs mala:</strong> la deuda que genera valor (formación, vivienda) es diferente a la de consumo.' },
+  { icon:'🌍', text:'<strong>Diversificación:</strong> no concentres más del 5% de tu cartera en un solo activo.' },
+  { icon:'📉', text:'<strong>Método bola de nieve:</strong> paga primero la deuda más pequeña para ganar impulso psicológico.' },
+  { icon:'⚡', text:'<strong>Automatiza el ahorro:</strong> transfiere a ahorro el mismo día que cobras, antes de gastar.' },
+  { icon:'🏠', text:'<strong>Vivienda:</strong> el coste total (hipoteca + gastos) no debería superar el 28-30% de tus ingresos.' },
+  { icon:'🔮', text:'<strong>Inflación:</strong> el dinero parado pierde valor. Una inflación del 3% hace que en 24 años pierda la mitad de su poder adquisitivo.' },
+  { icon:'📅', text:'<strong>Revisión mensual:</strong> 15 minutos al mes revisando tus finanzas vale más que cualquier app.' },
+]
+function getTipOfDay() {
+  const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(),0,0)) / 86400000)
+  return TIPS[dayOfYear % TIPS.length]
+}
+
+// ─── MONTH SUMMARY (first access of new month) ─────────────────
+function checkMonthSummary() {
+  const m = currentMonth()
+  if (!S._lastRenderedMonth) { S._lastRenderedMonth = m; save(); return null }
+  if (S._lastRenderedMonth === m) return null
+  // New month! Generate summary of previous month
+  const prevM = S._lastRenderedMonth
+  S._lastRenderedMonth = m
+  save()
+  const ingP = calcIngresosMes(prevM)
+  const gasP = calcGastosMes(prevM)
+  const cfP  = ingP - gasP
+  const srP  = ingP > 0 ? Math.round((cfP/ingP)*100) : 0
+  const catMap = gastosMesByCat(prevM)
+  const topCat = Object.entries(catMap).sort((a,b)=>b[1]-a[1])[0]
+  return { prevM, ingP, gasP, cfP, srP, topCat }
+}
+
+function renderMonthSummaryBanner(summary) {
+  if (!summary) return ''
+  const { prevM, ingP, gasP, cfP, srP, topCat } = summary
+  return `<div class="month-summary-banner" id="monthSummaryBanner">
+    <button class="month-summary-close" onclick="document.getElementById('monthSummaryBanner').remove()">✕</button>
+    <div class="msb-title">📅 Tu resumen de ${monthLabel(prevM)}</div>
+    <div class="msb-stats">
+      <div class="msb-stat">Ingresaste <strong style="color:var(--green)">${eur(ingP)}</strong></div>
+      <div class="msb-stat">Gastaste <strong style="color:var(--red)">${eur(gasP)}</strong></div>
+      <div class="msb-stat">Ahorraste <strong style="color:var(--accent)">${eur(Math.max(0,cfP))}</strong> (${srP}%)</div>
+      ${topCat ? `<div class="msb-stat">Mayor gasto: <strong>${topCat[0]}</strong> (${eur(topCat[1])})</div>` : ''}
+    </div>
+  </div>`
+}
+
+// ─── ANIMATED KPI COUNTER ──────────────────────────────────────
+function animateCounter(el, target) {
+  if (!el) return
+  const isEur = target.includes('€')
+  const num = parseFloat(target.replace(/[^\d.,-]/g,'').replace(',','.')) || 0
+  const start = 0
+  const duration = 700
+  const startTime = performance.now()
+  el.classList.add('anim')
+  function step(now) {
+    const elapsed = now - startTime
+    const progress = Math.min(elapsed / duration, 1)
+    const ease = 1 - Math.pow(1 - progress, 3)
+    const current = start + (num - start) * ease
+    el.textContent = isEur ? fmt(current) + '\u00A0€' : fmt(current)
+    if (progress < 1) requestAnimationFrame(step)
+    else el.textContent = target
+  }
+  requestAnimationFrame(step)
+}
+
+// ─── BOTTOM NAV SYNC ───────────────────────────────────────────
+function syncBottomNav(page) {
+  const map = { dashboard:'bn-dashboard', gastos:'bn-gastos', analisis:'bn-analisis', configuracion:'bn-config' }
+  document.querySelectorAll('.bottom-nav-item').forEach(el => el.classList.remove('active'))
+  const id = map[page]
+  if (id) { const el = document.getElementById(id); if (el) el.classList.add('active') }
+}
+
+// ─── QUICK ADD FUNCTIONALITY ────────────────────────────────────
+let _qaType = 'gasto'
+let _qaCat  = ''
+
+function openQuickAdd() {
+  // Guests cannot add movements
+  if (isGuest()) { _showGuestGateModal(); return }
+  _qaType = 'gasto'
+  _qaCat  = ''
+  document.getElementById('quickAmount').value = ''
+  document.getElementById('quickConcepto').value = ''
+  setQuickType('gasto')
+  document.getElementById('quickAddModal').classList.add('open')
+  setTimeout(() => document.getElementById('quickAmount').focus(), 200)
+}
+
+function closeQuickAdd() {
+  document.getElementById('quickAddModal').classList.remove('open')
+}
+
+function setQuickType(type) {
+  _qaType = type
+  _qaCat  = ''
+  document.getElementById('qat-gasto').className = 'quick-add-type' + (type==='gasto'?' gasto-active':'')
+  document.getElementById('qat-ingreso').className = 'quick-add-type' + (type==='ingreso'?' active':'')
+  const cats = type === 'gasto'
+    ? (S.categorias.gasto || []).slice(0,8)
+    : (S.categorias.ingreso || []).slice(0,6)
+  const activeClass = type === 'gasto' ? 'gasto-active' : 'active'
+  document.getElementById('quickCatRow').innerHTML = cats.map(c =>
+    `<div class="quick-cat-btn" onclick="selectQuickCat('${c}',this,'${activeClass}')">${catEmoji(c)} ${c}</div>`
+  ).join('')
+}
+
+function selectQuickCat(cat, el, activeClass) {
+  _qaCat = cat
+  document.querySelectorAll('#quickCatRow .quick-cat-btn').forEach(b => b.className='quick-cat-btn')
+  el.className = `quick-cat-btn ${activeClass}`
+}
+
+function saveQuickAdd() {
+  if (isGuest()) { closeQuickAdd(); _showGuestGateModal(); return }
+  const importe = parseFloat(document.getElementById('quickAmount').value)
+  if (!importe || importe <= 0) { toast('Introduce un importe válido','error'); return }
+  const concepto = document.getElementById('quickConcepto').value.trim() || (_qaCat || (_qaType==='gasto'?'Gasto':'Ingreso'))
+  const cat = _qaCat || (_qaType==='gasto' ? 'Otro' : 'Otro')
+  const fecha = todayISO()
+  if (_qaType === 'gasto') {
+    S.gastos.push({ id:uid(), concepto, importe, categoria:cat, fecha, recurrente:false })
+    // Deduct from first account
+    if (S.cuentas.length) S.cuentas[0].saldo = (Number(S.cuentas[0].saldo)||0) - importe
+  } else {
+    S.ingresos.push({ id:uid(), concepto, importe, categoria:cat, fecha, status:'cobrado' })
+    if (S.cuentas.length) S.cuentas[0].saldo = (Number(S.cuentas[0].saldo)||0) + importe
+  }
+  save()
+  updateStreak()
+  closeQuickAdd()
+  render()
+  toast(`${_qaType==='gasto'?'Gasto':'Ingreso'} de ${eur(importe)} registrado ✓`)
+  // Haptic feedback on mobile
+  if (navigator.vibrate) navigator.vibrate(10)
+}
+
+// ─── TITLE WITH AVAILABLE BALANCE ──────────────────────────────
+function updateDocTitle() {
+  const dis = calcDineroDisponible()
+  document.title = `MoneyNest · ${eur(dis)}`
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MINI INTRO — runs every app open, max 1.5s, skippable
+// Completely separate from runCinematicIntro (first-time only)
+// ═══════════════════════════════════════════════════════════════
+function runMiniIntro(onComplete) {
+  const overlay  = document.getElementById('mnMiniIntro')
+  const stage    = document.getElementById('mnMiniStage')
+  const logo     = document.getElementById('mnMiniLogo')
+  const svg      = document.getElementById('mnMiniSvg')
+  const wordmark = document.getElementById('mnMiniWordmark')
+  const tagline  = document.getElementById('mnMiniTagline')
+  const appEl    = document.querySelector('.app')
+
+  // Safety: if elements missing, skip immediately
+  if (!overlay || !stage) { if (onComplete) onComplete(); return }
+
+  let done = false
+
+  // ── Apply blur to app shell behind the overlay ─────────────────
+  if (appEl) appEl.classList.add('mn-intro-blur')
+
+  // ── SKIP handler — click or scroll dismisses immediately ────────
+  function skip() {
+    if (done) return
+    done = true
+    cleanup()
+    if (onComplete) onComplete()
+  }
+
+  function cleanup() {
+    // Remove blur transition class from app
+    if (appEl) {
+      appEl.classList.add('mn-intro-unblur')
+      // Remove blur classes after transition ends
+      setTimeout(() => {
+        appEl.classList.remove('mn-intro-blur', 'mn-intro-unblur')
+      }, 320)
+    }
+    // Fade out overlay + stage simultaneously
+    stage.classList.add('mn-stage-out')
+    overlay.classList.add('mn-exiting')
+    // Remove from DOM after exit transition
+    setTimeout(() => {
+      overlay.remove()
+    }, 280)
+    // Remove listeners
+    document.removeEventListener('pointerdown', skip, true)
+    document.removeEventListener('keydown',     skip, true)
+    document.removeEventListener('wheel',       skip, true)
+  }
+
+  // Attach skip listeners — use capture so they fire even if intro has pointer-events:all
+  document.addEventListener('pointerdown', skip, { capture:true, once:true })
+  document.addEventListener('keydown',     skip, { capture:true, once:true })
+  document.addEventListener('wheel',       skip, { capture:true, once:true })
+
+  // ── PHASE 1: Trigger entrance animations (rAF guarantees paint first) ──
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      // Stage scales in
+      stage.classList.add('mn-stage-in')
+      // Logo slides up
+      logo.classList.add('mn-logo-in')
+      // SVG strokes draw
+      svg.classList.add('mn-svg-run')
+      // Wordmark fades up (delay built into CSS)
+      wordmark.classList.add('mn-word-in')
+      // Tagline fades in last
+      tagline.classList.add('mn-tag-in')
+    })
+  })
+
+  // ── PHASE 2: Hold, then begin exit sequence at 1100ms ──────────
+  // Total budget: 1500ms. Exit takes ~280ms. So start exit at 1100ms.
+  const holdTimer = setTimeout(() => {
+    if (done) return
+    done = true
+    cleanup()
+    if (onComplete) onComplete()
+  }, 1100)
+
+  // Failsafe: hard kill at 1600ms no matter what
+  setTimeout(() => {
+    if (!done) { done = true; cleanup(); if (onComplete) onComplete() }
+  }, 1600)
+}
+
+function init() {
+  // Boot multi-account system first — installs localStorage proxy before any read
+  if (window.MNAccounts) {
+    try { window.MNAccounts.boot() } catch(e) { console.warn('[MNAccounts] boot error', e) }
+  }
+  // ── Auth: inicializar usuario y verificar acceso ────────────
+  initUser()
+  const access = checkAccess()
+  if (!access.ok) return // bloquearApp() ya fue llamado internamente
+  // ──────────────────────────────────────────────────────────
+  try { load() } catch(e) { S = defaultState() }
+  try { loadLang() } catch(e) {}
+  // Guarantee every required field exists — defensive after any crash or corrupt data
+  if (!S || typeof S !== 'object') S = defaultState()
+  if (!S.usuario || typeof S.usuario !== 'object') S.usuario = defaultState().usuario
+  S.usuario.mode = 'personal'
+  if (!Array.isArray(S.clientes))   S.clientes   = []
+  if (!Array.isArray(S.proveedores)) S.proveedores = []
+  if (!Array.isArray(S.devengos))   S.devengos   = []
+  if (!Array.isArray(S.assets))     S.assets     = []
+  if (!Array.isArray(S.ingresos))   S.ingresos   = []
+  if (!Array.isArray(S.gastos))     S.gastos     = []
+  if (!Array.isArray(S.inversiones)) S.inversiones = []
+  if (!Array.isArray(S.deudas))     S.deudas     = []
+  if (!Array.isArray(S.objetivos))  S.objetivos  = []
+  if (!Array.isArray(S.cuentas) || !S.cuentas.length) S.cuentas = defaultState().cuentas
+  if (!Array.isArray(S.patrimonio_hist)) S.patrimonio_hist = []
+  if (!S.presupuestos || typeof S.presupuestos !== 'object') S.presupuestos = {}
+  document.documentElement.setAttribute('lang', _currentLang)
+  applyTheme()
+  recordPatrimonio()
+  updateSidebarLogo()
+  updateStreak()
+  render()                    // ← app renders first (visible behind overlay)
+  _updateSidebarLang()
+  translateDOM()              // PASO 3: traduce modales estáticos index.html
+  _autoResetFlagsIfEmpty()
+  updateDocTitle()
+  // Show demo/real FAB
+  setTimeout(_renderDemoFab, 400)
+  // ── Mini intro runs every open EXCEPT first-time (which uses cinematic intro) ──
+  if (_obFlagSeen()) {
+    // Returning user: show mini intro, then nothing
+    runMiniIntro(() => {})
+  } else {
+    // First-time user: skip mini intro, go straight to cinematic intro + onboarding
+    // Remove mini intro overlay immediately without animating
+    const miniEl = document.getElementById('mnMiniIntro')
+    if (miniEl) miniEl.remove()
+    const appEl = document.querySelector('.app')
+    if (appEl) appEl.classList.remove('mn-intro-blur')
+    checkOnboarding()         // onboarding only fires if first-time
+  }
+}
+
+
+// ─── BEFOREUNLOAD: warn if modal open ──────────────────────────
+window.addEventListener('beforeunload', function(e) {
+  const hasOpenModal = document.querySelector('.modal-overlay.open')
+  if (hasOpenModal) {
+    e.preventDefault()
+    e.returnValue = '¿Seguro que quieres salir? Tienes cambios sin guardar.'
+    return e.returnValue
+  }
+})
+
+
+// ════════════════════════════════════════════════════════════════
+// APP_NAME CONSTANT
+// ════════════════════════════════════════════════════════════════
+const APP_NAME = 'MoneyNest'
+
+// ════════════════════════════════════════════════════════════════
+// ─── MODO HISTORIA — Monthly & Annual Story Slides ────────────
+// ════════════════════════════════════════════════════════════════
+const MONTHLY_STORY_KEY = 'mn_monthly_story_shown'
+const YEARLY_STORY_KEY  = 'mn_yearly_story_shown'
+
+let _smSlides = []
+let _smStep   = 0
+
+function _buildMonthlySlides() {
+  const now   = new Date()
+  const prevM = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+  const prevKey = prevM.toISOString().slice(0, 7)
+  const monthName = prevM.toLocaleString('es', { month: 'long', year: 'numeric' })
+
+  // Gather data from previous month
+  const prevIngresos = (S.ingresos || []).filter(i => i.fecha && i.fecha.startsWith(prevKey))
+  const prevGastos   = (S.gastos   || []).filter(g => g.fecha && g.fecha.startsWith(prevKey))
+  const prevM2       = new Date(now.getFullYear(), now.getMonth() - 2, 1).toISOString().slice(0, 7)
+  const prev2Gastos  = (S.gastos   || []).filter(g => g.fecha && g.fecha.startsWith(prevM2))
+
+  const totalIngr = prevIngresos.reduce((a, i) => a + (Number(i.importe) || 0), 0)
+  const totalGast = prevGastos  .reduce((a, g) => a + (Number(g.importe) || 0), 0)
+  const totalGast2= prev2Gastos .reduce((a, g) => a + (Number(g.importe) || 0), 0)
+  const ahorro    = totalIngr - totalGast
+  const ahorroSign = ahorro >= 0 ? 'green' : 'red'
+  const deltaGast  = totalGast2 > 0 ? ((totalGast - totalGast2) / totalGast2 * 100).toFixed(0) : null
+
+  // Top category
+  const catMap = {}
+  prevGastos.forEach(g => { const c = g.categoria || 'Otros'; catMap[c] = (catMap[c] || 0) + (Number(g.importe) || 0) })
+  const topCat = Object.entries(catMap).sort((a, b) => b[1] - a[1])[0]
+
+  const euroFmt = v => new Intl.NumberFormat('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(v)
+
+  // Highlights
+  const highlights = []
+  if (ahorro > 0) highlights.push({ icon: '💚', text: `Has ahorrado <strong style="color:var(--accent)">€${euroFmt(ahorro)}</strong>`, sub: 'Sigue así — cada euro cuenta' })
+  if (ahorro < 0) highlights.push({ icon: '⚠️', text: `Has gastado <strong style="color:var(--red)">€${euroFmt(Math.abs(ahorro))}</strong> más de lo que ingresaste`, sub: 'Intenta reducir gastos el próximo mes' })
+  if (topCat) highlights.push({ icon: '📊', text: `Tu categoría top: <strong>${topCat[0]}</strong> (€${euroFmt(topCat[1])})`, sub: 'La partida que más peso tiene' })
+  if (deltaGast !== null) {
+    const dir = Number(deltaGast) <= 0 ? '📉' : '📈'
+    const col = Number(deltaGast) <= 0 ? 'var(--accent)' : 'var(--red)'
+    highlights.push({ icon: dir, text: `Gastos ${Number(deltaGast) <= 0 ? 'reducidos' : 'aumentados'} un <strong style="color:${col}">${Math.abs(deltaGast)}%</strong> vs mes anterior`, sub: 'Comparativa mensual' })
+  }
+
+  const slides = [
+    // Slide 1 — intro
+    {
+      heroIcon: '📅',
+      heroGrad: 'linear-gradient(135deg,rgba(0,212,170,.25),rgba(99,102,241,.15))',
+      glowColor: '#00D4AA',
+      eyebrow: `Resumen de ${monthName}`,
+      title: `Este mes has hecho esto 👇`,
+      subtitle: `Aquí está tu resumen financiero de ${monthName}. Tómate un momento para verlo.`,
+      extra: `<div class="sm-stats">
+        <div class="sm-stat" style="animation-delay:.05s">
+          <div class="sm-stat-val" style="color:var(--accent)">€${euroFmt(totalIngr)}</div>
+          <div class="sm-stat-lbl">Ingresos</div>
+        </div>
+        <div class="sm-stat" style="animation-delay:.1s">
+          <div class="sm-stat-val" style="color:var(--red)">€${euroFmt(totalGast)}</div>
+          <div class="sm-stat-lbl">Gastos</div>
+        </div>
+        <div class="sm-stat" style="animation-delay:.15s">
+          <div class="sm-stat-val" style="color:var(--${ahorroSign === 'green' ? 'accent' : 'red'})">€${euroFmt(ahorro)}</div>
+          <div class="sm-stat-lbl">Ahorro neto</div>
+          ${deltaGast !== null ? `<div class="sm-stat-delta ${Number(deltaGast) <= 0 ? 'up' : 'down'}">${Number(deltaGast) <= 0 ? '▼' : '▲'} ${Math.abs(deltaGast)}%</div>` : ''}
+        </div>
+      </div>`
+    }
+  ]
+
+  // Slide 2 — highlights (if any)
+  if (highlights.length > 0) {
+    slides.push({
+      heroIcon: '✨',
+      heroGrad: 'linear-gradient(135deg,rgba(245,158,11,.2),rgba(244,63,94,.1))',
+      glowColor: '#F59E0B',
+      eyebrow: 'Lo más destacado',
+      title: `Tu mes, en detalle`,
+      subtitle: 'Los momentos más relevantes de tus finanzas este mes.',
+      extra: `<div class="sm-highlights">` +
+        highlights.slice(0, 3).map((h, i) =>
+          `<div class="sm-highlight" style="animation-delay:${i * .07}s">
+            <div class="sm-highlight-icon">${h.icon}</div>
+            <div class="sm-highlight-text">${h.text}<span>${h.sub}</span></div>
+          </div>`).join('') +
+        `</div>`
+    })
+  }
+
+  // Slide 3 — forward look
+  slides.push({
+    heroIcon: '🚀',
+    heroGrad: 'linear-gradient(135deg,rgba(99,102,241,.25),rgba(0,212,170,.15))',
+    glowColor: '#6366F1',
+    eyebrow: `Nuevo mes, nueva oportunidad`,
+    title: '¡Adelante con el nuevo mes!',
+    subtitle: ahorro >= 0
+      ? `Terminaste en positivo. Mantener este ritmo te acerca a tus objetivos financieros.`
+      : `El próximo mes es una nueva oportunidad. Pequeños cambios producen grandes resultados.`,
+    extra: ''
+  })
+
+  return slides
+}
+
+function _buildYearlySlides() {
+  const prevYear = new Date().getFullYear() - 1
+  const yearStr  = String(prevYear)
+
+  const yIngresos = (S.ingresos  || []).filter(i => i.fecha && i.fecha.startsWith(yearStr))
+  const yGastos   = (S.gastos    || []).filter(g => g.fecha && g.fecha.startsWith(yearStr))
+
+  const totalIngr = yIngresos.reduce((a, i) => a + (Number(i.importe) || 0), 0)
+  const totalGast = yGastos  .reduce((a, g) => a + (Number(g.importe) || 0), 0)
+  const totalAhor = totalIngr - totalGast
+
+  // Monthly breakdown for chart
+  const months = Array.from({ length: 12 }, (_, i) => {
+    const key = `${yearStr}-${String(i + 1).padStart(2, '0')}`
+    const ing = (S.ingresos || []).filter(x => x.fecha && x.fecha.startsWith(key)).reduce((a, x) => a + (Number(x.importe) || 0), 0)
+    const gas = (S.gastos   || []).filter(x => x.fecha && x.fecha.startsWith(key)).reduce((a, x) => a + (Number(x.importe) || 0), 0)
+    return { key, ing, gas, sav: ing - gas }
+  })
+
+  const bestMonth  = months.reduce((a, b) => b.sav > a.sav ? b : a, months[0])
+  const worstMonth = months.reduce((a, b) => b.sav < a.sav ? b : a, months[0])
+  const maxVal = Math.max(...months.map(m => Math.max(m.ing, m.gas)), 1)
+
+  const catMap = {}
+  yGastos.forEach(g => { const c = g.categoria || 'Otros'; catMap[c] = (catMap[c] || 0) + (Number(g.importe) || 0) })
+  const topCat = Object.entries(catMap).sort((a, b) => b[1] - a[1])[0]
+
+  const euroFmt = v => new Intl.NumberFormat('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v)
+  const monthNames = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
+
+  const barHtml = `
+    <div class="sm-year-bars">
+      ${months.map((m, i) => `
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;height:100%">
+          <div class="sm-year-bar" style="width:100%;background:${m.sav >= 0 ? '#00D4AA' : '#F43F5E'};height:${Math.round((Math.max(m.ing, m.gas) / maxVal) * 100)}%"></div>
+        </div>`).join('')}
+    </div>
+    <div class="sm-year-bar-lbl">
+      <span>${monthNames[0]}</span><span>${monthNames[5]}</span><span>${monthNames[11]}</span>
+    </div>`
+
+  return [
+    {
+      heroIcon: '🎊',
+      heroGrad: 'linear-gradient(135deg,rgba(245,158,11,.3),rgba(244,63,94,.15))',
+      glowColor: '#F59E0B',
+      eyebrow: `Tu año ${prevYear} en ${APP_NAME}`,
+      title: `¡Otro año completado!`,
+      subtitle: `Esto es lo que has logrado en ${prevYear}. Tómate un momento para verlo.`,
+      extra: `<div class="sm-stats">
+        <div class="sm-stat"><div class="sm-stat-val" style="color:var(--accent)">€${euroFmt(totalIngr)}</div><div class="sm-stat-lbl">Ingresos</div></div>
+        <div class="sm-stat"><div class="sm-stat-val" style="color:var(--red)">€${euroFmt(totalGast)}</div><div class="sm-stat-lbl">Gastos</div></div>
+        <div class="sm-stat"><div class="sm-stat-val" style="color:${totalAhor >= 0 ? 'var(--accent)' : 'var(--red)'}">€${euroFmt(totalAhor)}</div><div class="sm-stat-lbl">Ahorro total</div></div>
+      </div>`
+    },
+    {
+      heroIcon: '📊',
+      heroGrad: 'linear-gradient(135deg,rgba(99,102,241,.25),rgba(0,212,170,.1))',
+      glowColor: '#6366F1',
+      eyebrow: 'Evolución mensual',
+      title: `Mes a mes, aquí tu huella`,
+      subtitle: `${bestMonth ? `Tu mejor mes fue ${monthNames[months.indexOf(bestMonth)]} con €${euroFmt(bestMonth.sav)} de ahorro.` : ''}`,
+      extra: barHtml + (topCat ? `<div class="sm-highlight" style="margin-top:8px"><div class="sm-highlight-icon">🏆</div><div class="sm-highlight-text">Categoría top: <strong>${topCat[0]}</strong> · €${euroFmt(topCat[1])}<span>Tu partida de gasto más importante del año</span></div></div>` : '')
+    },
+    {
+      heroIcon: '⭐',
+      heroGrad: 'linear-gradient(135deg,rgba(0,212,170,.2),rgba(99,102,241,.2))',
+      glowColor: '#00D4AA',
+      eyebrow: `Bienvenido a ${new Date().getFullYear()}`,
+      title: `Un nuevo año por delante`,
+      subtitle: totalAhor > 0
+        ? `Ahorraste €${euroFmt(totalAhor)} el año pasado. ¡Este año puedes ir aún más lejos!`
+        : `Un nuevo comienzo. Pequeños cambios consistentes producen grandes resultados.`,
+      extra: ''
+    }
+  ]
+}
+
+function _smRenderSlide(animate) {
+  const s = _smSlides[_smStep]
+  if (!s) return
+  const wrap = document.getElementById('smSlideWrap')
+  if (!wrap) return
+
+  const total = _smSlides.length
+  const prog  = document.getElementById('smProgress')
+  if (prog) prog.innerHTML = Array.from({ length: total }, (_, i) =>
+    `<div class="sm-pdot ${i === _smStep ? 'active' : ''}"></div>`).join('')
+
+  const nextBtn = document.getElementById('smNextBtn')
+  if (nextBtn) nextBtn.textContent = _smStep === total - 1 ? '¡Entendido! ✓' : 'Siguiente →'
+
+  const html = `
+    <div class="sm-hero" style="background:${s.heroGrad}">
+      <div class="sm-hero-glow" style="background:${s.glowColor}"></div>
+      <div class="sm-hero-icon">${s.heroIcon}</div>
+    </div>
+    <div class="sm-body">
+      <div class="sm-eyebrow"><div class="sm-eyebrow-dot"></div>${s.eyebrow}</div>
+      <div class="sm-title">${s.title}</div>
+      <div class="sm-subtitle">${s.subtitle}</div>
+      ${s.extra || ''}
+    </div>`
+
+  if (animate) {
+    wrap.classList.add('sm-exit')
+    setTimeout(() => {
+      wrap.innerHTML = html
+      wrap.classList.remove('sm-exit')
+      wrap.classList.add('sm-enter')
+      requestAnimationFrame(() => requestAnimationFrame(() => wrap.classList.remove('sm-enter')))
+    }, 180)
+  } else {
+    wrap.innerHTML = html
+  }
+}
+
+function smNext() {
+  if (_smStep >= _smSlides.length - 1) { smClose(); return }
+  _smStep++
+  _smRenderSlide(true)
+}
+
+function smClose() {
+  const modal = document.getElementById('storyModal')
+  if (!modal) return
+  modal.style.animation = 'smFadeIn .25s ease reverse forwards'
+  setTimeout(() => {
+    modal.classList.remove('sm-visible')
+    modal.style.animation = ''
+  }, 250)
+}
+
+function showMonthlySummary() {
+  const prevM = new Date()
+  prevM.setDate(0) // last day of prev month
+  const prevKey = `${prevM.getFullYear()}-${String(prevM.getMonth() + 1).padStart(2, '0')}`
+
+  const hasData = (S.ingresos || []).some(i => i.fecha && i.fecha.startsWith(prevKey)) ||
+                  (S.gastos   || []).some(g => g.fecha && g.fecha.startsWith(prevKey))
+  if (!hasData) return
+
+  _smSlides = _buildMonthlySlides()
+  _smStep   = 0
+  const modal = document.getElementById('storyModal')
+  if (!modal) return
+  _smRenderSlide(false)
+  modal.classList.add('sm-visible')
+  try { localStorage.setItem(MONTHLY_STORY_KEY, new Date().toISOString().slice(0, 7)) } catch(e) {}
+}
+
+function showYearlySummary() {
+  const prevYear = new Date().getFullYear() - 1
+  const yearStr  = String(prevYear)
+  const hasData  = (S.ingresos || []).some(i => i.fecha && i.fecha.startsWith(yearStr)) ||
+                   (S.gastos   || []).some(g => g.fecha && g.fecha.startsWith(yearStr))
+  if (!hasData) return
+
+  _smSlides = _buildYearlySlides()
+  _smStep   = 0
+  const modal = document.getElementById('storyModal')
+  if (!modal) return
+  _smRenderSlide(false)
+  modal.classList.add('sm-visible')
+  try { localStorage.setItem(YEARLY_STORY_KEY, String(new Date().getFullYear())) } catch(e) {}
+}
+
+function checkStories() {
+  if (!_obFlagSeen()) return // No mostrar si no ha pasado por el onboarding
+  const now = new Date()
+  const curMonth = now.toISOString().slice(0, 7)
+  const curYear  = String(now.getFullYear())
+
+  try {
+    const shownM = localStorage.getItem(MONTHLY_STORY_KEY)
+    const shownY = localStorage.getItem(YEARLY_STORY_KEY)
+
+    // Annual: show on January if prev year not shown
+    if (now.getMonth() === 0 && shownY !== curYear) {
+      setTimeout(() => showYearlySummary(), 1800)
+      return
+    }
+    // Monthly: show if current month not shown
+    if (shownM !== curMonth) {
+      setTimeout(() => showMonthlySummary(), 1800)
+    }
+  } catch(e) {}
+}
+
+// ════════════════════════════════════════════════════════════════
+// ─── OBJETIVO GUIADO — Goal Coach ────────────────────────────
+// ════════════════════════════════════════════════════════════════
+const GC_FLAG = 'mn_goal_coach_shown'
+
+function gcSetAmount(v) {
+  const inp = document.getElementById('gcAmount')
+  if (inp) { inp.value = v }
+  document.querySelectorAll('.gc-chip').forEach(c => {
+    c.classList.toggle('selected', c.textContent.replace(/[^0-9]/g,'') == String(v))
+  })
+}
+
+function gcClose() {
+  try { localStorage.setItem(GC_FLAG, 'true') } catch(e) {}
+  const modal = document.getElementById('goalCoachModal')
+  if (modal) { modal.style.animation = 'smFadeIn .25s ease reverse forwards'; setTimeout(() => { modal.classList.remove('gc-visible'); modal.style.animation = '' }, 250) }
+}
+
+function gcCreate() {
+  const amt = Number(document.getElementById('gcAmount')?.value) || 0
+  if (amt <= 0) { document.getElementById('gcAmount')?.focus(); return }
+  const now = new Date()
+  const meta = amt
+  const nombre = `Ahorro ${now.toLocaleString('es', { month: 'long' })} ${now.getFullYear()}`
+  const nuevoObj = {
+    id: 'gc_' + Date.now(),
+    nombre, meta,
+    actual: 0,
+    fecha: now.toISOString().slice(0, 10),
+    completado: false
+  }
+  if (!Array.isArray(S.objetivos)) S.objetivos = []
+  S.objetivos.push(nuevoObj)
+  save()
+  render()
+  gcClose()
+  toast(`🎯 Objetivo creado: ${nombre}`)
+}
+
+function checkGoalCoach() {
+  if (!_obFlagSeen()) return
+  try { if (localStorage.getItem(GC_FLAG) === 'true') return } catch(e) {}
+  const hasObj  = Array.isArray(S.objetivos) && S.objetivos.length > 0
+  const hasData = (S.ingresos || []).length > 0 || (S.gastos || []).length > 0
+  if (hasObj || !hasData) return
+  setTimeout(() => {
+    const modal = document.getElementById('goalCoachModal')
+    if (modal) modal.classList.add('gc-visible')
+  }, 3000)
+}
+
+// ════════════════════════════════════════════════════════════════
+// ─── MISIONES TOUR — Active Mission System ───────────────────
+// ════════════════════════════════════════════════════════════════
+const MISION_FLAG = 'mn_misiones_done'
+const MISION_STATE_KEY = 'mn_misiones_state'
+
+function _getMisionState() {
+  try {
+    const s = JSON.parse(localStorage.getItem(MISION_STATE_KEY) || '{}')
+    return { m1: s.m1 || false, m2: s.m2 || false, m3: s.m3 || false, dismissed: s.dismissed || false }
+  } catch(e) { return { m1: false, m2: false, m3: false, dismissed: false } }
+}
+
+function _saveMisionState(state) {
+  try { localStorage.setItem(MISION_STATE_KEY, JSON.stringify(state)) } catch(e) {}
+}
+
+function _checkMisionProgress() {
+  const state = _getMisionState()
+  state.m1 = (S.ingresos  || []).length > 0
+  state.m2 = (S.gastos    || []).length > 0
+  state.m3 = (S.objetivos || []).length > 0
+  _saveMisionState(state)
+  return state
+}
+
+function misionDone() {
+  try { localStorage.setItem(MISION_FLAG, 'true') } catch(e) {}
+  const bar = document.getElementById('misionBar')
+  if (bar) { bar.style.transform = 'translateX(-50%) scale(.9)'; bar.style.opacity = '0'; setTimeout(() => bar.style.display = 'none', 300) }
+}
+
+function misionDismiss() {
+  const state = _getMisionState()
+  state.dismissed = true
+  _saveMisionState(state)
+  const bar = document.getElementById('misionBar')
+  if (bar) { bar.style.animation = 'none'; bar.style.opacity = '0'; setTimeout(() => bar.style.display = 'none', 300) }
+}
+
+function checkMisiones() {
+  if (!_obFlagSeen()) return
+  try { if (localStorage.getItem(MISION_FLAG) === 'true') return } catch(e) {}
+  const state = _checkMisionProgress()
+  if (state.dismissed) return
+  if (state.m1 && state.m2 && state.m3) {
+    // All done — show completion modal
+    _showMisionComplete()
+    return
+  }
+  updateMisionBar()
+  const bar = document.getElementById('misionBar')
+  if (bar) { bar.style.display = 'flex' }
+}
+
+function updateMisionBar() {
+  const state = _checkMisionProgress()
+  const done  = [state.m1, state.m2, state.m3].filter(Boolean).length
+  const pct   = Math.round((done / 3) * 100)
+  const bar   = document.getElementById('misionBar')
+  if (!bar) return
+  const icons   = ['🎯', '📊', '✅']
+  const titles  = ['Añade tu primer ingreso', 'Registra un gasto', 'Crea tu primer objetivo']
+  const subs    = ['Paso 1 de 3 — empieza aquí', 'Paso 2 de 3 — registra un gasto', 'Paso 3 de 3 — define una meta']
+  const nextIdx = state.m1 ? (state.m2 ? 2 : 1) : 0
+  document.getElementById('mbIcon').textContent = icons[nextIdx]
+  document.getElementById('mbTitle').textContent = titles[nextIdx]
+  document.getElementById('mbSub').textContent   = subs[nextIdx]
+  document.getElementById('mbFill').style.width  = pct + '%'
+  document.getElementById('mbPct').textContent   = pct + '%'
+  if (done === 3) { misionDone(); return }
+}
+
+function misionOpenModal() {
+  const state = _checkMisionProgress()
+  const done  = [state.m1, state.m2, state.m3].filter(Boolean).length
+  const pct   = Math.round((done / 3) * 100)
+  const mmFill = document.getElementById('mmFill')
+  const mmPct  = document.getElementById('mmPctLabel')
+  if (mmFill) mmFill.style.width = pct + '%'
+  if (mmPct)  mmPct.textContent  = `${done} de 3 completadas`
+
+  const missions = [
+    { title: 'Añade tu primer ingreso', sub: 'Ve a Ingresos y registra tu primera entrada de dinero.', done: state.m1, action: () => { misionCloseModal(); goTo('ingresos') } },
+    { title: 'Registra un gasto',        sub: 'Ve a Gastos y apunta tu primer desembolso.',             done: state.m2, action: () => { misionCloseModal(); goTo('gastos')   } },
+    { title: 'Crea un objetivo',          sub: 'Define una meta de ahorro en la sección Objetivos.',     done: state.m3, action: () => { misionCloseModal(); goTo('objetivos') } },
+  ]
+  const cont = document.getElementById('mmMissions')
+  if (cont) cont.innerHTML = missions.map((m, i) => {
+    const prevDone = i === 0 || missions[i - 1].done
+    const cls = m.done ? 'done' : (prevDone ? 'active' : '')
+    const badgeLabel = m.done ? 'Hecho' : (prevDone ? 'Siguiente' : 'Bloqueado')
+    const badgeCls   = m.done ? 'done-badge' : (prevDone ? 'active-badge' : 'lock-badge')
+    return `<div class="mm-mission ${cls}" onclick="${prevDone && !m.done ? `(_mmActions[${i}])()` : ''}">
+      <div class="mm-check">${m.done ? '✓' : (i + 1)}</div>
+      <div class="mm-info">
+        <div class="mm-mission-title">${m.title}</div>
+        <div class="mm-mission-sub">${m.sub}</div>
+      </div>
+      <span class="mm-badge ${badgeCls}">${badgeLabel}</span>
+    </div>`
+  }).join('')
+
+  // Store actions for inline onclick
+  window._mmActions = missions.map(m => m.action)
+
+  const modal = document.getElementById('misionModal')
+  if (modal) modal.classList.add('mm-visible')
+}
+
+function misionCloseModal() {
+  const modal = document.getElementById('misionModal')
+  if (modal) modal.classList.remove('mm-visible')
+}
+
+function _showMisionComplete() {
+  misionDone()
+  // Create a custom completion modal
+  const overlay = document.createElement('div')
+  overlay.id = 'misionCompleteOverlay'
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:9300;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.8);backdrop-filter:blur(10px);animation:smFadeIn .3s ease forwards'
+  overlay.innerHTML = `
+    <div style="background:var(--card);border-radius:24px;width:min(420px,calc(100vw - 32px));padding:36px 32px;text-align:center;animation:smCardIn .4s cubic-bezier(0.22,1,0.36,1) forwards;box-shadow:0 40px 100px rgba(0,0,0,.7)">
+      <div style="font-size:3rem;margin-bottom:16px;animation:smPop .5s cubic-bezier(0.34,1.56,.64,1) .1s both">🏆</div>
+      <div style="font-family:'Plus Jakarta Sans',sans-serif;font-size:1.4rem;font-weight:800;color:var(--text);letter-spacing:-.04em;margin-bottom:8px">¡Misiones completadas!</div>
+      <div style="font-size:.875rem;color:var(--text2);line-height:1.6;margin-bottom:28px">Ya conoces lo esencial de ${APP_NAME}. ¿Qué quieres hacer con los datos de práctica?</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <button onclick="document.getElementById('misionCompleteOverlay').remove();toast('✅ Datos guardados — ¡bienvenido a ${APP_NAME}!')" style="padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#00D4AA,#00A882);color:#0A0E17;font-size:.9rem;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 4px 16px rgba(0,212,170,.3)">Mantener datos y continuar 🚀</button>
+        <button onclick="document.getElementById('misionCompleteOverlay').remove();const s=defaultState();s.usuario.nombre=S.usuario.nombre;s.theme=S.theme;S=s;save();render();toast('App reiniciada — empieza con tus datos reales 🚀')" style="padding:13px;border-radius:12px;border:1.5px solid var(--border2);background:transparent;color:var(--text2);font-size:.85rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all .18s">Empezar limpio (borrar práctica)</button>
+      </div>
+    </div>`
+  document.body.appendChild(overlay)
+}
+
+// ════════════════════════════════════════════════════════════════
+// ─── CHAT FAQ — Offline keyword assistant ────────────────────
+// ════════════════════════════════════════════════════════════════
+
+
+// ════════════════════════════════════════════════════════════════
+// ─── HOOKS INTO INIT ─────────────────────────────────────────
+// ════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════
+// ─── AUTH UI ─────────────────────────────────────────────────
+// ════════════════════════════════════════════════════════════════
+
+function _renderAuthBadge() {
+  // v2 — delegado a MNAuthUI
+  if (window.MNAuthUI) { MNAuthUI.renderAuthBadge('authPlanBadge'); }
+  // Also refresh the ⚡ PRO badge next to the sidebar logo
+  updateSidebarLogo();
+}
+
+function _renderTrialPill() {
+  // v2 — delegado a MNAuthUI
+  if (window.MNAuthUI) { MNAuthUI.renderTrialPill('trialPillContainer'); return; }
+}
+
+function _renderTrialBanner() { _renderTrialPill() }
+
+function _showAuthModal() {
+  // v2 — delegado a MNAuthUI (components/auth-ui.js)
+  if (window.MNAuthUI && window.MNAuthUI.showAuthModal) {
+    window.MNAuthUI.showAuthModal();
+    return;
+  }
+  // Fallback: abrir modal legacy si MNAuthUI no está disponible
+  const modal = document.getElementById('authModal');
+  if (modal) modal.style.display = 'flex';
+}
+
+function _authStartTrial() {
+  // v2: el trial ya se activa en initUser(). Esta función es un alias de compatibilidad.
+  upgradeTrial();
+  document.getElementById('authModal').style.display = 'none';
+  const gg = document.getElementById('guestGateModal');
+  if (gg) gg.style.display = 'none';
+  _renderAuthBadge();
+  _renderTrialPill();
+  toast('⏳ ¡Prueba de 24h activada! Explora todas las funciones.');
+}
+
+function _authActivatePro() {
+  // v2: dispatch event — el listener en index.html llama a MNAuth.activatePro()
+  document.dispatchEvent(new CustomEvent('mn:activatePro', { detail: { source: 'app' } }));
+  document.getElementById('authModal').style.display = 'none';
+  const gg = document.getElementById('guestGateModal');
+  if (gg) gg.style.display = 'none';
+  _renderTrialPill();
+  _renderAuthBadge();
+}
+
+/** Guest-gate modal: shown when a guest tries to add a movement */
+function _showGuestGateModal() {
+  let modal = document.getElementById('guestGateModal')
+  if (!modal) {
+    modal = document.createElement('div')
+    modal.id = 'guestGateModal'
+    modal.style.cssText = 'position:fixed;inset:0;z-index:9500;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.6);backdrop-filter:blur(8px)'
+    document.body.appendChild(modal)
+  }
+  modal.innerHTML = `
+    <div style="background:var(--card);border:1px solid var(--border2);border-radius:24px;width:min(420px,calc(100vw-32px));padding:36px 32px;text-align:center;box-shadow:0 40px 100px rgba(0,0,0,.6);animation:smCardIn .4s cubic-bezier(0.22,1,0.36,1) forwards">
+      <div style="font-size:3rem;margin-bottom:12px">🪺</div>
+      <div style="font-size:1.25rem;font-weight:800;color:var(--text);letter-spacing:-.04em;margin-bottom:8px">${t('guest_gate_title')}</div>
+      <div style="font-size:.85rem;color:var(--text2);line-height:1.6;margin-bottom:28px">${t('guest_gate_desc')}</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <button onclick="_authStartTrial()" style="padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#6366F1,#4F46E5);color:#fff;font-size:.9rem;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 4px 16px rgba(99,102,241,.35)">🕐 Iniciar prueba gratuita (${TRIAL_DAYS} días)</button>
+        <button onclick="_authActivatePro()" style="padding:13px;border-radius:12px;border:none;background:linear-gradient(135deg,#00D4AA,#00A882);color:#0A0E17;font-size:.875rem;font-weight:800;cursor:pointer;font-family:inherit">⚡ Activar Pro directamente</button>
+        <button onclick="document.getElementById('guestGateModal').style.display='none'" style="padding:11px;border-radius:12px;border:1.5px solid var(--border2);background:transparent;color:var(--text3);font-size:.8rem;font-weight:600;cursor:pointer;font-family:inherit">Continuar explorando</button>
+      </div>
+    </div>`
+  modal.style.display = 'flex'
+  modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none' }
+}
+
+function _postInitHooks() {
+  // Run after app is initialized and rendered
+  _renderAuthBadge()
+  _renderTrialPill()
+  checkStories()
+  checkGoalCoach()
+  checkMisiones()
+  document.addEventListener('mn:saved', () => {
+    updateMisionBar()
+  })
+  document.addEventListener('mn:upgradePro',     () => _showAuthModal())
+  document.addEventListener('mn:restoreAccess',  () => _showAuthModal())
+}
+
+
+
+
+
+window.addEventListener('DOMContentLoaded', function() {
+  init()
+  setTimeout(_postInitHooks, 600)
+
+  // Re-render sidebar badge whenever billing plan changes
+  ;['mn:billing:change','mn:billing:activated','mn:billing:cancelled'].forEach(ev => {
+    document.addEventListener(ev, () => setTimeout(updateSidebarLogo, 50))
+  })
+})
+
+/* ─── PWA Service Worker Registration ─── */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./service-worker.js')
+      .then(reg => console.log('[MoneyNest] SW registered:', reg.scope))
+      .catch(err => console.warn('[MoneyNest] SW registration failed:', err))
+  })
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   OPCIÓN C — ANIMATION PATCH (app.js addendum)
+   Principios:
+     · Patcha las funciones de cierre existentes para animar la salida
+       antes de ocultar el elemento (evita el "snap" abrupto).
+     · La doble validación (Gate 1 / Gate 2) permanece intacta.
+     · Nunca modifica display/visibility directamente — delega al CSS.
+     · Utiliza un helper _mnAnimatedClose() reutilizable.
+   ═══════════════════════════════════════════════════════════════════ */
+
+// ─── HELPER: cierre animado genérico ─────────────────────────────────
+/**
+ * Anima la salida de un overlay añadiendo la clase CSS 'mn-closing'.
+ * Espera al fin de la animación (transitionend / animationend) y luego
+ * ejecuta el callback de limpieza (ocultar el elemento, etc.).
+ *
+ * @param {HTMLElement} el       - El elemento overlay a cerrar.
+ * @param {Function}    cleanup  - Función a ejecutar tras la animación.
+ * @param {number}      [fallbackMs=250] - Timeout de seguridad (ms).
+ */
+function _mnAnimatedClose(el, cleanup, fallbackMs = 250) {
+  if (!el) { if (cleanup) cleanup(); return }
+
+  // Si ya está cerrando, no apilamos otra animación
+  if (el.classList.contains('mn-closing')) return
+
+  el.classList.add('mn-closing')
+
+  // Limpiamos will-change tras animar (buena práctica de rendimiento)
+  function _done() {
+    el.removeEventListener('animationend', _done)
+    el.style.willChange = 'auto'
+    el.classList.remove('mn-closing')
+    if (cleanup) cleanup()
+  }
+
+  el.addEventListener('animationend', _done, { once: true })
+
+  // Fallback por si animationend no dispara (e.g., display:none previo)
+  setTimeout(() => {
+    el.removeEventListener('animationend', _done)
+    el.style.willChange = 'auto'
+    el.classList.remove('mn-closing')
+    if (cleanup) cleanup()
+  }, fallbackMs)
+}
+
+// ─── HELPER: feedback de shake (Gate rechazado) ───────────────────────
+/**
+ * Añade la clase mn-shake al elemento y la elimina cuando termina.
+ * Se llama desde los guards cuando el usuario intenta ejecutar la
+ * acción sin permisos (Gate 1 visual o Gate 2 de seguridad).
+ *
+ * @param {HTMLElement|string} elOrId - Elemento o ID del card a sacudir.
+ */
+function _mnShakeFeedback(elOrId) {
+  const el = typeof elOrId === 'string'
+    ? document.getElementById(elOrId)
+    : elOrId
+  if (!el) return
+  el.classList.remove('mn-shake') // reset si ya estaba
+  void el.offsetWidth            // fuerza reflow para reiniciar animación
+  el.classList.add('mn-shake')
+  el.addEventListener('animationend', () => el.classList.remove('mn-shake'), { once: true })
+}
+
+// ─── PATCH: closeQuickAdd — salida animada ────────────────────────────
+/**
+ * Sobrescribimos closeQuickAdd para animar la salida antes de quitar .open.
+ * Gate 1 y Gate 2 en openQuickAdd / saveQuickAdd se mantienen sin cambios.
+ */
+;(function _patchCloseQuickAdd() {
+  const _orig = window.closeQuickAdd
+  window.closeQuickAdd = function closeQuickAdd() {
+    const modal = document.getElementById('quickAddModal')
+    if (!modal || !modal.classList.contains('open')) return
+    _mnAnimatedClose(modal, () => {
+      // Tras la animación de salida, quitamos .open (display:none)
+      modal.classList.remove('open')
+    }, 220)
+  }
+})()
+
+// ─── PATCH: _showGuestGateModal — añadir ARIA y cierre animado ────────
+/**
+ * Mejoramos el GuestGate con:
+ *   · role="dialog" + aria-modal para lectores de pantalla.
+ *   · Foco atrapado en el modal mientras está abierto (focus trap básico).
+ *   · La X y el botón "Continuar explorando" cierran CON animación.
+ * Gate 1 (openQuickAdd) y Gate 2 (saveQuickAdd) no se tocan.
+ */
+;(function _patchGuestGateModal() {
+  const _orig = window._showGuestGateModal
+  window._showGuestGateModal = function _showGuestGateModal() {
+    // 1. Llamamos a la función original (crea el modal si no existe, rellena innerHTML)
+    _orig()
+
+    const modal = document.getElementById('guestGateModal')
+    if (!modal) return
+
+    // 2. Mejoras de accesibilidad
+    modal.setAttribute('role', 'dialog')
+    modal.setAttribute('aria-modal', 'true')
+    modal.setAttribute('aria-labelledby', 'ggModalTitle')
+
+    // Añadimos id al título si existe para el aria-labelledby
+    const titleEl = modal.querySelector('div[style*="font-size:1.25rem"]')
+    if (titleEl && !titleEl.id) titleEl.id = 'ggModalTitle'
+
+    // 3. Reemplazamos los onclick de cierre por versión animada
+    // El botón "Continuar explorando" (último button del modal)
+    const buttons = modal.querySelectorAll('button')
+    buttons.forEach(btn => {
+      const txt = btn.textContent.trim()
+      if (txt.includes('explorando') || txt.includes('✕')) {
+        btn.onclick = () => _mnCloseGuestGate()
+      }
+    })
+
+    // 4. Backdrop click también anima la salida
+    modal.onclick = (e) => { if (e.target === modal) _mnCloseGuestGate() }
+
+    // 5. Escape key cierra el modal
+    function _escHandler(e) {
+      if (e.key === 'Escape') { _mnCloseGuestGate(); document.removeEventListener('keydown', _escHandler) }
+    }
+    document.addEventListener('keydown', _escHandler)
+
+    // 6. Foco al primer botón interactivo (accesibilidad)
+    const firstBtn = modal.querySelector('button')
+    if (firstBtn) setTimeout(() => firstBtn.focus(), 80)
+  }
+})()
+
+/**
+ * Cierra el GuestGate con animación.
+ * Función global para que los onclick inline del innerHTML puedan llamarla.
+ */
+function _mnCloseGuestGate() {
+  const modal = document.getElementById('guestGateModal')
+  _mnAnimatedClose(modal, () => {
+    if (modal) modal.style.display = 'none'
+  }, 220)
+}
+
+// ─── PATCH: AuthModal — salida animada ───────────────────────────────
+/**
+ * El authModal se cierra en varios puntos del código con style.display='none'.
+ * Creamos _mnCloseAuthModal() para centralizar el cierre animado y lo exponemos
+ * globalmente para el onclick inline del botón ✕ en _showAuthModal().
+ */
+function _mnCloseAuthModal() {
+  const modal = document.getElementById('authModal')
+  _mnAnimatedClose(modal, () => {
+    if (modal) modal.style.display = 'none'
+  }, 220)
+}
+
+// ─── PATCH: _renderTrialPill — will-change cleanup ────────────────────
+/**
+ * Parcheamos _renderTrialPill para:
+ *   · Animar la salida del pill anterior antes de quitarlo del DOM.
+ *   · Añadir min touch-target y ARIA al nuevo pill.
+ *   · Limpiar will-change tras la animación de entrada.
+ */
+;(function _patchRenderTrialPill() {
+  const _orig = window._renderTrialPill
+  window._renderTrialPill = function _renderTrialPill() {
+    // Animamos la salida del pill existente antes de que _orig() lo elimine
+    const existingPill = document.getElementById('trialPill')
+    if (existingPill) {
+      existingPill.classList.add('mn-pill-out')
+      existingPill.addEventListener('animationend', () => existingPill.remove(), { once: true })
+      // Breve retardo para que la salida sea visible antes de crear el nuevo
+      setTimeout(() => {
+        _orig()
+        _mnSetupNewPill()
+      }, 180)
+      return
+    }
+
+    // No hay pill existente: mostramos directo
+    _orig()
+    _mnSetupNewPill()
+  }
+
+  function _mnSetupNewPill() {
+    const pill = document.getElementById('trialPill')
+    if (!pill) return
+
+    // Accesibilidad
+    pill.setAttribute('role', 'button')
+    pill.setAttribute('aria-label', 'Ver tu plan de prueba — abrir opciones')
+    pill.setAttribute('tabindex', '0')
+
+    // Soporte teclado (Enter / Space activa el click)
+    pill.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pill.click() }
+    })
+
+    // Limpiamos will-change tras la animación de entrada (ahorro de memoria GPU)
+    pill.addEventListener('animationend', () => {
+      pill.style.willChange = 'auto'
+      // El hover de CSS ya maneja el estado visual — quitamos los listeners JS inline
+      pill.onmouseenter = null
+      pill.onmouseleave = null
+    }, { once: true })
+  }
+})()
+
+/* ─── GATE SHAKE INTEGRATION ─────────────────────────────────────────
+ * Cuando el guard de openQuickAdd dispara (_showGuestGateModal),
+ * sacudimos el botón FAB para reforzar el feedback visual del Gate 1.
+ * Cuando saveQuickAdd dispara el Gate 2, sacudimos el modal.
+ * Usamos MutationObserver para detectar el momento exacto.
+ */
+;(function _patchGateShake() {
+  // Gate 1: shake al FAB del bottom-nav cuando openQuickAdd bloquea
+  const _origOpen = window.openQuickAdd
+  window.openQuickAdd = function openQuickAdd() {
+    if (isGuest()) {
+      // ── Gate 1 intacto ─────────────────────────────────────────────
+      _showGuestGateModal()
+      // Shake feedback en el botón + (bottom-nav-add)
+      const fab = document.querySelector('.bottom-nav-add')
+      if (fab) _mnShakeFeedback(fab)
+      return
+    }
+    _origOpen()
+  }
+
+  // Gate 2: shake al card del quickAddModal cuando saveQuickAdd bloquea
+  const _origSave = window.saveQuickAdd
+  window.saveQuickAdd = function saveQuickAdd() {
+    if (isGuest()) {
+      // ── Gate 2 intacto ─────────────────────────────────────────────
+      closeQuickAdd()
+      _showGuestGateModal()
+      const fab = document.querySelector('.bottom-nav-add')
+      if (fab) _mnShakeFeedback(fab)
+      return
+    }
+    _origSave()
+  }
+})()
+
+// ─── Exportar helpers para tests / extensibilidad ────────────────────
+window._mnAnimatedClose   = _mnAnimatedClose
+window._mnShakeFeedback   = _mnShakeFeedback
+window._mnCloseGuestGate  = _mnCloseGuestGate
+window._mnCloseAuthModal  = _mnCloseAuthModal
+
