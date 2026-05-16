@@ -1,0 +1,25 @@
+'use strict';
+
+const MNStripeConfig = Object.freeze({
+  publishableKey: 'pk_live_51T57NbFWll222Kpac9uR0087YoUUATVJCxRg3TzYSC7y0EacJnpooDne5ty7vZOEGrkqA35mj6Rf5unOsDiMzBlp00h0Q8bEJt',
+  prices: {
+    local: 'price_1TTJCBFWll222Kpazyvo4A4W',
+    pro:   'price_1TTJD3FWll222KpaJ1T6OG6C',
+  },
+  products: {
+    local: 'prod_USDdaHgyW9lPe6',
+    pro:   'prod_USDeOkWj3MryiO',
+  },
+  endpoints: {
+    createCheckout: 'https://jwddciqqhmfkbqhdrfre.supabase.co/functions/v1/create-checkout',
+    webhook:        'https://jwddciqqhmfkbqhdrfre.supabase.co/functions/v1/stripe-webhook',
+  },
+});
+
+const MNStripe = {
+  openPayment(priceId, email) {
+    if (window.MNPayment) {
+      MNPayment.open(priceId, email);
+    }
+  },
+};

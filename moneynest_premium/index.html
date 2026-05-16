@@ -27,6 +27,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://js.stripe.com/v3/"></script>
 <link rel="stylesheet" href="css/styles.css">
 <link rel="stylesheet" href="css/billing.css">
 <link rel="stylesheet" href="css/data-manager.css">
@@ -1236,6 +1237,8 @@
 <script src="js/i18n-patch.js"></script>
 <script src="js/auth.js"></script>
 <script src="components/auth-ui.js"></script>
+<script src="js/stripe-config.js"></script>
+<script src="js/stripe-payment.js"></script>
 <script src="js/billing.js"></script>
 <script src="js/billing-ui.js"></script>
 <script src="js/billing-i18n-patch.js"></script>
@@ -1336,6 +1339,9 @@
     // 2b. Inicializa el sistema de billing premium
     if (window.MNBillingUI) MNBillingUI.init();
 
+    // 2c. Inicializa el Payment Element (comprueba retorno 3DS)
+    if (window.MNPayment) MNPayment.init();
+
     // 3. Renderiza el badge de plan en la topbar
     MNAuthUI.renderAuthBadge('authPlanBadge');
 
@@ -1350,17 +1356,11 @@
     // Conecta aquí tu pasarela real (Stripe, Paddle, etc.)
 
     document.addEventListener('mn:buyLocal', function (e) {
-      // TODO: redirigir a tu checkout de 5€ pago único
-      // Cuando el pago se confirme llama a: MNAuth.buyLocal(email)
-      console.log('[MoneyNest] Iniciar pago Plan Local', e.detail);
+      MNStripe.openPayment(MNStripeConfig.prices.local, e.detail?.email || '');
     });
 
     document.addEventListener('mn:activatePro', function (e) {
-      // TODO: redirigir a tu checkout de suscripción Pro (5€/año)
-      // Cuando se confirme llama a: MNAuth.activatePro(email)
-      console.log('[MoneyNest] Iniciar suscripción Pro', e.detail);
-      // Refresh sidebar PRO badge after activation
-      if (typeof updateSidebarLogo === 'function') updateSidebarLogo();
+      MNStripe.openPayment(MNStripeConfig.prices.pro, e.detail?.email || '');
     });
 
     document.addEventListener('mn:cancelPro', function () {
