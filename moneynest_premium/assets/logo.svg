@@ -12,6 +12,4 @@
   <!-- Growth arrow -->
   <polyline points="72,140 108,104 148,124 196,72" stroke="url(#mnLogoGrad)" stroke-width="11" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
   <polyline points="183,68 197,72 193,86" stroke="url(#mnLogoGrad)" stroke-width="11" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-  <!-- Label -->
-  <text x="120" y="226" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="28" font-weight="800" letter-spacing="-0.5" fill="white">Money<tspan fill="#00D4AA">Nest</tspan></text>
 </svg>

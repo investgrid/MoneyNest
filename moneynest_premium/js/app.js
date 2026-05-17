@@ -7857,12 +7857,14 @@ function applyTheme() {
 function toggleSidebar() {
   const sb = document.getElementById('sidebar')
   const ov = document.getElementById('sidebarOverlay')
-  sb.classList.toggle('open')
-  ov.classList.toggle('open')
+  const isOpen = sb.classList.toggle('open')
+  ov.classList.toggle('open', isOpen)
+  document.body.style.overflow = isOpen ? 'hidden' : ''
 }
 function closeSidebar() {
   document.getElementById('sidebar').classList.remove('open')
   document.getElementById('sidebarOverlay').classList.remove('open')
+  document.body.style.overflow = ''
 }
 
 // ─── TOAST — PREMIUM SYSTEM ────────────────────────────────────
@@ -9027,7 +9029,7 @@ function _obRightHTML(step) {
     <div class="ob-actions-row">
       ${backBtn}
       <button class="ob-next-btn" onclick="obNext()">
-        ${t('ob_s2_cta')} <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="display:inline;vertical-align:middle"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        ${t('ob_s1_cta')} <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="display:inline;vertical-align:middle"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
     </div>`
 
