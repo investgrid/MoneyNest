@@ -36,9 +36,10 @@ function _t(key, fallback) {
 }
 
 // ─── Modal mode ──────────────────────────────────────────────────
-// 'plan' | 'login' | 'register' | 'forgot' | 'update-password'
+// 'plan' | 'login' | 'register' | 'verify-otp' | 'forgot' | 'update-password'
 let _modalMode = 'plan';
 let _modalLoading = false;
+let _pendingEmail = '';  // email esperando verificación OTP
 
 
 // ════════════════════════════════════════════════════════════════
@@ -123,6 +124,7 @@ function _buildContent(user) {
 
   if (_modalMode === 'login')           return _buildLoginView();
   if (_modalMode === 'register')        return _buildRegisterView();
+  if (_modalMode === 'verify-otp')      return _buildVerifyOtpView();
   if (_modalMode === 'forgot')          return _buildForgotView();
   if (_modalMode === 'update-password') return _buildUpdatePasswordView();
 
@@ -210,6 +212,52 @@ function _buildRegisterView() {
     <div style="text-align:center">
       <span style="font-size:.8rem;color:var(--text2,#94A3B8)">${_t('auth_ya_tienes','¿Ya tienes cuenta?')} </span>
       <button class="mn-link-btn mn-link-btn--accent" id="mn-go-login">${_t('auth_iniciar_sesion_link','Iniciar sesión')}</button>
+    </div>`;
+}
+
+function _buildVerifyOtpView() {
+  const masked = _pendingEmail
+    ? _pendingEmail.replace(/(.{2}).*(@.*)/, '$1••••$2')
+    : '••••@••••';
+  return `
+    ${_closeBtn()}
+    <div class="mn-auth-modal-header">
+      <div class="mn-auth-eyebrow">${_t('auth_verificacion','Verificación de email')}</div>
+      <div class="mn-auth-headline" style="color:${C.indigo}">🔐 ${_t('auth_codigo_titulo','Introduce el código')}</div>
+    </div>
+
+    <div style="background:rgba(99,102,241,.07);border:1px solid rgba(99,102,241,.18);border-radius:14px;padding:16px 18px;margin-bottom:20px;text-align:center">
+      <div style="font-size:1.6rem;margin-bottom:8px">📬</div>
+      <div style="font-size:.85rem;color:var(--text,#E8EFF7);font-weight:700;margin-bottom:4px">${_t('auth_codigo_enviado','Código enviado a')}</div>
+      <div style="font-size:.9rem;color:${C.indigo};font-weight:800">${masked}</div>
+      <div style="font-size:.72rem;color:var(--text2,#94A3B8);margin-top:6px">${_t('auth_codigo_desc','Revisa tu bandeja de entrada (y carpeta de spam)')}</div>
+    </div>
+
+    <div class="mn-auth-form-col">
+      <div>
+        <label class="mn-auth-field-label">${_t('auth_codigo_label','Código de 6 dígitos')}</label>
+        <input class="mn-auth-input" type="text" id="mn-otp-input"
+          placeholder="000000"
+          maxlength="6"
+          autocomplete="one-time-code"
+          inputmode="numeric"
+          style="font-size:1.6rem;font-weight:800;letter-spacing:.25em;text-align:center;padding:14px;"
+          oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,6)">
+      </div>
+      <div class="mn-auth-msg" id="mn-otp-msg" style="display:none"></div>
+      <button class="mn-btn-primary mn-btn-full" id="mn-otp-submit-btn">
+        ✓ ${_t('auth_verificar','Verificar y entrar')}
+      </button>
+    </div>
+
+    <div style="text-align:center;margin-top:14px">
+      <span style="font-size:.78rem;color:var(--text2,#94A3B8)">${_t('auth_no_recibido','¿No lo recibiste?')} </span>
+      <button class="mn-link-btn mn-link-btn--accent" id="mn-otp-resend">${_t('auth_reenviar','Reenviar código')}</button>
+    </div>
+
+    <div class="mn-auth-divider"></div>
+    <div style="text-align:center">
+      <button class="mn-link-btn" id="mn-otp-back">← ${_t('auth_volver_registro','Volver')}</button>
     </div>`;
 }
 
@@ -498,6 +546,12 @@ function _attachListeners(user) {
   // Init Turnstile widget after DOM renders
   setTimeout(() => _initTurnstile(), 80);
 
+  // ── OTP verification ─────────────────────────────────────────
+  _on('mn-otp-submit-btn', () => _handleVerifyOtp());
+  _onKey('mn-otp-input',   'Enter', () => _handleVerifyOtp());
+  _on('mn-otp-resend',     () => _handleResendOtp());
+  _on('mn-otp-back',       () => _switchMode('register'));
+
   // ── Forgot password ──────────────────────────────────────────
   _on('mn-forgot-submit-btn', () => _handleForgot());
   _onKey('mn-forgot-email', 'Enter', () => _handleForgot());
@@ -652,17 +706,13 @@ async function _handleRegister() {
     const data = await window.MNSupabaseAuth.signUp(email, pass);
 
     if (data.user && !data.session) {
+      // Email confirmation required → go to OTP screen
+      _pendingEmail = email;
       _auth.upgradeTrial && _auth.upgradeTrial(email);
-      // Send welcome email in background
       if (window.MNEmail) MNEmail.sendWelcome(email, '');
-      _showMsg(msg, '✅ ' + _t('auth_confirma_email','¡Cuenta creada! Revisa tu email para confirmar.'), 'ok');
-      setTimeout(() => {
-        closeAuthModal();
-        renderAuthBadge();
-        renderTrialPill();
-        _toast('✅ ' + _t('auth_revisa_email','Revisa tu bandeja de entrada para confirmar tu cuenta.'));
-      }, 2500);
+      _switchMode('verify-otp');
     } else if (data.session) {
+      // Auto-confirm enabled (dev/test) → straight in
       _auth.upgradeTrial && _auth.upgradeTrial(email);
       if (window.MNEmail) MNEmail.sendWelcome(email, '');
       _toast('✅ ' + _t('auth_cuenta_creada','¡Cuenta creada y sesión iniciada!'));

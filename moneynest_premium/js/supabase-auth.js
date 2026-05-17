@@ -111,17 +111,33 @@
       throw error;
     }
 
-    // Profile creation is handled by DB trigger (migration 002).
-    // But we also call _ensureProfile as fallback for environments
-    // where the trigger might not be deployed yet.
     if (data.user) {
       await _ensureProfile(data.user.id, email, displayName);
-      // Only sync if session exists (auto-confirm enabled)
       if (data.session) await _syncProfileToLocal(data.user);
     }
 
     _rl.reset(`signup:${email}`);
     return data;
+  }
+
+  // ── OTP: verify email with 6-digit code ─────────────────────────
+  async function verifyEmailOtp(email, token) {
+    if (!_rl.check(`otp:${email}`, 5, 15 * 60 * 1000)) {
+      throw Object.assign(new Error('Demasiados intentos. Espera unos minutos.'), { code: 'rate_limited' });
+    }
+    const { data, error } = await sb.auth.verifyOtp({ email, token, type: 'email' });
+    if (error) throw error;
+    if (data.user) await _syncProfileToLocal(data.user);
+    return data;
+  }
+
+  // ── OTP: resend verification email ──────────────────────────────
+  async function resendVerificationEmail(email) {
+    if (!_rl.check(`resend:${email}`, 3, 5 * 60 * 1000)) {
+      throw Object.assign(new Error('Espera unos minutos antes de reenviar.'), { code: 'rate_limited' });
+    }
+    const { error } = await sb.auth.resend({ type: 'signup', email });
+    if (error) throw error;
   }
 
   async function signIn(email, password) {
@@ -406,6 +422,9 @@
     // Password
     resetPassword,
     updatePassword,
+    // OTP
+    verifyEmailOtp,
+    resendVerificationEmail,
     // Profile
     getProfile,
     updateProfile,
