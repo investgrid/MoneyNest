@@ -9039,14 +9039,30 @@ function _obRightHTML(step) {
       </button>
     </div>`
 
-  // ── STEP 4: Email / Password ──────────────────────────────────
-  if (step === 4) return `
+  // ── STEP 4: Auth (register / login / Google) ──────────────────
+  if (step === 4) {
+    const isLogin = obData._authMode === 'login'
+    return `
     <div class="ob-step-pill"><div class="ob-step-pill-dot"></div>Paso 4 de ${OB_TOTAL}</div>
-    <div class="ob-headline">Crea tu<br><span class="ob-headline-accent">acceso seguro</span></div>
-    <p class="ob-lead">Crea tu cuenta para guardar el acceso y activar tu prueba de 24h asociada a tu email.</p>
+    <div class="ob-headline">${isLogin ? 'Bienvenido<br><span class="ob-headline-accent">de nuevo</span>' : 'Crea tu<br><span class="ob-headline-accent">cuenta gratis</span>'}</div>
+    <p class="ob-lead">${isLogin ? 'Inicia sesión para continuar con tus datos.' : 'Registrarte activa tu prueba de 24h. Sin tarjeta.'}</p>
+
+    <!-- Google OAuth -->
+    <button class="ob-google-btn" onclick="_obGoogleAuth()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="flex-shrink:0">
+        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+      </svg>
+      ${isLogin ? 'Entrar con Google' : 'Registrarse con Google'}
+    </button>
+
+    <div class="ob-or-divider"><span>o continúa con email</span></div>
+
     <div class="ob-fields">
       <div class="ob-field-wrap">
-        <label class="ob-field-label">Correo electrónico *</label>
+        <label class="ob-field-label">Correo electrónico</label>
         <div class="ob-input-wrap">
           <span class="ob-input-icon">✉️</span>
           <input class="ob-field-input" id="obEmail" type="email" placeholder="tu@email.com"
@@ -9056,22 +9072,27 @@ function _obRightHTML(step) {
         </div>
       </div>
       <div class="ob-field-wrap">
-        <label class="ob-field-label">Contraseña * <span style="font-weight:400;text-transform:none;letter-spacing:0">(mín. 8 caracteres)</span></label>
+        <label class="ob-field-label">Contraseña ${isLogin ? '' : '<span style="font-weight:400;text-transform:none;letter-spacing:0">(mín. 8 caracteres)</span>'}</label>
         <div class="ob-input-wrap">
           <span class="ob-input-icon">🔑</span>
-          <input class="ob-field-input" id="obPassword" type="password" placeholder="Mínimo 8 caracteres"
-            value="${obData.password}" autocomplete="new-password"
-            oninput="obData.password=this.value;_obCheckPwStrength(this.value)"
-            onkeydown="if(event.key==='Enter')document.getElementById('obPassword2')?.focus()">
+          <input class="ob-field-input" id="obPassword" type="password" placeholder="${isLogin ? '••••••••' : 'Mínimo 8 caracteres'}"
+            value="${obData.password}" autocomplete="${isLogin ? 'current-password' : 'new-password'}"
+            oninput="obData.password=this.value;${isLogin ? '' : '_obCheckPwStrength(this.value)'}"
+            onkeydown="if(event.key==='Enter')${isLogin ? 'obNext()' : "document.getElementById('obPassword2')?.focus()"}">
           <button class="ob-pw-toggle" onclick="_obTogglePw()" tabindex="-1">👁</button>
         </div>
+        ${isLogin ? '' : `
         <div class="ob-pw-strength" id="obPwStrength" style="display:none">
           <div class="ob-pw-bar"><div class="ob-pw-fill" id="obPwFill"></div></div>
           <span class="ob-pw-label" id="obPwLabel"></span>
-        </div>
+        </div>`}
       </div>
+      ${isLogin ? `
+      <div style="text-align:right;margin-top:-6px">
+        <button style="background:none;border:none;font-size:.75rem;color:var(--text2);cursor:pointer;font-family:inherit;padding:0" onclick="_obForgotPassword()">¿Olvidaste tu contraseña?</button>
+      </div>` : `
       <div class="ob-field-wrap">
-        <label class="ob-field-label">Confirmar contraseña *</label>
+        <label class="ob-field-label">Confirmar contraseña</label>
         <div class="ob-input-wrap">
           <span class="ob-input-icon">🔑</span>
           <input class="ob-field-input" id="obPassword2" type="password" placeholder="Repite la contraseña"
@@ -9080,15 +9101,25 @@ function _obRightHTML(step) {
             onkeydown="if(event.key==='Enter')obNext()">
           <button class="ob-pw-toggle" onclick="_obTogglePw2()" tabindex="-1">👁</button>
         </div>
-      </div>
-      <div class="ob-field-error" id="obAccountError" style="display:none;color:#F43F5E;font-size:.78rem;margin-top:2px"></div>
+      </div>`}
+      <div class="ob-field-error" id="obAccountError" style="display:none"></div>
     </div>
+
     <div class="ob-actions-row">
       ${backBtn}
       <button class="ob-next-btn" onclick="obNext()">
-        Continuar <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="display:inline;vertical-align:middle"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        ${isLogin ? 'Entrar' : 'Crear cuenta'}
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="display:inline;vertical-align:middle"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+
+    <div style="text-align:center;margin-top:14px">
+      <span style="font-size:.78rem;color:var(--text2)">${isLogin ? '¿No tienes cuenta?' : '¿Ya tienes cuenta?'} </span>
+      <button style="background:none;border:none;font-size:.78rem;color:#00D4AA;font-weight:700;cursor:pointer;font-family:inherit;padding:0" onclick="_obToggleAuthMode()">
+        ${isLogin ? 'Crear cuenta →' : 'Iniciar sesión →'}
       </button>
     </div>`
+  }
 
   // ── STEP 5: Start mode ───────────────────────────────────────
   const nombre = obData.nombre || 'Usuario'
@@ -9246,6 +9277,48 @@ function _obTogglePw2() {
   inp.type = inp.type === 'password' ? 'text' : 'password'
 }
 
+function _obToggleAuthMode() {
+  obData._authMode = obData._authMode === 'login' ? 'register' : 'login'
+  const contentArea = document.getElementById('obContentArea')
+  if (!contentArea) return
+  contentArea.style.transition = 'opacity .15s'
+  contentArea.style.opacity = '0'
+  setTimeout(() => {
+    contentArea.innerHTML = _obRightHTML(obStep)
+    contentArea.style.opacity = '1'
+    setTimeout(() => document.getElementById('obEmail')?.focus(), 60)
+  }, 120)
+}
+
+async function _obGoogleAuth() {
+  if (!window.MNSupabaseAuth) return
+  try {
+    await window.MNSupabaseAuth.signInWithGoogle()
+    // Redirect happens — Supabase handles callback
+  } catch (err) {
+    const errEl = document.getElementById('obAccountError')
+    if (errEl) { errEl.textContent = '⚠ Error al conectar con Google.'; errEl.style.display = 'block' }
+  }
+}
+
+async function _obForgotPassword() {
+  const email = (document.getElementById('obEmail')?.value || '').trim()
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    const errEl = document.getElementById('obAccountError')
+    if (errEl) { errEl.textContent = '⚠ Introduce tu email primero.'; errEl.style.display = 'block' }
+    document.getElementById('obEmail')?.focus()
+    return
+  }
+  try {
+    await window.MNSupabaseAuth.resetPassword(email)
+    const errEl = document.getElementById('obAccountError')
+    if (errEl) { errEl.textContent = '✅ Enlace enviado. Revisa tu email.'; errEl.style.display = 'block'; errEl.style.color = '#00D4AA' }
+  } catch {
+    const errEl = document.getElementById('obAccountError')
+    if (errEl) { errEl.textContent = '⚠ Error al enviar el enlace.'; errEl.style.display = 'block' }
+  }
+}
+
 function obNext() {
   // ── Validaciones por paso ──────────────────────────────────
   if (obStep === 2) {
@@ -9259,13 +9332,14 @@ function obNext() {
   }
 
   if (obStep === 4) {
-    const email = (document.getElementById('obEmail')?.value || '').trim()
-    const pw    = document.getElementById('obPassword')?.value || ''
-    const pw2   = document.getElementById('obPassword2')?.value || ''
-    const errEl = document.getElementById('obAccountError')
+    const email   = (document.getElementById('obEmail')?.value || '').trim()
+    const pw      = document.getElementById('obPassword')?.value || ''
+    const pw2     = document.getElementById('obPassword2')?.value || ''
+    const errEl   = document.getElementById('obAccountError')
+    const isLogin = obData._authMode === 'login'
 
-    const showErr = (msg) => {
-      if (errEl) { errEl.textContent = msg; errEl.style.display = 'block' }
+    const showErr = (msg, color = '#F43F5E') => {
+      if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; errEl.style.color = color }
     }
 
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -9274,13 +9348,33 @@ function obNext() {
     if (pw.length < 8) {
       showErr('⚠ La contraseña debe tener al menos 8 caracteres.'); document.getElementById('obPassword')?.focus(); return
     }
-    if (pw !== pw2) {
+    if (!isLogin && pw !== pw2) {
       showErr('⚠ Las contraseñas no coinciden.'); document.getElementById('obPassword2')?.focus(); return
     }
+
     obData.email    = email
     obData.password = pw
-    obData.password2 = pw2
     if (errEl) errEl.style.display = 'none'
+
+    // Si es login, autenticar antes de avanzar
+    if (isLogin) {
+      const btn = document.querySelector('#obContentArea .ob-next-btn')
+      if (btn) { btn.disabled = true; btn.textContent = 'Entrando…' }
+      try {
+        await window.MNSupabaseAuth.signIn(email, pw)
+        _auth.upgradeTrial && _auth.upgradeTrial(email)
+      } catch (err) {
+        const code = err?.code || ''
+        const map = {
+          invalid_credentials: '⚠ Email o contraseña incorrectos.',
+          email_not_confirmed: '⚠ Confirma tu email antes de entrar.',
+          rate_limited: '⚠ Demasiados intentos. Espera unos minutos.',
+        }
+        showErr(map[code] || '⚠ ' + (err?.message || 'Error al iniciar sesión.'))
+        if (btn) { btn.disabled = false; btn.innerHTML = 'Entrar <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="display:inline;vertical-align:middle"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' }
+        return
+      }
+    }
   }
 
   if (obStep === OB_TOTAL) { finishOnboarding(); return }

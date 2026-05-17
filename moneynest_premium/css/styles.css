@@ -1602,6 +1602,29 @@ textarea{resize:vertical;min-height:70px}
 .ob-next-btn:hover{transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,212,170,0.4)}
 .ob-next-btn:active{transform:translateY(0)}
 
+/* Google OAuth button */
+.ob-google-btn{
+  width:100%;display:flex;align-items:center;justify-content:center;gap:10px;
+  padding:13px 20px;border-radius:12px;cursor:pointer;font-family:inherit;
+  font-size:.88rem;font-weight:700;transition:all .18s;
+  background:rgba(255,255,255,.06);
+  border:1.5px solid rgba(255,255,255,.12);
+  color:var(--text,#E8EFF7);margin-bottom:4px;
+}
+.ob-google-btn:hover{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.22)}
+[data-theme="light"] .ob-google-btn{background:rgba(0,0,0,.04);border-color:rgba(0,0,0,.12);color:#0F172A}
+
+/* Or divider */
+.ob-or-divider{
+  display:flex;align-items:center;gap:10px;
+  margin:14px 0;font-size:.7rem;color:var(--text3,#64748B);font-weight:600;
+}
+.ob-or-divider::before,.ob-or-divider::after{content:'';flex:1;height:1px;background:rgba(255,255,255,.08)}
+[data-theme="light"] .ob-or-divider::before,[data-theme="light"] .ob-or-divider::after{background:rgba(0,0,0,.1)}
+
+/* Field error */
+.ob-field-error{font-size:.78rem;margin-top:4px;line-height:1.5;display:none}
+
 /* Content transitions */
 .ob-content-area{transition:opacity .2s ease,transform .2s ease}
 .ob-content-area.ob-exit{opacity:0;transform:translateX(16px)}
