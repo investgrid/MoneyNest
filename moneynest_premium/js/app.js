@@ -10206,71 +10206,62 @@ function renderFAQ() {
     </div>`).join('') || `<div class="empty"><div class="empty-icon">💬</div><div class="empty-title">Aún no hay sugerencias</div><div class="empty-sub">¡Sé el primero en proponer una mejora para MoneyNest!</div></div>`
 
   document.getElementById('content').innerHTML = `
-  <div class="section-header">
-    <div>
-      <div class="page-h1">❓ FAQ & Sugerencias</div>
-      <div class="page-sub">Guías paso a paso, respuestas frecuentes y envío de sugerencias</div>
-    </div>
-  </div>
-  <div class="faq-layout">
-    <div class="faq-main">
-      ${faqHtml}
-      <div style="margin-top:48px">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
-          <div style="flex:1;height:1px;background:var(--border)"></div>
-          <div style="font-size:1.1rem;font-weight:800;color:var(--text);letter-spacing:-.02em">💡 Sugerencias</div>
-          <div style="flex:1;height:1px;background:var(--border)"></div>
-        </div>
-        <div class="card" style="margin-bottom:16px">
-          <div class="card-title" style="margin-bottom:14px">✍️ Nueva sugerencia</div>
-          <div class="form-group">
-            <label>Tipo</label>
-            <div style="display:flex;gap:10px;margin-bottom:4px">
-              <label style="display:flex;align-items:center;gap:7px;padding:9px 14px;border-radius:var(--radius-sm);border:1.5px solid var(--border2);background:var(--bg2);cursor:pointer;flex:1;font-size:.85rem;font-weight:600;color:var(--text2);transition:all .15s" id="sug-tipo-label-sug">
-                <input type="radio" name="sug-tipo" value="Sugerencia" id="sug-tipo-sug" checked style="accent-color:var(--accent)" onchange="document.getElementById('sug-tipo-label-sug').style.borderColor='var(--accent)';document.getElementById('sug-tipo-label-sug').style.color='var(--accent)';document.getElementById('sug-tipo-label-preg').style.borderColor='var(--border2)';document.getElementById('sug-tipo-label-preg').style.color='var(--text2)'">
-                💡 ${t('sug_tipo_sug')}
-              </label>
-              <label style="display:flex;align-items:center;gap:7px;padding:9px 14px;border-radius:var(--radius-sm);border:1.5px solid var(--border2);background:var(--bg2);cursor:pointer;flex:1;font-size:.85rem;font-weight:600;color:var(--text2);transition:all .15s" id="sug-tipo-label-preg">
-                <input type="radio" name="sug-tipo" value="Pregunta" id="sug-tipo-preg" style="accent-color:var(--accent)" onchange="document.getElementById('sug-tipo-label-preg').style.borderColor='var(--accent)';document.getElementById('sug-tipo-label-preg').style.color='var(--accent)';document.getElementById('sug-tipo-label-sug').style.borderColor='var(--border2)';document.getElementById('sug-tipo-label-sug').style.color='var(--text2)'">
-                ❓ ${t('sug_tipo_preg')}
-              </label>
-            </div>
-          </div>
-          <div class="form-group">
-            <label>Categoría</label>
-            <select id="sug-cat">${sugCats.map(c=>`<option value="${c}">${c}</option>`).join('')}</select>
-          </div>
-          <div class="form-group">
-            <label>Mensaje</label>
-            <textarea id="sug-input" placeholder="${t('sug_placeholder')}" style="min-height:90px;-webkit-user-select:text;user-select:text"></textarea>
-          </div>
-          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-            <button class="btn btn-primary" onclick="saveSugerencia()">${t('sug_guardar')}</button>
-            <button class="btn btn-secondary" onclick="enviarSugerenciaEmail()">${t('sug_enviar_email')}</button>
-            <button class="btn btn-ghost" onclick="copiarEmailSugerencias()" title="Copiar email" style="font-size:.78rem;padding:7px 10px">📋 Copiar email</button>
-          </div>
-          <div style="margin-top:10px;padding:8px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-            <span style="font-size:.72rem;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.04em">Contacto:</span>
-            <span style="font-size:.82rem;font-weight:700;color:var(--accent);user-select:text;-webkit-user-select:text">invest.grid.main@gmail.com</span>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-header" style="margin-bottom:12px">
-            <div class="card-title">📋 Sugerencias enviadas</div>
-            <span class="badge badge-accent">${(window._sugerencias||[]).length}</span>
-          </div>
-          ${sugList}
-        </div>
+  <div style="max-width:720px;margin:0 auto">
+    <div class="section-header">
+      <div>
+        <div class="page-h1">❓ FAQ & Sugerencias</div>
+        <div class="page-sub">Guías paso a paso, respuestas frecuentes y envío de sugerencias</div>
       </div>
     </div>
-    <div class="faq-sidebar">
-      <div class="faq-help-card">
-        <div class="faq-help-title" style="font-size:.82rem">⚡ Acceso rápido</div>
-        <div style="display:flex;flex-direction:column;gap:6px;margin-top:10px">
-          <button class="btn btn-ghost btn-sm" style="justify-content:flex-start;text-align:left" onclick="goTo('dashboard')">📊 Dashboard</button>
-          <button class="btn btn-ghost btn-sm" style="justify-content:flex-start;text-align:left" onclick="goTo('configuracion')">⚙️ Configuración</button>
-          <button class="btn btn-ghost btn-sm" style="justify-content:flex-start;text-align:left" onclick="goTo('analisis')">📈 Análisis</button>
+
+    ${faqHtml}
+
+    <div style="margin-top:56px">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+        <div style="font-size:1.05rem;font-weight:800;color:var(--text);letter-spacing:-.02em">💡 Sugerencias</div>
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+      </div>
+
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-title" style="margin-bottom:16px">✍️ Nueva sugerencia</div>
+        <div class="form-group">
+          <label>Tipo</label>
+          <div style="display:flex;gap:10px;margin-bottom:4px">
+            <label style="display:flex;align-items:center;gap:7px;padding:9px 14px;border-radius:var(--radius-sm);border:1.5px solid var(--border2);background:var(--bg2);cursor:pointer;flex:1;font-size:.85rem;font-weight:600;color:var(--text2);transition:all .15s" id="sug-tipo-label-sug">
+              <input type="radio" name="sug-tipo" value="Sugerencia" id="sug-tipo-sug" checked style="accent-color:var(--accent)" onchange="document.getElementById('sug-tipo-label-sug').style.borderColor='var(--accent)';document.getElementById('sug-tipo-label-sug').style.color='var(--accent)';document.getElementById('sug-tipo-label-preg').style.borderColor='var(--border2)';document.getElementById('sug-tipo-label-preg').style.color='var(--text2)'">
+              💡 ${t('sug_tipo_sug')}
+            </label>
+            <label style="display:flex;align-items:center;gap:7px;padding:9px 14px;border-radius:var(--radius-sm);border:1.5px solid var(--border2);background:var(--bg2);cursor:pointer;flex:1;font-size:.85rem;font-weight:600;color:var(--text2);transition:all .15s" id="sug-tipo-label-preg">
+              <input type="radio" name="sug-tipo" value="Pregunta" id="sug-tipo-preg" style="accent-color:var(--accent)" onchange="document.getElementById('sug-tipo-label-preg').style.borderColor='var(--accent)';document.getElementById('sug-tipo-label-preg').style.color='var(--accent)';document.getElementById('sug-tipo-label-sug').style.borderColor='var(--border2)';document.getElementById('sug-tipo-label-sug').style.color='var(--text2)'">
+              ❓ ${t('sug_tipo_preg')}
+            </label>
+          </div>
         </div>
+        <div class="form-group">
+          <label>Categoría</label>
+          <select id="sug-cat">${sugCats.map(c=>`<option value="${c}">${c}</option>`).join('')}</select>
+        </div>
+        <div class="form-group">
+          <label>Mensaje</label>
+          <textarea id="sug-input" placeholder="${t('sug_placeholder')}" style="min-height:100px;-webkit-user-select:text;user-select:text"></textarea>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:4px">
+          <button class="btn btn-primary" onclick="saveSugerencia()">${t('sug_guardar')}</button>
+          <button class="btn btn-secondary" onclick="enviarSugerenciaEmail()">📧 Enviar por email</button>
+        </div>
+        <div style="margin-top:12px;padding:10px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <span style="font-size:.72rem;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.05em">Contacto directo:</span>
+          <a href="mailto:invest.grid.main@gmail.com" style="font-size:.85rem;font-weight:700;color:var(--accent);text-decoration:none;user-select:text">invest.grid.main@gmail.com</a>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header" style="margin-bottom:12px">
+          <div class="card-title">📋 Sugerencias enviadas</div>
+          <span class="badge badge-accent">${(window._sugerencias||[]).length}</span>
+        </div>
+        ${sugList}
       </div>
     </div>
   </div>`
