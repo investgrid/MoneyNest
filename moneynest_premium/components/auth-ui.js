@@ -320,6 +320,11 @@ function _buildTrialContent(user) {
       <button class="mn-btn-primary mn-btn-full" id="mn-buy-local-btn" style="margin-top:12px">
         🔓 Comprar Plan Local — 5€ pago único
       </button>
+      <div style="text-align:center;margin:8px 0;font-size:.72rem;color:var(--text3,#64748B)">— o —</div>
+      <button class="mn-btn-pro mn-btn-full" id="mn-buy-bundle-btn">
+        ⚡ Local + Pro — 10€ (ahorra el doble proceso)
+      </button>
+      <div style="font-size:.68rem;color:var(--text3,#64748B);text-align:center;margin-top:6px">Local de por vida + Pro anual con 7 días gratis incluidos</div>
     </div>
 
     <div class="mn-auth-divider"></div>
@@ -495,6 +500,21 @@ function _attachListeners(user) {
     document.dispatchEvent(new CustomEvent('mn:buyLocal', { detail: { source: 'modal', user } }));
     closeAuthModal();
     if (window.MNStripe) MNStripe.openPayment(MNStripeConfig.prices.local, email);
+  });
+
+  // ── Bundle Local + Pro ───────────────────────────────────────
+  _on('mn-buy-bundle-btn', () => {
+    const email = window.MNSupabaseAuth?.getEmail() || user.email || '';
+    closeAuthModal();
+    if (window.MNStripe) MNStripe.openPayment(MNStripeConfig.prices.local, email);
+    document.addEventListener('mn:paymentSuccess', function onPS(e) {
+      if (e.detail?.plan === 'local' || e.detail?.plan === 'local_lifetime') {
+        document.removeEventListener('mn:paymentSuccess', onPS);
+        setTimeout(() => {
+          if (window.MNStripe) MNStripe.openPayment(MNStripeConfig.prices.pro, email);
+        }, 1500);
+      }
+    });
   });
 
   // ── Activar Pro ──────────────────────────────────────────────

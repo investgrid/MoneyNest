@@ -155,15 +155,20 @@ function initUser() {
 
 function checkAccess() {
   const user = getUser()
-  if (user.plan === 'pro')  return { ok: true, reason: null }
+  if (user.plan === 'pro' || user.plan === 'local') return { ok: true, reason: null }
+  if (user.plan === 'locked_local') {
+    bloquearApp(user)
+    return { ok: false, reason: 'locked_local' }
+  }
   if (user.plan === 'trial') {
     if (user.trialEndsAt && Date.now() > user.trialEndsAt) {
+      patchUser({ plan: 'locked_local' })
       bloquearApp(user)
       return { ok: false, reason: 'trial_expired' }
     }
     return { ok: true, reason: null }
   }
-  return { ok: true, reason: null } // guest — free access
+  return { ok: true, reason: null }
 }
 
 function upgradeTrial(email) {
@@ -259,16 +264,14 @@ function bloquearApp(user) {
         <div class="pw-feat">✅ &nbsp;Exportación PDF y Excel</div>
         <div class="pw-feat">✅ &nbsp;Sincronización en la nube (próximamente)</div>
       </div>
-      <button class="pw-cta-primary" onclick="_pw_activatePro()">⚡ Activar Pro — continuar →</button>
-      <button class="pw-cta-ghost"   onclick="_pw_continueGuest()">Continuar como invitado (funciones limitadas)</button>
+      <button class="pw-cta-primary" onclick="_pw_activatePro()">🔓 Comprar Plan Local — 5€ único</button>
     </div>
     <p class="pw-note">¿Ya tienes licencia? <a href="#" onclick="_pw_restore(event)">Restaurar acceso</a> ·
        Tus datos están seguros.</p>
   </div>`
 
-  window._pw_activatePro   = () => document.dispatchEvent(new CustomEvent('mn:upgradePro',     { detail: { source:'paywall' } }))
-  window._pw_continueGuest = () => { downgradeGuest(); window.location.reload() }
-  window._pw_restore       = (e) => { e.preventDefault(); document.dispatchEvent(new CustomEvent('mn:restoreAccess', { detail: { source:'paywall' } })) }
+  window._pw_activatePro = () => document.dispatchEvent(new CustomEvent('mn:buyLocal', { detail: { source:'paywall' } }))
+  window._pw_restore     = (e) => { e.preventDefault(); document.dispatchEvent(new CustomEvent('mn:restoreAccess', { detail: { source:'paywall' } })) }
 }
 
 // Expose on window for debugging / external use.
@@ -10185,25 +10188,80 @@ function renderFAQ() {
     </div>`
   }).join('')
 
+  try { if (!window._sugerencias) window._sugerencias = JSON.parse(localStorage.getItem('mn_sugerencias')||'[]') } catch(e) { window._sugerencias = [] }
+  const sugCats = ['General','UI / Diseño','Nuevas funciones','Rendimiento','Idioma / Traducción','Otro']
+  const sugList = (window._sugerencias||[]).map(s=>`
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;margin-bottom:8px;display:flex;gap:12px;align-items:flex-start">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:.88rem;font-weight:600;color:var(--text);margin-bottom:5px">${s.text}</div>
+        <div style="font-size:.73rem;color:var(--text3)">${s.fecha} · <span style="background:var(--border);padding:2px 8px;border-radius:99px;font-weight:600;color:var(--text2)">${s.categoria}</span>${s.tipo?` · <span style="font-size:.7rem;color:var(--accent)">${s.tipo}</span>`:''}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0">
+        <button onclick="votarSugerencia(${s.id})" style="background:var(--accent-dim);border:1px solid rgba(0,212,170,.2);color:var(--accent);border-radius:8px;padding:4px 10px;font-size:.78rem;font-weight:700;cursor:pointer;min-width:52px">👍 ${s.votos||0}</button>
+        <button onclick="borrarSugerencia(${s.id})" style="background:transparent;border:none;color:var(--text3);font-size:.72rem;cursor:pointer" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--text3)'">✕ Eliminar</button>
+      </div>
+    </div>`).join('') || `<div class="empty"><div class="empty-icon">💬</div><div class="empty-title">Aún no hay sugerencias</div><div class="empty-sub">¡Sé el primero en proponer una mejora para MoneyNest!</div></div>`
+
   document.getElementById('content').innerHTML = `
   <div class="section-header">
     <div>
-      <div class="page-h1">❓ ${t('page_faq')}</div>
-      <div class="page-sub">Guías paso a paso y respuestas a las preguntas más frecuentes</div>
+      <div class="page-h1">❓ FAQ & Sugerencias</div>
+      <div class="page-sub">Guías paso a paso, respuestas frecuentes y envío de sugerencias</div>
     </div>
   </div>
   <div class="faq-layout">
     <div class="faq-main">
       ${faqHtml}
+      <div style="margin-top:48px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
+          <div style="flex:1;height:1px;background:var(--border)"></div>
+          <div style="font-size:1.1rem;font-weight:800;color:var(--text);letter-spacing:-.02em">💡 Sugerencias</div>
+          <div style="flex:1;height:1px;background:var(--border)"></div>
+        </div>
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-title" style="margin-bottom:14px">✍️ Nueva sugerencia</div>
+          <div class="form-group">
+            <label>Tipo</label>
+            <div style="display:flex;gap:10px;margin-bottom:4px">
+              <label style="display:flex;align-items:center;gap:7px;padding:9px 14px;border-radius:var(--radius-sm);border:1.5px solid var(--border2);background:var(--bg2);cursor:pointer;flex:1;font-size:.85rem;font-weight:600;color:var(--text2);transition:all .15s" id="sug-tipo-label-sug">
+                <input type="radio" name="sug-tipo" value="Sugerencia" id="sug-tipo-sug" checked style="accent-color:var(--accent)" onchange="document.getElementById('sug-tipo-label-sug').style.borderColor='var(--accent)';document.getElementById('sug-tipo-label-sug').style.color='var(--accent)';document.getElementById('sug-tipo-label-preg').style.borderColor='var(--border2)';document.getElementById('sug-tipo-label-preg').style.color='var(--text2)'">
+                💡 ${t('sug_tipo_sug')}
+              </label>
+              <label style="display:flex;align-items:center;gap:7px;padding:9px 14px;border-radius:var(--radius-sm);border:1.5px solid var(--border2);background:var(--bg2);cursor:pointer;flex:1;font-size:.85rem;font-weight:600;color:var(--text2);transition:all .15s" id="sug-tipo-label-preg">
+                <input type="radio" name="sug-tipo" value="Pregunta" id="sug-tipo-preg" style="accent-color:var(--accent)" onchange="document.getElementById('sug-tipo-label-preg').style.borderColor='var(--accent)';document.getElementById('sug-tipo-label-preg').style.color='var(--accent)';document.getElementById('sug-tipo-label-sug').style.borderColor='var(--border2)';document.getElementById('sug-tipo-label-sug').style.color='var(--text2)'">
+                ❓ ${t('sug_tipo_preg')}
+              </label>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Categoría</label>
+            <select id="sug-cat">${sugCats.map(c=>`<option value="${c}">${c}</option>`).join('')}</select>
+          </div>
+          <div class="form-group">
+            <label>Mensaje</label>
+            <textarea id="sug-input" placeholder="${t('sug_placeholder')}" style="min-height:90px;-webkit-user-select:text;user-select:text"></textarea>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+            <button class="btn btn-primary" onclick="saveSugerencia()">${t('sug_guardar')}</button>
+            <button class="btn btn-secondary" onclick="enviarSugerenciaEmail()">${t('sug_enviar_email')}</button>
+            <button class="btn btn-ghost" onclick="copiarEmailSugerencias()" title="Copiar email" style="font-size:.78rem;padding:7px 10px">📋 Copiar email</button>
+          </div>
+          <div style="margin-top:10px;padding:8px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span style="font-size:.72rem;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.04em">Contacto:</span>
+            <span style="font-size:.82rem;font-weight:700;color:var(--accent);user-select:text;-webkit-user-select:text">invest.grid.main@gmail.com</span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header" style="margin-bottom:12px">
+            <div class="card-title">📋 Sugerencias enviadas</div>
+            <span class="badge badge-accent">${(window._sugerencias||[]).length}</span>
+          </div>
+          ${sugList}
+        </div>
+      </div>
     </div>
     <div class="faq-sidebar">
       <div class="faq-help-card">
-        <div class="faq-help-icon">💡</div>
-        <div class="faq-help-title">¿No encuentras tu respuesta?</div>
-        <div class="faq-help-sub">Envíanos tu pregunta o sugerencia y la tendremos en cuenta en la próxima versión.</div>
-        <button class="btn btn-primary" style="width:100%;margin-top:12px" onclick="goTo('sugerencias')">Ir a Sugerencias →</button>
-      </div>
-      <div class="faq-help-card" style="margin-top:12px">
         <div class="faq-help-title" style="font-size:.82rem">⚡ Acceso rápido</div>
         <div style="display:flex;flex-direction:column;gap:6px;margin-top:10px">
           <button class="btn btn-ghost btn-sm" style="justify-content:flex-start;text-align:left" onclick="goTo('dashboard')">📊 Dashboard</button>
@@ -10213,6 +10271,12 @@ function renderFAQ() {
       </div>
     </div>
   </div>`
+
+  // Highlight the initially-selected radio
+  setTimeout(()=>{
+    const lbl = document.getElementById('sug-tipo-label-sug')
+    if (lbl) { lbl.style.borderColor='var(--accent)'; lbl.style.color='var(--accent)' }
+  }, 0)
 }
 
 // ─── SUGERENCIAS ───────────────────────────────────────────────
@@ -10229,20 +10293,20 @@ function saveSugerencia() {
   window._sugerencias.unshift(sug)
   try { localStorage.setItem('mn_sugerencias', JSON.stringify(window._sugerencias)) } catch(e) {}
   toast('¡Sugerencia guardada! Gracias 🙏','success')
-  renderSugerencias()
+  renderFAQ()
 }
 
 function votarSugerencia(id) {
   const sug = window._sugerencias.find(s=>s.id===id)
   if (sug) sug.votos = (sug.votos||0)+1
   try { localStorage.setItem('mn_sugerencias', JSON.stringify(window._sugerencias)) } catch(e) {}
-  renderSugerencias()
+  renderFAQ()
 }
 
 function borrarSugerencia(id) {
   window._sugerencias = window._sugerencias.filter(s=>s.id!==id)
   try { localStorage.setItem('mn_sugerencias', JSON.stringify(window._sugerencias)) } catch(e) {}
-  renderSugerencias()
+  renderFAQ()
 }
 
 function copiarEmailSugerencias() {
@@ -11043,7 +11107,7 @@ function render() {
     billing:      renderBilling,
     patrimonio:   renderPatrimonio,
     faq:          renderFAQ,
-    sugerencias:  renderSugerencias,
+    sugerencias:  renderFAQ,
   }
   const pageKeyMap = {
     dashboard:'nav_dashboard', ingresos:'nav_ingresos', gastos:'nav_gastos',

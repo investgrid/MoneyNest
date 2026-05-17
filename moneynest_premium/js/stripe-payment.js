@@ -97,6 +97,35 @@ window.MNPayment = (() => {
     document.getElementById('mnPoSuccessSub').textContent = isLocal
       ? 'Acceso ilimitado desbloqueado sin suscripción.'
       : '7 días de prueba gratuita iniciados. Disfruta de MoneyNest Pro.';
+
+    if (!isLocal) {
+      // Store pro trial end date
+      if (window.MNAuth) {
+        const proTrialEndsAt = Date.now() + 7 * 24 * 60 * 60 * 1000;
+        window.MNAuth.patchUser({ plan: 'pro', cloudEnabled: true, proTrialEndsAt, proTrialUsed: true });
+      }
+      // Inject 7-day trial badge
+      const successEl = document.getElementById('mnPoSuccess');
+      const existingBadge = document.getElementById('mnPoProTrialBadge');
+      if (successEl && !existingBadge) {
+        const badge = document.createElement('div');
+        badge.id = 'mnPoProTrialBadge';
+        badge.innerHTML = `
+          <div style="margin-top:16px;padding:16px 20px;background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.25);border-radius:14px;text-align:center">
+            <div style="font-size:2rem;font-weight:900;color:#6366F1;letter-spacing:-.05em;line-height:1">7 días</div>
+            <div style="font-size:.75rem;font-weight:700;color:#94A3B8;margin-top:4px">de prueba gratuita incluidos</div>
+            <div style="font-size:.7rem;color:#64748B;margin-top:6px;line-height:1.5">
+              Tu tarjeta no será cobrada hasta el día 8.<br>Cancela cuando quieras.
+            </div>
+            <div style="margin-top:10px;display:flex;justify-content:center;gap:8px;flex-wrap:wrap">
+              <span style="background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.2);color:#00D4AA;padding:4px 10px;border-radius:99px;font-size:.68rem;font-weight:700">☁️ Cloud sync</span>
+              <span style="background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.2);color:#00D4AA;padding:4px 10px;border-radius:99px;font-size:.68rem;font-weight:700">🔄 Backups</span>
+              <span style="background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.2);color:#00D4AA;padding:4px 10px;border-radius:99px;font-size:.68rem;font-weight:700">⚡ Prioritario</span>
+            </div>
+          </div>`;
+        successEl.appendChild(badge);
+      }
+    }
   }
 
   // ── Payment flow ───────────────────────────────────────────────
