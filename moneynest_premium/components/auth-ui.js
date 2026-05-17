@@ -198,6 +198,8 @@ function _buildRegisterView() {
       ${_fieldPasswordStrength('mn-reg-password', _t('auth_password_nueva','Contraseña (mín. 8 caracteres)'), 'new-password')}
       ${_fieldPassword('mn-reg-password2', _t('auth_confirmar_password','Confirmar contraseña'), 'new-password')}
       <div class="mn-auth-msg" id="mn-reg-msg" style="display:none"></div>
+      <!-- Cloudflare Turnstile anti-bot widget -->
+      <div id="mn-turnstile-container" style="margin-top:2px"></div>
       <button class="mn-btn-primary mn-btn-full" id="mn-reg-submit-btn">
         ${_t('auth_crear_y_empezar','Crear cuenta y empezar →')}
       </button>
@@ -493,6 +495,8 @@ function _attachListeners(user) {
   // ── Register ─────────────────────────────────────────────────
   _on('mn-reg-submit-btn', () => _handleRegister());
   _onKey('mn-reg-password2', 'Enter', () => _handleRegister());
+  // Init Turnstile widget after DOM renders
+  setTimeout(() => _initTurnstile(), 80);
 
   // ── Forgot password ──────────────────────────────────────────
   _on('mn-forgot-submit-btn', () => _handleForgot());
@@ -599,6 +603,32 @@ async function _handleLogin() {
   }
 }
 
+// ── Turnstile state ───────────────────────────────────────────────
+let _turnstileToken = null;
+let _turnstileWidgetId = null;
+
+function _initTurnstile() {
+  const container = document.getElementById('mn-turnstile-container');
+  if (!container) return;
+  // Only init if Turnstile SDK loaded and site key configured
+  const siteKey = window._MN_TURNSTILE_SITE_KEY;
+  if (!siteKey || typeof window.turnstile === 'undefined') return;
+  try {
+    _turnstileToken = null;
+    if (_turnstileWidgetId !== null) {
+      try { window.turnstile.remove(_turnstileWidgetId); } catch(_) {}
+    }
+    _turnstileWidgetId = window.turnstile.render(container, {
+      sitekey:  siteKey,
+      theme:    document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark',
+      size:     'flexible',
+      callback: (token) => { _turnstileToken = token; },
+      'expired-callback': () => { _turnstileToken = null; },
+      'error-callback':   () => { _turnstileToken = null; },
+    });
+  } catch(_) {}
+}
+
 async function _handleRegister() {
   if (_modalLoading) return;
   const email = _val('mn-reg-email');
@@ -611,6 +641,10 @@ async function _handleRegister() {
   if (!_validEmail(email)) { _showMsg(msg, '⚠ ' + _t('auth_error_email','Email no válido.'), 'error'); return; }
   if (pass.length < 8) { _showMsg(msg, '⚠ ' + _t('auth_error_pw_corta','La contraseña debe tener al menos 8 caracteres.'), 'error'); return; }
   if (pass !== pass2) { _showMsg(msg, '⚠ ' + _t('auth_error_pw_no_coincide','Las contraseñas no coinciden.'), 'error'); return; }
+  // Turnstile check — only if configured (sitekey present)
+  if (window._MN_TURNSTILE_SITE_KEY && !_turnstileToken) {
+    _showMsg(msg, '⚠ Completa la verificación anti-bot.', 'error'); return;
+  }
 
   _setBtnLoading(btn, true, _t('auth_creando','Creando cuenta…'));
   _modalLoading = true;
@@ -618,8 +652,9 @@ async function _handleRegister() {
     const data = await window.MNSupabaseAuth.signUp(email, pass);
 
     if (data.user && !data.session) {
-      // Email confirmation required
       _auth.upgradeTrial && _auth.upgradeTrial(email);
+      // Send welcome email in background
+      if (window.MNEmail) MNEmail.sendWelcome(email, '');
       _showMsg(msg, '✅ ' + _t('auth_confirma_email','¡Cuenta creada! Revisa tu email para confirmar.'), 'ok');
       setTimeout(() => {
         closeAuthModal();
@@ -629,6 +664,7 @@ async function _handleRegister() {
       }, 2500);
     } else if (data.session) {
       _auth.upgradeTrial && _auth.upgradeTrial(email);
+      if (window.MNEmail) MNEmail.sendWelcome(email, '');
       _toast('✅ ' + _t('auth_cuenta_creada','¡Cuenta creada y sesión iniciada!'));
       closeAuthModal();
       renderAuthBadge();

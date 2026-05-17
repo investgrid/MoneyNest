@@ -9717,17 +9717,18 @@ async function _obRegisterSupabase() {
   if (!obData.email || !obData.password) return
   if (!window.MNSupabaseAuth) return
   try {
-    await window.MNSupabaseAuth.signUp(obData.email, obData.password)
+    const data = await window.MNSupabaseAuth.signUp(obData.email, obData.password)
     if (typeof window.MNAuth !== 'undefined') {
       window.MNAuth.upgradeTrial(obData.email)
     }
+    // Send welcome email in background
+    if (window.MNEmail) MNEmail.sendWelcome(obData.email, obData.nombre || '')
     if (window.MNAuthUI) {
       window.MNAuthUI.renderAuthBadge('authPlanBadge')
       window.MNAuthUI.renderTrialPill('trialPillContainer')
     }
   } catch (err) {
-    // Si ya existe la cuenta, intentar login silencioso
-    if (err?.message?.includes('already registered')) {
+    if (err?.message?.includes('already registered') || err?.code === 'email_exists') {
       try {
         await window.MNSupabaseAuth.signIn(obData.email, obData.password)
         if (window.MNAuthUI) {
@@ -9736,7 +9737,6 @@ async function _obRegisterSupabase() {
         }
       } catch (_) {}
     }
-    // No bloqueamos el flujo si falla — funciona local de todas formas
   }
 }
 
