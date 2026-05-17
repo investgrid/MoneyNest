@@ -10323,17 +10323,39 @@ function _copiarEmailFallback(email) {
 }
 
 function enviarSugerenciaEmail() {
-  const input = document.getElementById('sug-input')
-  const cat = document.getElementById('sug-cat')
+  const input  = document.getElementById('sug-input')
+  const cat    = document.getElementById('sug-cat')
   const tipoEl = document.querySelector('input[name="sug-tipo"]:checked')
   if (!input) return
   const text = (input.value||'').trim()
   if (!text) { toast('Escribe un mensaje primero','error'); return }
-  const tipo = tipoEl?.value || 'Sugerencia'
-  const categoria = cat?.value || 'General'
-  const subject = encodeURIComponent(`[MoneyNest] ${tipo}: ${categoria}`)
-  const body = encodeURIComponent(`Tipo: ${tipo}\nCategoría: ${categoria}\n\n${text}\n\n---\nMoneyNest v${VERSION} · ${_currentLang.toUpperCase()}`)
-  window.location.href = `mailto:invest.grid.main@gmail.com?subject=${subject}&body=${body}`
+
+  const tipo      = tipoEl?.value || 'Sugerencia'
+  const categoria = cat?.value    || 'General'
+  const userEmail = window.MNSupabaseAuth?.getEmail() || MNAuth?.getUser()?.email || ''
+
+  const btn = document.querySelector('[onclick="enviarSugerenciaEmail()"]')
+  if (btn) { btn.disabled = true; btn.textContent = 'Enviando…' }
+
+  fetch('https://jwddciqqhmfkbqhdrfre.supabase.co/functions/v1/send-email', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp3ZGRjaXFxaG1ma2JxaGRyZnJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3NjkyMjcsImV4cCI6MjA5NDM0NTIyN30.Gqz39AWpW1BkWXhfhnR_vOUYUy93bgdSNvBfXYQ3VGk' },
+    body: JSON.stringify({ type: 'sugerencia', tipo, categoria, mensaje: text, userEmail }),
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.ok) {
+      toast('✅ Sugerencia enviada directamente. ¡Gracias!', 'success')
+      if (input) input.value = ''
+      renderFAQ()
+    } else {
+      toast('⚠ Error al enviar: ' + (data.error || 'inténtalo de nuevo'), 'error')
+    }
+  })
+  .catch(() => toast('⚠ No se pudo enviar. Comprueba tu conexión.', 'error'))
+  .finally(() => {
+    if (btn) { btn.disabled = false; btn.textContent = '📧 Enviar por email' }
+  })
 }
 
 function renderSugerencias() {

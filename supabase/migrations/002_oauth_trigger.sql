@@ -1,23 +1,23 @@
 -- ════════════════════════════════════════════════════════════════
---  MoneyNest Migration 002 — OAuth support + auto-profile trigger
+--  MoneyNest Migration 002
+--  Ejecuta este SQL en Supabase → SQL Editor (todo de una vez)
 -- ════════════════════════════════════════════════════════════════
 
--- ── Add OAuth/display columns to profiles ──────────────────────
-ALTER TABLE profiles ADD COLUMN IF NOT EXISTS provider     TEXT    DEFAULT 'email';
-ALTER TABLE profiles ADD COLUMN IF NOT EXISTS display_name TEXT;
-ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar_url   TEXT;
+-- ── 1. Añadir columnas nuevas a profiles ─────────────────────────
+ALTER TABLE public.profiles
+  ADD COLUMN IF NOT EXISTS provider     TEXT DEFAULT 'email',
+  ADD COLUMN IF NOT EXISTS display_name TEXT,
+  ADD COLUMN IF NOT EXISTS avatar_url   TEXT;
 
--- ── Relax email unique to allow NULL for edge cases ────────────
--- (email is still present for email/password users; OAuth users
---  always have email in Supabase auth.users anyway)
-
--- ── Auto-create profile on new Supabase auth user ──────────────
--- This handles BOTH email/password AND OAuth signups.
--- ON CONFLICT (id) DO NOTHING prevents trial reset for returning users.
-CREATE OR REPLACE FUNCTION handle_new_user()
-RETURNS TRIGGER AS $$
+-- ── 2. Función trigger — se ejecuta al crear usuario en auth ──────
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 BEGIN
-  INSERT INTO profiles (
+  INSERT INTO public.profiles (
     id,
     email,
     plan,
@@ -28,65 +28,59 @@ BEGIN
   )
   VALUES (
     NEW.id,
-    NEW.email,
+    COALESCE(NEW.email, ''),
     'trial',
     NOW() + INTERVAL '24 hours',
     COALESCE(NEW.raw_app_meta_data->>'provider', 'email'),
-    COALESCE(
-      NEW.raw_user_meta_data->>'full_name',
-      NEW.raw_user_meta_data->>'name',
-      NULL
-    ),
-    COALESCE(NEW.raw_user_meta_data->>'avatar_url', NULL)
+    COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'name'),
+    NEW.raw_user_meta_data->>'avatar_url'
   )
   ON CONFLICT (id) DO NOTHING;
+
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
--- Drop if exists then recreate
+-- ── 3. Trigger sobre auth.users ───────────────────────────────────
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION handle_new_user();
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_new_user();
 
--- ── RLS: allow profile insert from trigger (service role) ──────
--- Service role bypasses RLS, so the trigger always works.
--- These policies cover the anon/authenticated client:
-
--- Drop existing policies to recreate cleanly
-DROP POLICY IF EXISTS "Users can view own profile"   ON profiles;
-DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
-DROP POLICY IF EXISTS "Users can insert own profile" ON profiles;
+-- ── 4. RLS policies ───────────────────────────────────────────────
+DROP POLICY IF EXISTS "Users can view own profile"   ON public.profiles;
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Users can insert own profile" ON public.profiles;
 
 CREATE POLICY "Users can view own profile"
-  ON profiles FOR SELECT
+  ON public.profiles FOR SELECT
   USING (auth.uid() = id);
 
 CREATE POLICY "Users can update own profile"
-  ON profiles FOR UPDATE
+  ON public.profiles FOR UPDATE
   USING (auth.uid() = id)
   WITH CHECK (auth.uid() = id);
 
--- Authenticated users can insert their own profile as fallback
--- (trigger should handle it, but this covers edge cases)
 CREATE POLICY "Users can insert own profile"
-  ON profiles FOR INSERT
+  ON public.profiles FOR INSERT
   WITH CHECK (auth.uid() = id);
 
--- ── Function: get_my_plan — safe RPC for frontend ──────────────
--- Returns the current plan for the authenticated user.
--- Used as fallback when profile read is needed without knowing id.
-CREATE OR REPLACE FUNCTION get_my_plan()
+-- ── 5. RPC seguro para leer el plan del usuario actual ────────────
+CREATE OR REPLACE FUNCTION public.get_my_plan()
 RETURNS TABLE(plan TEXT, trial_ends_at TIMESTAMPTZ, pro_trial_ends_at TIMESTAMPTZ)
-LANGUAGE plpgsql SECURITY DEFINER AS $$
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 BEGIN
   RETURN QUERY
     SELECT p.plan, p.trial_ends_at, p.pro_trial_ends_at
-    FROM profiles p
+    FROM public.profiles p
     WHERE p.id = auth.uid();
 END;
 $$;
 
--- ── Index for provider lookups ────────────────────────────────
-CREATE INDEX IF NOT EXISTS idx_profiles_provider ON profiles(provider);
+-- ── 6. Índice para búsquedas por provider ─────────────────────────
+CREATE INDEX IF NOT EXISTS idx_profiles_provider ON public.profiles(provider);
