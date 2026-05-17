@@ -217,7 +217,22 @@ Deno.serve(async (req) => {
     handlerError = err instanceof Error ? err.message : 'handler_error';
   }
 
-  await logEvent(event.id, event.type, event.data.object, null, handlerError);
+  // Try to resolve user_id from customer email for audit log
+  let auditUserId: string | null = null;
+  try {
+    const obj = event.data.object as Record<string, unknown>;
+    const custEmail =
+      (obj.customer_email as string) ||
+      ((obj.customer_details as Record<string, string>)?.email) ||
+      (obj.email as string) || '';
+    if (custEmail) {
+      const { data: p } = await supabase
+        .from('profiles').select('id').eq('email', custEmail).maybeSingle();
+      auditUserId = p?.id ?? null;
+    }
+  } catch (_) {}
+
+  await logEvent(event.id, event.type, event.data.object, auditUserId, handlerError);
 
   if (handlerError) return json({ error: handlerError }, 500);
   return json({ received: true });

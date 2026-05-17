@@ -1,30 +1,44 @@
 /**
- * MoneyNest — components/auth-ui.js  v3.0
- * Modal de autenticación real: registro, login, resetear contraseña,
- * y gestión de plan (Local / Pro).
+ * MoneyNest — components/auth-ui.js  v4.0
+ * Production auth modal: email/password, Google, Apple,
+ * update-password, plan management. Fully integrated with
+ * the app's i18n, dark/light mode, and design system.
  *
- * Dependencias:
- *   • js/auth.js         → window.MNAuth  (estado local)
- *   • js/supabase-auth.js→ window.MNSupabaseAuth (Supabase Auth)
+ * Dependencies:
+ *   • js/auth.js           → window.MNAuth
+ *   • js/supabase-auth.js  → window.MNSupabaseAuth
  */
 'use strict';
 
+// ─── Auth dependency resolver ────────────────────────────────────
 const _auth = (() => {
   if (typeof window !== 'undefined' && window.MNAuth) return window.MNAuth;
-  return new Proxy({}, { get(_, k) { throw new Error(`[MNAuthUI] MNAuth.${k} no disponible`); } });
+  return new Proxy({}, { get(_, k) { throw new Error(`[MNAuthUI] MNAuth.${k} not available`); } });
 })();
 
+// ─── Design tokens (match app design system) ─────────────────────
 const C = {
   accent:     '#00D4AA',
   accentDark: '#00A882',
   indigo:     '#6366F1',
   indigoDark: '#4F46E5',
   red:        '#F43F5E',
+  gold:       '#F59E0B',
 };
 
-// ─── Modo interno del modal ──────────────────────────────────────
-// 'plan' | 'login' | 'register' | 'forgot'
+// ─── i18n helper — uses app's t() if available ───────────────────
+function _t(key, fallback) {
+  if (typeof window.t === 'function') {
+    const val = window.t(key);
+    return (val && val !== key) ? val : fallback;
+  }
+  return fallback;
+}
+
+// ─── Modal mode ──────────────────────────────────────────────────
+// 'plan' | 'login' | 'register' | 'forgot' | 'update-password'
 let _modalMode = 'plan';
+let _modalLoading = false;
 
 
 // ════════════════════════════════════════════════════════════════
@@ -35,7 +49,8 @@ function initAuthUI() {
   if (!document.getElementById('authModal')) _injectModalShell();
   _injectGlobalStyles();
 
-  document.addEventListener('mn:buyLocal',      () => showAuthModal());
+  // Paywall events — both open the correct modal view
+  document.addEventListener('mn:buyLocal',      () => showAuthModal('plan'));
   document.addEventListener('mn:restoreAccess', () => showAuthModal('login'));
 }
 
@@ -44,10 +59,10 @@ function showAuthModal(mode) {
   const card  = document.getElementById('authModalCard');
   if (!modal || !card) return;
 
-  const user = _auth.getUser();
+  const user      = _auth.getUser();
   const isLoggedIn = window.MNSupabaseAuth?.isLoggedIn() ?? false;
 
-  // Si ya está autenticado con Supabase, mostrar vista de plan
+  // Route: if requesting login but already logged in → show plan
   if (mode === 'login' && isLoggedIn) mode = 'plan';
   _modalMode = mode || (isLoggedIn ? 'plan' : 'login');
 
@@ -60,6 +75,7 @@ function showAuthModal(mode) {
 function closeAuthModal() {
   const modal = document.getElementById('authModal');
   if (modal) modal.style.display = 'none';
+  _modalLoading = false;
 }
 
 function renderAuthBadge(containerId = 'authPlanBadge') {
@@ -73,7 +89,7 @@ function renderAuthBadge(containerId = 'authPlanBadge') {
       color:${cfg.color};font-size:.7rem;font-weight:700;
       text-transform:uppercase;letter-spacing:.08em;
       padding:4px 10px;border-radius:99px;cursor:pointer;transition:all .18s;"
-      onclick="MNAuthUI.showAuthModal()" title="Ver mi plan">
+      onclick="MNAuthUI.showAuthModal()" title="${_t('auth_ver_plan','Ver mi plan')}">
       ${cfg.icon} ${cfg.label}
     </div>`;
 }
@@ -89,7 +105,7 @@ function renderTrialPill(containerId = 'trialPillContainer') {
       background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.25);
       color:${C.indigo};font-size:.72rem;font-weight:700;
       padding:5px 12px;border-radius:99px;transition:all .18s;"
-      onclick="MNAuthUI.showAuthModal()" title="Tiempo de prueba restante">
+      onclick="MNAuthUI.showAuthModal()" title="${_t('auth_trial_restante','Tiempo de prueba restante')}">
       ⏳ Trial: ${label}
     </div>`;
   if (!el._mnTimerId) {
@@ -99,284 +115,285 @@ function renderTrialPill(containerId = 'trialPillContainer') {
 
 
 // ════════════════════════════════════════════════════════════════
-//  ROUTING DE CONTENIDO
+//  CONTENT ROUTER
 // ════════════════════════════════════════════════════════════════
 
 function _buildContent(user) {
   const isLoggedIn = window.MNSupabaseAuth?.isLoggedIn() ?? false;
 
-  if (_modalMode === 'login')    return _buildLoginContent();
-  if (_modalMode === 'register') return _buildRegisterContent();
-  if (_modalMode === 'forgot')   return _buildForgotContent();
+  if (_modalMode === 'login')           return _buildLoginView();
+  if (_modalMode === 'register')        return _buildRegisterView();
+  if (_modalMode === 'forgot')          return _buildForgotView();
+  if (_modalMode === 'update-password') return _buildUpdatePasswordView();
 
-  // Plan view — muestra diferente según plan y si tiene sesión
-  if (!isLoggedIn) return _buildNotLoggedPlanContent(user);
+  // Plan views
+  if (!isLoggedIn) return _buildGuestPlanView(user);
 
   switch (user.plan) {
-    case 'trial':        return _buildTrialContent(user);
-    case 'locked_local': return _buildLockedContent(user);
-    case 'local':        return _buildLocalContent(user);
-    case 'pro':          return _buildProContent(user);
-    default:             return _buildTrialContent(user);
+    case 'trial':        return _buildTrialView(user);
+    case 'locked_local': return _buildLockedView(user);
+    case 'local':        return _buildLocalView(user);
+    case 'pro':          return _buildProView(user);
+    default:             return _buildTrialView(user);
   }
 }
 
 
 // ════════════════════════════════════════════════════════════════
-//  VISTAS DE AUTH (login / registro / forgot)
+//  AUTH VIEWS
 // ════════════════════════════════════════════════════════════════
 
-function _buildLoginContent() {
-  return /* html */`
+function _buildLoginView() {
+  return `
+    ${_closeBtn()}
     <div class="mn-auth-modal-header">
-      <div style="font-size:.68rem;font-weight:700;color:var(--text3,#94A3B8);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">Cuenta MoneyNest</div>
-      <div style="font-size:1.25rem;font-weight:800;color:${C.accent};letter-spacing:-.03em">Iniciar sesión</div>
+      <div class="mn-auth-eyebrow">${_t('auth_cuenta','Cuenta MoneyNest')}</div>
+      <div class="mn-auth-headline" style="color:${C.accent}">${_t('auth_iniciar_sesion','Iniciar sesión')}</div>
     </div>
 
-    <div class="mn-auth-section">
-      <div class="mn-auth-form-col" id="mn-login-form">
-        <div class="mn-auth-field-wrap">
-          <label class="mn-auth-field-label">Correo electrónico</label>
-          <input class="mn-auth-input" type="email" id="mn-login-email" placeholder="tu@email.com" autocomplete="email">
-        </div>
-        <div class="mn-auth-field-wrap">
-          <label class="mn-auth-field-label">Contraseña</label>
-          <div style="position:relative">
-            <input class="mn-auth-input" type="password" id="mn-login-password" placeholder="Tu contraseña" autocomplete="current-password" style="padding-right:40px">
-            <button class="mn-pw-toggle-btn" onclick="_mnTogglePw('mn-login-password',this)" tabindex="-1">👁</button>
-          </div>
-        </div>
-        <div class="mn-auth-msg" id="mn-login-msg" style="display:none"></div>
-        <button class="mn-btn-primary mn-btn-full" id="mn-login-submit-btn" style="margin-top:4px">
-          Entrar
-        </button>
-      </div>
-      <div style="text-align:center;margin-top:10px">
-        <button class="mn-link-btn" id="mn-forgot-link">¿Olvidaste tu contraseña?</button>
-      </div>
+    ${_oauthButtons()}
+
+    <div class="mn-auth-or"><span>${_t('auth_o','o continúa con email')}</span></div>
+
+    <div class="mn-auth-form-col">
+      ${_field('email', 'mn-login-email', _t('auth_email','Correo electrónico'), 'email', 'tu@email.com', 'email')}
+      ${_fieldPassword('mn-login-password', _t('auth_password','Contraseña'), 'current-password')}
+      <div class="mn-auth-msg" id="mn-login-msg" style="display:none"></div>
+      <button class="mn-btn-primary mn-btn-full" id="mn-login-submit-btn">
+        ${_t('auth_entrar','Entrar')}
+      </button>
+    </div>
+
+    <div style="text-align:center;margin-top:10px">
+      <button class="mn-link-btn" id="mn-forgot-link">${_t('auth_olvide_contrasena','¿Olvidaste tu contraseña?')}</button>
     </div>
 
     <div class="mn-auth-divider"></div>
 
     <div style="text-align:center">
-      <span style="font-size:.8rem;color:var(--text2,#94A3B8)">¿Nuevo en MoneyNest? </span>
-      <button class="mn-link-btn mn-link-btn--accent" id="mn-go-register">Crear cuenta →</button>
-    </div>
-  `;
+      <span style="font-size:.8rem;color:var(--text2,#94A3B8)">${_t('auth_nuevo','¿Nuevo en MoneyNest?')} </span>
+      <button class="mn-link-btn mn-link-btn--accent" id="mn-go-register">${_t('auth_crear_cuenta','Crear cuenta →')}</button>
+    </div>`;
 }
 
-function _buildRegisterContent() {
-  return /* html */`
+function _buildRegisterView() {
+  return `
+    ${_closeBtn()}
     <div class="mn-auth-modal-header">
-      <div style="font-size:.68rem;font-weight:700;color:var(--text3,#94A3B8);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">Cuenta MoneyNest</div>
-      <div style="font-size:1.25rem;font-weight:800;color:${C.accent};letter-spacing:-.03em">Crear cuenta</div>
+      <div class="mn-auth-eyebrow">${_t('auth_cuenta','Cuenta MoneyNest')}</div>
+      <div class="mn-auth-headline" style="color:${C.accent}">${_t('auth_crear_cuenta_titulo','Crear cuenta')}</div>
     </div>
 
     <div class="mn-auth-trial-note">
-      <span style="font-weight:700;color:${C.accent}">⏳ 24h gratis</span>
-      &nbsp;— Registrarte activa tu prueba gratuita. Sin tarjeta requerida.
+      <span style="font-weight:700;color:${C.accent}">⏳ ${_t('auth_24h_gratis','24h gratis')}</span>
+      &nbsp;— ${_t('auth_24h_desc','Registrarte activa tu prueba gratuita. Sin tarjeta.')}
     </div>
 
-    <div class="mn-auth-section">
-      <div class="mn-auth-form-col" id="mn-register-form">
-        <div class="mn-auth-field-wrap">
-          <label class="mn-auth-field-label">Correo electrónico</label>
-          <input class="mn-auth-input" type="email" id="mn-reg-email" placeholder="tu@email.com" autocomplete="email">
-        </div>
-        <div class="mn-auth-field-wrap">
-          <label class="mn-auth-field-label">Contraseña</label>
-          <div style="position:relative">
-            <input class="mn-auth-input" type="password" id="mn-reg-password" placeholder="Mínimo 8 caracteres" autocomplete="new-password" style="padding-right:40px"
-              oninput="_mnCheckPwStrength(this.value)">
-            <button class="mn-pw-toggle-btn" onclick="_mnTogglePw('mn-reg-password',this)" tabindex="-1">👁</button>
-          </div>
-          <div class="mn-pw-strength-bar" id="mn-reg-pw-strength" style="display:none">
-            <div class="mn-pw-bar-track"><div class="mn-pw-bar-fill" id="mn-reg-pw-fill"></div></div>
-            <span class="mn-pw-bar-label" id="mn-reg-pw-label"></span>
-          </div>
-        </div>
-        <div class="mn-auth-field-wrap">
-          <label class="mn-auth-field-label">Confirmar contraseña</label>
-          <div style="position:relative">
-            <input class="mn-auth-input" type="password" id="mn-reg-password2" placeholder="Repite la contraseña" autocomplete="new-password" style="padding-right:40px">
-            <button class="mn-pw-toggle-btn" onclick="_mnTogglePw('mn-reg-password2',this)" tabindex="-1">👁</button>
-          </div>
-        </div>
-        <div class="mn-auth-msg" id="mn-reg-msg" style="display:none"></div>
-        <button class="mn-btn-primary mn-btn-full" id="mn-reg-submit-btn" style="margin-top:4px">
-          Crear cuenta y empezar →
-        </button>
-      </div>
+    ${_oauthButtons()}
+
+    <div class="mn-auth-or"><span>${_t('auth_o','o continúa con email')}</span></div>
+
+    <div class="mn-auth-form-col">
+      ${_field('email', 'mn-reg-email', _t('auth_email','Correo electrónico'), 'email', 'tu@email.com', 'email')}
+      ${_fieldPasswordStrength('mn-reg-password', _t('auth_password_nueva','Contraseña (mín. 8 caracteres)'), 'new-password')}
+      ${_fieldPassword('mn-reg-password2', _t('auth_confirmar_password','Confirmar contraseña'), 'new-password')}
+      <div class="mn-auth-msg" id="mn-reg-msg" style="display:none"></div>
+      <button class="mn-btn-primary mn-btn-full" id="mn-reg-submit-btn">
+        ${_t('auth_crear_y_empezar','Crear cuenta y empezar →')}
+      </button>
     </div>
 
     <div class="mn-auth-divider"></div>
 
     <div style="text-align:center">
-      <span style="font-size:.8rem;color:var(--text2,#94A3B8)">¿Ya tienes cuenta? </span>
-      <button class="mn-link-btn mn-link-btn--accent" id="mn-go-login">Iniciar sesión</button>
-    </div>
-  `;
+      <span style="font-size:.8rem;color:var(--text2,#94A3B8)">${_t('auth_ya_tienes','¿Ya tienes cuenta?')} </span>
+      <button class="mn-link-btn mn-link-btn--accent" id="mn-go-login">${_t('auth_iniciar_sesion_link','Iniciar sesión')}</button>
+    </div>`;
 }
 
-function _buildForgotContent() {
-  return /* html */`
+function _buildForgotView() {
+  return `
+    ${_closeBtn()}
     <div class="mn-auth-modal-header">
-      <div style="font-size:.68rem;font-weight:700;color:var(--text3,#94A3B8);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">Recuperar acceso</div>
-      <div style="font-size:1.25rem;font-weight:800;color:${C.indigo};letter-spacing:-.03em">Resetear contraseña</div>
+      <div class="mn-auth-eyebrow">${_t('auth_recuperar','Recuperar acceso')}</div>
+      <div class="mn-auth-headline" style="color:${C.indigo}">${_t('auth_resetear','Resetear contraseña')}</div>
     </div>
 
     <p style="font-size:.82rem;color:var(--text2,#94A3B8);line-height:1.65;margin-bottom:16px">
-      Te enviaremos un enlace para restablecer tu contraseña al correo que indicaste al registrarte.
+      ${_t('auth_reset_desc','Te enviaremos un enlace para restablecer tu contraseña.')}
     </p>
 
     <div class="mn-auth-form-col">
-      <div class="mn-auth-field-wrap">
-        <label class="mn-auth-field-label">Correo electrónico</label>
-        <input class="mn-auth-input" type="email" id="mn-forgot-email" placeholder="tu@email.com" autocomplete="email">
-      </div>
+      ${_field('email', 'mn-forgot-email', _t('auth_email','Correo electrónico'), 'email', 'tu@email.com', 'email')}
       <div class="mn-auth-msg" id="mn-forgot-msg" style="display:none"></div>
-      <button class="mn-btn-primary mn-btn-full" id="mn-forgot-submit-btn" style="margin-top:4px">
-        Enviar enlace de reseteo
+      <button class="mn-btn-primary mn-btn-full" id="mn-forgot-submit-btn">
+        ${_t('auth_enviar_enlace','Enviar enlace de reseteo')}
       </button>
     </div>
 
     <div class="mn-auth-divider"></div>
-
     <div style="text-align:center">
-      <button class="mn-link-btn" id="mn-back-to-login">← Volver al login</button>
-    </div>
-  `;
+      <button class="mn-link-btn" id="mn-back-to-login">← ${_t('auth_volver_login','Volver al login')}</button>
+    </div>`;
 }
 
-// ── Vista cuando no hay sesión activa ────────────────────────────
-function _buildNotLoggedPlanContent(user) {
+function _buildUpdatePasswordView() {
+  return `
+    ${_closeBtn()}
+    <div class="mn-auth-modal-header">
+      <div class="mn-auth-eyebrow">${_t('auth_seguridad','Seguridad')}</div>
+      <div class="mn-auth-headline" style="color:${C.accent}">${_t('auth_nueva_contrasena','Nueva contraseña')}</div>
+    </div>
+
+    <p style="font-size:.82rem;color:var(--text2,#94A3B8);line-height:1.65;margin-bottom:16px">
+      ${_t('auth_nueva_pw_desc','Elige una contraseña segura para tu cuenta MoneyNest.')}
+    </p>
+
+    <div class="mn-auth-form-col">
+      ${_fieldPasswordStrength('mn-newpw-password', _t('auth_nueva_contrasena','Nueva contraseña'), 'new-password')}
+      ${_fieldPassword('mn-newpw-password2', _t('auth_confirmar_password','Confirmar contraseña'), 'new-password')}
+      <div class="mn-auth-msg" id="mn-newpw-msg" style="display:none"></div>
+      <button class="mn-btn-primary mn-btn-full" id="mn-newpw-submit-btn">
+        ${_t('auth_guardar_contrasena','Guardar contraseña')}
+      </button>
+    </div>`;
+}
+
+
+// ════════════════════════════════════════════════════════════════
+//  PLAN VIEWS
+// ════════════════════════════════════════════════════════════════
+
+function _buildGuestPlanView(user) {
   const timeLabel = _auth.trialTimeLeftLabel ? _auth.trialTimeLeftLabel() : '—';
-  const hoursLeft = _auth.trialHoursLeft ? _auth.trialHoursLeft() : 0;
+  const hoursLeft = _auth.trialHoursLeft     ? _auth.trialHoursLeft()     : 0;
   const pct       = Math.min(100, Math.round((hoursLeft / 24) * 100));
 
-  return /* html */`
-    ${_modalHeader('⏳ Plan de prueba', C.indigo)}
+  return `
+    ${_closeBtn()}
+    ${_planHeader(_t('auth_plan_prueba','⏳ Plan de prueba'), C.indigo)}
 
     <div class="mn-auth-trial-box">
       <div class="mn-auth-trial-time">${timeLabel}</div>
-      <div class="mn-auth-trial-label">tiempo de prueba restante</div>
+      <div class="mn-auth-trial-label">${_t('auth_tiempo_restante','tiempo de prueba restante')}</div>
       <div class="mn-auth-progress-track">
         <div class="mn-auth-progress-bar" style="width:${pct}%;background:${pct > 25 ? C.indigo : C.red}"></div>
       </div>
     </div>
 
     <p style="font-size:.82rem;color:var(--text2,#94A3B8);line-height:1.65;margin-bottom:16px">
-      Regístrate para guardar tu cuenta y que el trial de 24h esté asociado a tu email. O inicia sesión si ya tienes cuenta.
+      ${_t('auth_registrate_desc','Regístrate para que tu trial de 24h quede asociado a tu email y puedas recuperar el acceso desde cualquier dispositivo.')}
     </p>
 
     <button class="mn-btn-primary mn-btn-full" id="mn-go-register-cta">
-      Crear cuenta gratuita →
+      ${_t('auth_crear_cuenta_gratis','Crear cuenta gratuita →')}
     </button>
     <div style="text-align:center;margin-top:10px">
-      <button class="mn-link-btn" id="mn-go-login-link">Ya tengo cuenta — Iniciar sesión</button>
+      <button class="mn-link-btn" id="mn-go-login-link">${_t('auth_ya_tengo_cuenta','Ya tengo cuenta — Iniciar sesión')}</button>
     </div>
 
     <div class="mn-auth-divider"></div>
 
     <div class="mn-auth-cta-box">
-      <div class="mn-auth-cta-label">🔓 Desbloquear ahora</div>
-      <div class="mn-auth-cta-desc">Con el Plan Local (5€ único) nunca expira.</div>
+      <div class="mn-auth-cta-label">🔓 ${_t('auth_desbloquear_ahora','Desbloquear ahora')}</div>
+      <div class="mn-auth-cta-desc">${_t('auth_plan_local_desc','Con el Plan Local (5€ único) nunca expira.')}</div>
       <button class="mn-btn-secondary mn-btn-full" id="mn-buy-local-btn" style="margin-top:12px">
-        💾 Comprar Plan Local — 5€ →
+        💾 ${_t('auth_comprar_local','Comprar Plan Local — 5€ →')}
       </button>
     </div>
 
-    ${_modalFooter(user)}
-  `;
+    ${_modalFooter(user)}`;
 }
 
+function _buildTrialView(user) {
+  const timeLabel  = _auth.trialTimeLeftLabel ? _auth.trialTimeLeftLabel() : '—';
+  const hoursLeft  = _auth.trialHoursLeft     ? _auth.trialHoursLeft()     : 0;
+  const pct        = Math.min(100, Math.round((hoursLeft / 24) * 100));
+  const email      = window.MNSupabaseAuth?.getEmail() || user.email || '';
+  const isLoggedIn = !!email;
 
-// ════════════════════════════════════════════════════════════════
-//  VISTAS DE PLAN (usuario autenticado)
-// ════════════════════════════════════════════════════════════════
-
-function _buildTrialContent(user) {
-  const hoursLeft = _auth.trialHoursLeft ? _auth.trialHoursLeft() : 0;
-  const timeLabel = _auth.trialTimeLeftLabel ? _auth.trialTimeLeftLabel() : '—';
-  const pct       = Math.min(100, Math.round((hoursLeft / 24) * 100));
-  const email     = window.MNSupabaseAuth?.getEmail() || user.email || '';
-
-  return /* html */`
-    ${_modalHeader('⏳ Plan de prueba', C.indigo)}
+  return `
+    ${_closeBtn()}
+    ${_planHeader(_t('auth_plan_prueba','⏳ Plan de prueba'), C.indigo)}
 
     <div class="mn-auth-trial-box">
       <div class="mn-auth-trial-time">${timeLabel}</div>
-      <div class="mn-auth-trial-label">tiempo de prueba restante</div>
+      <div class="mn-auth-trial-label">${_t('auth_tiempo_restante','tiempo de prueba restante')}</div>
       <div class="mn-auth-progress-track">
         <div class="mn-auth-progress-bar" style="width:${pct}%;background:${pct > 25 ? C.indigo : C.red}"></div>
       </div>
     </div>
 
-    ${email ? `<div style="text-align:center;font-size:.78rem;color:var(--text2,#94A3B8);margin-bottom:12px">✅ Sesión activa: <strong style="color:var(--text,#E8EFF7)">${email}</strong></div>` : ''}
+    ${isLoggedIn ? `<div class="mn-auth-session-chip">✅ ${_t('auth_sesion_activa','Sesión activa')}: <strong>${email}</strong></div>` : ''}
 
     <div class="mn-auth-cta-box">
-      <div class="mn-auth-cta-label">🔒 ¿Qué pasa cuando expire el trial?</div>
-      <div class="mn-auth-cta-desc">La app se bloqueará. Con el Plan Local (5€ único) se desbloquea para siempre.</div>
+      <div class="mn-auth-cta-label">🔒 ${_t('auth_que_pasa','¿Qué pasa cuando expire?')}</div>
+      <div class="mn-auth-cta-desc">${_t('auth_plan_local_cta_desc','La app se bloqueará. Con el Plan Local (5€ único) se desbloquea para siempre.')}</div>
       <button class="mn-btn-primary mn-btn-full" id="mn-buy-local-btn" style="margin-top:12px">
-        🔓 Comprar Plan Local — 5€ pago único
+        🔓 ${_t('auth_comprar_local','Comprar Plan Local — 5€ pago único')}
       </button>
-      <div style="text-align:center;margin:8px 0;font-size:.72rem;color:var(--text3,#64748B)">— o —</div>
+      <div style="text-align:center;margin:10px 0;font-size:.72rem;color:var(--text3,#64748B)">— ${_t('auth_o_bundle','o')} —</div>
       <button class="mn-btn-pro mn-btn-full" id="mn-buy-bundle-btn">
-        ⚡ Local + Pro — 10€ (ahorra el doble proceso)
+        ⚡ ${_t('auth_bundle','Local + Pro — 10€')}
       </button>
-      <div style="font-size:.68rem;color:var(--text3,#64748B);text-align:center;margin-top:6px">Local de por vida + Pro anual con 7 días gratis incluidos</div>
+      <div style="font-size:.68rem;color:var(--text3,#64748B);text-align:center;margin-top:6px">
+        ${_t('auth_bundle_desc','Local de por vida + Pro anual con 7 días gratis')}
+      </div>
     </div>
 
     <div class="mn-auth-divider"></div>
-    <button class="mn-btn-ghost mn-btn-full" id="mn-logout-btn">Cerrar sesión</button>
-    ${_modalFooter(user)}
-  `;
+    ${isLoggedIn
+      ? `<button class="mn-btn-ghost mn-btn-full" id="mn-logout-btn">${_t('auth_cerrar_sesion','Cerrar sesión')}</button>`
+      : `<div style="text-align:center"><button class="mn-link-btn" id="mn-go-login-link">${_t('auth_ya_tengo_cuenta','Ya tengo cuenta — Iniciar sesión')}</button></div>`
+    }
+    ${_modalFooter(user)}`;
 }
 
-function _buildLockedContent(user) {
-  return /* html */`
-    ${_modalHeader('🔒 Acceso bloqueado', C.red)}
+function _buildLockedView(user) {
+  return `
+    ${_closeBtn()}
+    ${_planHeader('🔒 ' + _t('auth_acceso_bloqueado','Acceso bloqueado'), C.red)}
 
     <div class="mn-auth-alert-box">
       <div class="mn-auth-alert-icon">⏰</div>
       <div class="mn-auth-alert-text">
-        Tu prueba de 24 horas ha expirado.<br>
-        Tus datos están a salvo — solo necesitas desbloquear la app.
+        ${_t('auth_prueba_expirada','Tu prueba de 24 horas ha expirado.')}<br>
+        ${_t('auth_datos_seguros','Tus datos están a salvo — solo necesitas desbloquear la app.')}
       </div>
     </div>
 
     <div class="mn-auth-price-card">
-      <div class="mn-auth-price-label">Plan Local</div>
-      <div class="mn-auth-price-amount">5€ <span>pago único</span></div>
+      <div class="mn-auth-price-label">${_t('auth_plan_local','Plan Local')}</div>
+      <div class="mn-auth-price-amount">5€ <span>${_t('auth_pago_unico','pago único')}</span></div>
       <div class="mn-auth-price-features">
-        <div class="mn-auth-pf">✅ Acceso inmediato sin fecha de expiración</div>
-        <div class="mn-auth-pf">✅ Todos tus datos conservados</div>
-        <div class="mn-auth-pf">✅ Ilimitado: movimientos, categorías, cuentas</div>
-        <div class="mn-auth-pf">✅ Exportación PDF y Excel</div>
+        <div class="mn-auth-pf">✅ ${_t('auth_feat_acceso_inmediato','Acceso inmediato sin fecha de expiración')}</div>
+        <div class="mn-auth-pf">✅ ${_t('auth_feat_datos','Todos tus datos conservados')}</div>
+        <div class="mn-auth-pf">✅ ${_t('auth_feat_ilimitado','Ilimitado: movimientos, categorías, cuentas')}</div>
+        <div class="mn-auth-pf">✅ ${_t('auth_feat_export','Exportación PDF y Excel')}</div>
       </div>
     </div>
 
     <button class="mn-btn-primary mn-btn-full mn-btn-large" id="mn-buy-local-btn">
-      🔓 Comprar Plan Local — 5€ →
+      🔓 ${_t('auth_comprar_local_cta','Comprar Plan Local — 5€ →')}
     </button>
     <div style="margin-top:10px">
-      <button class="mn-btn-ghost mn-btn-full" id="mn-restore-btn">¿Ya compraste? Restaurar acceso</button>
+      <button class="mn-btn-ghost mn-btn-full" id="mn-restore-btn">${_t('auth_restaurar','¿Ya compraste? Restaurar acceso')}</button>
     </div>
-    ${_modalFooter(user)}
-  `;
+    ${_modalFooter(user)}`;
 }
 
-function _buildLocalContent(user) {
+function _buildLocalView(user) {
   const proTrialUsed = user.proTrialUsed;
   const email = window.MNSupabaseAuth?.getEmail() || user.email || '';
-  return /* html */`
-    ${_modalHeader('💾 Plan Local activo', C.accent)}
+  return `
+    ${_closeBtn()}
+    ${_planHeader('💾 ' + _t('auth_plan_local_activo','Plan Local activo'), C.accent)}
 
     <div class="mn-auth-status-box mn-status-ok">
       <span class="mn-status-icon">✅</span>
       <div>
-        <div class="mn-status-title">Acceso desbloqueado</div>
-        <div class="mn-status-desc">${email ? `Cuenta: ${email}` : 'Tus datos se guardan en este dispositivo.'}</div>
+        <div class="mn-status-title">${_t('auth_acceso_desbloqueado','Acceso desbloqueado')}</div>
+        <div class="mn-status-desc">${email ? `${_t('auth_cuenta','Cuenta')}: ${email}` : _t('auth_datos_locales','Tus datos se guardan en este dispositivo.')}</div>
       </div>
     </div>
 
@@ -386,83 +403,69 @@ function _buildLocalContent(user) {
       <div class="mn-auth-upgrade-header">
         <span>☁️</span>
         <div>
-          <div class="mn-auth-upgrade-title">Activa la sincronización en la nube</div>
-          <div class="mn-auth-upgrade-subtitle">Plan Pro — 5€/año</div>
+          <div class="mn-auth-upgrade-title">${_t('auth_activar_nube','Activa la sincronización en la nube')}</div>
+          <div class="mn-auth-upgrade-subtitle">${_t('auth_plan_pro','Plan Pro')} — 5€/${_t('auth_año','año')}</div>
         </div>
       </div>
       <div class="mn-auth-upgrade-features">
-        <div class="mn-auth-uf">☁️ Sincronización multi-dispositivo</div>
-        <div class="mn-auth-uf">🔄 Backup automático</div>
-        <div class="mn-auth-uf">⚡ Soporte prioritario</div>
-        <div class="mn-auth-uf">🚀 Funciones beta primero</div>
+        <div class="mn-auth-uf">☁️ ${_t('auth_feat_sync','Sincronización multi-dispositivo')}</div>
+        <div class="mn-auth-uf">🔄 ${_t('auth_feat_backup','Backup automático')}</div>
+        <div class="mn-auth-uf">⚡ ${_t('auth_feat_soporte','Soporte prioritario')}</div>
+        <div class="mn-auth-uf">🚀 ${_t('auth_feat_beta','Funciones beta primero')}</div>
       </div>
       ${!proTrialUsed
-        ? `<button class="mn-btn-pro mn-btn-full" id="mn-activate-pro-btn">☁️ Activar Pro — 7 días gratis →</button>
-           <div class="mn-auth-pro-note">Luego 5€/año · Sin compromisos · Cancela cuando quieras</div>`
-        : `<button class="mn-btn-pro mn-btn-full" id="mn-activate-pro-btn">☁️ Activar Pro — 5€/año →</button>
-           <div class="mn-auth-pro-note">Prueba gratuita ya usada. Sin compromisos.</div>`}
+        ? `<button class="mn-btn-pro mn-btn-full" id="mn-activate-pro-btn">☁️ ${_t('auth_activar_pro_trial','Activar Pro — 7 días gratis →')}</button>
+           <div class="mn-auth-pro-note">${_t('auth_pro_note','Luego 5€/año · Sin compromisos · Cancela cuando quieras')}</div>`
+        : `<button class="mn-btn-pro mn-btn-full" id="mn-activate-pro-btn">☁️ ${_t('auth_activar_pro','Activar Pro — 5€/año →')}</button>
+           <div class="mn-auth-pro-note">${_t('auth_pro_note_used','Prueba gratuita ya usada. Sin compromisos.')}</div>`}
     </div>
 
     <div class="mn-auth-divider"></div>
-    <button class="mn-btn-ghost mn-btn-full" id="mn-logout-btn">Cerrar sesión</button>
-    ${_modalFooter(user)}
-  `;
+    <button class="mn-btn-ghost mn-btn-full" id="mn-logout-btn">${_t('auth_cerrar_sesion','Cerrar sesión')}</button>
+    ${_modalFooter(user)}`;
 }
 
-function _buildProContent(user) {
+function _buildProView(user) {
   const inProTrial  = user.proTrialEndsAt && Date.now() < user.proTrialEndsAt;
   const proExpLabel = user.proTrialEndsAt
-    ? `hasta el ${new Date(user.proTrialEndsAt).toLocaleDateString('es-ES', { day:'numeric', month:'long' })}`
-    : 'suscripción activa';
+    ? `${_t('auth_hasta','hasta el')} ${new Date(user.proTrialEndsAt).toLocaleDateString('es-ES', { day:'numeric', month:'long' })}`
+    : _t('auth_suscripcion_activa','suscripción activa');
   const email = window.MNSupabaseAuth?.getEmail() || user.email || '';
 
-  return /* html */`
-    ${_modalHeader('⚡ Plan Pro activo', C.accent)}
+  return `
+    ${_closeBtn()}
+    ${_planHeader('⚡ ' + _t('auth_plan_pro_activo','Plan Pro activo'), C.accent)}
 
     <div class="mn-auth-status-box mn-status-pro">
       <span class="mn-status-icon">⚡</span>
       <div>
-        <div class="mn-status-title">¡Gracias por ser Pro!</div>
-        <div class="mn-status-desc">${inProTrial ? `Prueba gratuita activa ${proExpLabel}` : proExpLabel}</div>
+        <div class="mn-status-title">${_t('auth_gracias_pro','¡Gracias por ser Pro!')}</div>
+        <div class="mn-status-desc">${inProTrial ? _t('auth_prueba_activa','Prueba gratuita activa') + ' ' + proExpLabel : proExpLabel}</div>
       </div>
     </div>
 
-    ${email ? `<div style="text-align:center;font-size:.78rem;color:var(--text2,#94A3B8);margin-bottom:12px">Cuenta: <strong style="color:var(--text,#E8EFF7)">${email}</strong></div>` : ''}
+    ${email ? `<div class="mn-auth-session-chip">${_t('auth_cuenta','Cuenta')}: <strong>${email}</strong></div>` : ''}
 
     <div class="mn-auth-features-grid">
-      <div class="mn-auth-fg">☁️ Sincronización cloud</div>
-      <div class="mn-auth-fg">🔄 Backups automáticos</div>
-      <div class="mn-auth-fg">⚡ Soporte prioritario</div>
-      <div class="mn-auth-fg">🚀 Funciones beta primero</div>
+      <div class="mn-auth-fg">☁️ ${_t('auth_feat_cloud','Cloud sync')}</div>
+      <div class="mn-auth-fg">🔄 ${_t('auth_feat_backups','Backups auto')}</div>
+      <div class="mn-auth-fg">⚡ ${_t('auth_feat_soporte','Soporte prio.')}</div>
+      <div class="mn-auth-fg">🚀 ${_t('auth_feat_beta','Beta primero')}</div>
     </div>
 
     ${inProTrial ? `
     <div class="mn-auth-trial-reminder">
-      💳 Para mantener el Pro, vincula un método de pago antes de que expire la prueba.
-      <button class="mn-btn-secondary mn-btn-sm" id="mn-link-payment-btn" style="margin-top:10px">Vincular método de pago</button>
+      💳 ${_t('auth_vincular_pago_desc','Para mantener el Pro, vincula un método de pago antes de que expire la prueba.')}
+      <button class="mn-btn-secondary mn-btn-sm" id="mn-link-payment-btn" style="margin-top:10px">${_t('auth_vincular_pago','Vincular método de pago')}</button>
     </div>` : ''}
 
     <div class="mn-auth-divider"></div>
-
-    <button class="mn-btn-ghost mn-btn-full mn-btn-danger" id="mn-cancel-pro-btn">Cancelar suscripción Pro</button>
-    <div class="mn-auth-cancel-note">Si cancelas, tu plan vuelve a Local. Nunca perderás el acceso.</div>
+    <button class="mn-btn-ghost mn-btn-full mn-btn-danger" id="mn-cancel-pro-btn">${_t('auth_cancelar_pro','Cancelar suscripción Pro')}</button>
+    <div class="mn-auth-cancel-note">${_t('auth_cancelar_pro_nota','Si cancelas, tu plan vuelve a Local. Nunca perderás el acceso.')}</div>
     <div style="margin-top:8px">
-      <button class="mn-btn-ghost mn-btn-full" id="mn-logout-btn">Cerrar sesión</button>
+      <button class="mn-btn-ghost mn-btn-full" id="mn-logout-btn">${_t('auth_cerrar_sesion','Cerrar sesión')}</button>
     </div>
-    ${_modalFooter(user)}
-  `;
-}
-
-function _modalHeader(title, color) {
-  return `<div class="mn-auth-modal-header">
-    <div style="font-size:.68rem;font-weight:700;color:var(--text3,#94A3B8);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">Tu plan actual</div>
-    <div style="font-size:1.25rem;font-weight:800;color:${color};letter-spacing:-.03em">${title}</div>
-  </div>`;
-}
-
-function _modalFooter(user) {
-  const id = (user.id || '').slice(0, 18);
-  return `<div class="mn-auth-footer">ID: <code>${id}…</code>${user.email ? ` · ${user.email}` : ''}</div>`;
+    ${_modalFooter(user)}`;
 }
 
 
@@ -471,19 +474,23 @@ function _modalFooter(user) {
 // ════════════════════════════════════════════════════════════════
 
 function _attachListeners(user) {
-  // ── Navegación entre vistas ──────────────────────────────────
-  _on('mn-go-register',     () => { _modalMode = 'register'; _refreshModal(); });
-  _on('mn-go-register-cta', () => { _modalMode = 'register'; _refreshModal(); });
-  _on('mn-go-login',        () => { _modalMode = 'login';    _refreshModal(); });
-  _on('mn-go-login-link',   () => { _modalMode = 'login';    _refreshModal(); });
-  _on('mn-forgot-link',     () => { _modalMode = 'forgot';   _refreshModal(); });
-  _on('mn-back-to-login',   () => { _modalMode = 'login';    _refreshModal(); });
+  // ── Navigation ───────────────────────────────────────────────
+  _on('mn-go-register',     () => _switchMode('register'));
+  _on('mn-go-register-cta', () => _switchMode('register'));
+  _on('mn-go-login',        () => _switchMode('login'));
+  _on('mn-go-login-link',   () => _switchMode('login'));
+  _on('mn-forgot-link',     () => _switchMode('forgot'));
+  _on('mn-back-to-login',   () => _switchMode('login'));
+
+  // ── OAuth buttons ─────────────────────────────────────────────
+  _on('mn-oauth-google', () => _handleOAuth('google'));
+  _on('mn-oauth-apple',  () => _handleOAuth('apple'));
 
   // ── Login ────────────────────────────────────────────────────
   _on('mn-login-submit-btn', () => _handleLogin());
   _onKey('mn-login-password', 'Enter', () => _handleLogin());
 
-  // ── Registro ─────────────────────────────────────────────────
+  // ── Register ─────────────────────────────────────────────────
   _on('mn-reg-submit-btn', () => _handleRegister());
   _onKey('mn-reg-password2', 'Enter', () => _handleRegister());
 
@@ -491,163 +498,220 @@ function _attachListeners(user) {
   _on('mn-forgot-submit-btn', () => _handleForgot());
   _onKey('mn-forgot-email', 'Enter', () => _handleForgot());
 
+  // ── Update password (post-reset) ─────────────────────────────
+  _on('mn-newpw-submit-btn', () => _handleUpdatePassword());
+  _onKey('mn-newpw-password2', 'Enter', () => _handleUpdatePassword());
+
   // ── Logout ───────────────────────────────────────────────────
   _on('mn-logout-btn', () => _handleLogout());
 
-  // ── Comprar Local ────────────────────────────────────────────
+  // ── Buy Local ────────────────────────────────────────────────
   _on('mn-buy-local-btn', () => {
     const email = window.MNSupabaseAuth?.getEmail() || user.email || '';
-    document.dispatchEvent(new CustomEvent('mn:buyLocal', { detail: { source: 'modal', user } }));
     closeAuthModal();
-    if (window.MNStripe) MNStripe.openPayment(MNStripeConfig.prices.local, email);
+    document.dispatchEvent(new CustomEvent('mn:buyLocal', { detail: { source:'modal', user } }));
+    if (window.MNPayment) MNPayment.open(MNStripeConfig.prices.local, email);
   });
 
-  // ── Bundle Local + Pro ───────────────────────────────────────
+  // ── Bundle (Local + Pro) ──────────────────────────────────────
   _on('mn-buy-bundle-btn', () => {
     const email = window.MNSupabaseAuth?.getEmail() || user.email || '';
     closeAuthModal();
-    if (window.MNStripe) MNStripe.openPayment(MNStripeConfig.prices.local, email);
-    document.addEventListener('mn:paymentSuccess', function onPS(e) {
-      if (e.detail?.plan === 'local' || e.detail?.plan === 'local_lifetime') {
-        document.removeEventListener('mn:paymentSuccess', onPS);
-        setTimeout(() => {
-          if (window.MNStripe) MNStripe.openPayment(MNStripeConfig.prices.pro, email);
-        }, 1500);
-      }
-    });
+    if (window.MNPayment) {
+      MNPayment.open(MNStripeConfig.prices.local, email);
+      // After local payment success, auto-open pro
+      const onSuccess = (e) => {
+        if (e.detail?.plan === 'local_lifetime') {
+          document.removeEventListener('mn:paymentSuccess', onSuccess);
+          setTimeout(() => MNPayment.open(MNStripeConfig.prices.pro, email), 1800);
+        }
+      };
+      document.addEventListener('mn:paymentSuccess', onSuccess);
+    }
   });
 
-  // ── Activar Pro ──────────────────────────────────────────────
+  // ── Activate Pro (from Local plan) ───────────────────────────
   _on('mn-activate-pro-btn', () => {
     const email = window.MNSupabaseAuth?.getEmail() || user.email || '';
-    document.dispatchEvent(new CustomEvent('mn:activatePro', { detail: { source: 'modal', user } }));
     closeAuthModal();
-    if (window.MNStripe) MNStripe.openPayment(MNStripeConfig.prices.pro, email);
+    document.dispatchEvent(new CustomEvent('mn:activatePro', { detail: { source:'modal', user } }));
+    if (window.MNPayment) MNPayment.open(MNStripeConfig.prices.pro, email);
   });
 
-  // ── Cancelar Pro ─────────────────────────────────────────────
+  // ── Cancel Pro ───────────────────────────────────────────────
   _on('mn-cancel-pro-btn', () => {
-    if (!confirm('¿Seguro que quieres cancelar el Plan Pro? Tu plan volverá a Local sin bloqueos.')) return;
-    document.dispatchEvent(new CustomEvent('mn:cancelPro', { detail: { source: 'modal' } }));
-    _auth.cancelPro();
+    if (!confirm(_t('auth_confirmar_cancelar_pro','¿Seguro que quieres cancelar el Plan Pro? Tu plan volverá a Local sin bloqueos.'))) return;
+    document.dispatchEvent(new CustomEvent('mn:cancelPro', { detail: { source:'modal' } }));
+    _auth.cancelPro && _auth.cancelPro();
     closeAuthModal();
     renderAuthBadge();
     renderTrialPill();
-    if (typeof window.updateSidebarLogo === 'function') window.updateSidebarLogo();
-    _toast('Plan Pro cancelado. Sigues con Plan Local.');
+    if (typeof updateSidebarLogo === 'function') updateSidebarLogo();
+    _toast(_t('auth_pro_cancelado','Plan Pro cancelado. Sigues con Plan Local.'));
   });
 
-  // ── Restaurar licencia ───────────────────────────────────────
-  _on('mn-restore-btn', () => {
-    document.dispatchEvent(new CustomEvent('mn:restoreAccess', { detail: { source: 'modal' } }));
-  });
-
-  // ── Vincular pago Pro ────────────────────────────────────────
+  // ── Link payment ─────────────────────────────────────────────
   _on('mn-link-payment-btn', () => {
-    document.dispatchEvent(new CustomEvent('mn:linkPayment', { detail: { source: 'modal' } }));
+    document.dispatchEvent(new CustomEvent('mn:linkPayment', { detail: { source:'modal' } }));
+  });
+
+  // ── Restore ──────────────────────────────────────────────────
+  _on('mn-restore-btn', () => {
+    document.dispatchEvent(new CustomEvent('mn:restoreAccess', { detail: { source:'modal' } }));
   });
 }
 
 
 // ════════════════════════════════════════════════════════════════
-//  HANDLERS DE AUTENTICACIÓN
+//  AUTH HANDLERS
 // ════════════════════════════════════════════════════════════════
 
 async function _handleLogin() {
+  if (_modalLoading) return;
   const email = _val('mn-login-email');
   const pass  = _val('mn-login-password');
   const msg   = document.getElementById('mn-login-msg');
   const btn   = document.getElementById('mn-login-submit-btn');
 
-  if (!email || !pass) { _showMsg(msg, '⚠ Rellena todos los campos.', 'error'); return; }
-  if (!_validEmail(email)) { _showMsg(msg, '⚠ Email no válido.', 'error'); return; }
+  if (!email || !pass) { _showMsg(msg, '⚠ ' + _t('auth_error_campos','Rellena todos los campos.'), 'error'); return; }
+  if (!_validEmail(email)) { _showMsg(msg, '⚠ ' + _t('auth_error_email','Email no válido.'), 'error'); return; }
 
-  _setBtnLoading(btn, true, 'Entrando…');
+  _setBtnLoading(btn, true, _t('auth_entrando','Entrando…'));
+  _modalLoading = true;
   try {
     await window.MNSupabaseAuth.signIn(email, pass);
-    _toast('✅ Sesión iniciada correctamente.');
+    _toast('✅ ' + _t('auth_sesion_iniciada','Sesión iniciada correctamente.'));
     closeAuthModal();
     renderAuthBadge();
     renderTrialPill();
+    if (typeof updateSidebarLogo === 'function') updateSidebarLogo();
   } catch (err) {
-    const code = err?.message || '';
-    const text = code.includes('Invalid login')
-      ? '⚠ Email o contraseña incorrectos.'
-      : code.includes('Email not confirmed')
-      ? '⚠ Confirma tu email antes de entrar. Revisa tu bandeja de entrada.'
-      : `⚠ ${code}`;
-    _showMsg(msg, text, 'error');
+    const code = err?.code || '';
+    const map = {
+      rate_limited:        _t('auth_error_rate','Demasiados intentos. Espera unos minutos.'),
+      invalid_credentials: _t('auth_error_credenciales','Email o contraseña incorrectos.'),
+      email_not_confirmed: _t('auth_error_no_confirmado','Confirma tu email antes de entrar. Revisa tu bandeja.'),
+    };
+    _showMsg(msg, '⚠ ' + (map[code] || err?.message || _t('auth_error_generico','Error al iniciar sesión.')), 'error');
   } finally {
-    _setBtnLoading(btn, false, 'Entrar');
+    _setBtnLoading(btn, false, _t('auth_entrar','Entrar'));
+    _modalLoading = false;
   }
 }
 
 async function _handleRegister() {
+  if (_modalLoading) return;
   const email = _val('mn-reg-email');
   const pass  = _val('mn-reg-password');
   const pass2 = _val('mn-reg-password2');
   const msg   = document.getElementById('mn-reg-msg');
   const btn   = document.getElementById('mn-reg-submit-btn');
 
-  if (!email || !pass || !pass2) { _showMsg(msg, '⚠ Rellena todos los campos.', 'error'); return; }
-  if (!_validEmail(email)) { _showMsg(msg, '⚠ Email no válido.', 'error'); return; }
-  if (pass.length < 8) { _showMsg(msg, '⚠ La contraseña debe tener al menos 8 caracteres.', 'error'); return; }
-  if (pass !== pass2) { _showMsg(msg, '⚠ Las contraseñas no coinciden.', 'error'); return; }
+  if (!email || !pass || !pass2) { _showMsg(msg, '⚠ ' + _t('auth_error_campos','Rellena todos los campos.'), 'error'); return; }
+  if (!_validEmail(email)) { _showMsg(msg, '⚠ ' + _t('auth_error_email','Email no válido.'), 'error'); return; }
+  if (pass.length < 8) { _showMsg(msg, '⚠ ' + _t('auth_error_pw_corta','La contraseña debe tener al menos 8 caracteres.'), 'error'); return; }
+  if (pass !== pass2) { _showMsg(msg, '⚠ ' + _t('auth_error_pw_no_coincide','Las contraseñas no coinciden.'), 'error'); return; }
 
-  _setBtnLoading(btn, true, 'Creando cuenta…');
+  _setBtnLoading(btn, true, _t('auth_creando','Creando cuenta…'));
+  _modalLoading = true;
   try {
     const data = await window.MNSupabaseAuth.signUp(email, pass);
-    // Si requiere confirmación de email
+
     if (data.user && !data.session) {
-      // Activar trial local mientras se confirma
-      _auth.upgradeTrial(email);
-      _showMsg(msg, '✅ ¡Cuenta creada! Revisa tu email para confirmar y entrar.', 'ok');
-      _setBtnLoading(btn, false, 'Crear cuenta y empezar →');
+      // Email confirmation required
+      _auth.upgradeTrial && _auth.upgradeTrial(email);
+      _showMsg(msg, '✅ ' + _t('auth_confirma_email','¡Cuenta creada! Revisa tu email para confirmar.'), 'ok');
       setTimeout(() => {
         closeAuthModal();
         renderAuthBadge();
         renderTrialPill();
+        _toast('✅ ' + _t('auth_revisa_email','Revisa tu bandeja de entrada para confirmar tu cuenta.'));
       }, 2500);
     } else if (data.session) {
-      // Login automático (sin confirmación de email requerida)
-      _auth.upgradeTrial(email);
-      _toast('✅ ¡Cuenta creada y sesión iniciada!');
+      _auth.upgradeTrial && _auth.upgradeTrial(email);
+      _toast('✅ ' + _t('auth_cuenta_creada','¡Cuenta creada y sesión iniciada!'));
       closeAuthModal();
       renderAuthBadge();
       renderTrialPill();
     }
     document.dispatchEvent(new CustomEvent('mn:registered', { detail: { email } }));
   } catch (err) {
-    const code = err?.message || '';
-    const text = code.includes('already registered')
-      ? '⚠ Este email ya está registrado. <a href="#" id="mn-switch-login" style="color:#00D4AA">Inicia sesión →</a>'
-      : `⚠ ${code}`;
-    _showMsgHtml(msg, text, 'error');
-    // Wire inline link
-    setTimeout(() => {
-      const link = document.getElementById('mn-switch-login');
-      if (link) link.addEventListener('click', (e) => { e.preventDefault(); _modalMode='login'; _refreshModal(); });
-    }, 50);
+    const code = err?.code || '';
+    if (code === 'email_exists') {
+      const html = `⚠ ${_t('auth_error_email_existe','Este email ya está registrado.')} <button class="mn-link-btn mn-link-btn--accent" id="mn-switch-login-inline" style="font-size:.78rem">${_t('auth_iniciar_sesion_link','Iniciar sesión →')}</button>`;
+      _showMsgHtml(msg, html, 'error');
+      setTimeout(() => _on('mn-switch-login-inline', () => _switchMode('login')), 50);
+    } else if (code === 'rate_limited') {
+      _showMsg(msg, '⚠ ' + _t('auth_error_rate','Demasiados intentos. Espera unos minutos.'), 'error');
+    } else {
+      _showMsg(msg, '⚠ ' + (err?.message || _t('auth_error_generico','Error al crear cuenta.')), 'error');
+    }
   } finally {
-    _setBtnLoading(btn, false, 'Crear cuenta y empezar →');
+    _setBtnLoading(btn, false, _t('auth_crear_y_empezar','Crear cuenta y empezar →'));
+    _modalLoading = false;
   }
 }
 
 async function _handleForgot() {
+  if (_modalLoading) return;
   const email = _val('mn-forgot-email');
   const msg   = document.getElementById('mn-forgot-msg');
   const btn   = document.getElementById('mn-forgot-submit-btn');
 
-  if (!_validEmail(email)) { _showMsg(msg, '⚠ Introduce un email válido.', 'error'); return; }
+  if (!_validEmail(email)) { _showMsg(msg, '⚠ ' + _t('auth_error_email','Email no válido.'), 'error'); return; }
 
-  _setBtnLoading(btn, true, 'Enviando…');
+  _setBtnLoading(btn, true, _t('auth_enviando','Enviando…'));
+  _modalLoading = true;
   try {
     await window.MNSupabaseAuth.resetPassword(email);
-    _showMsg(msg, '✅ Enlace enviado. Revisa tu email.', 'ok');
-    _setBtnLoading(btn, false, 'Enviar enlace de reseteo');
+    _showMsg(msg, '✅ ' + _t('auth_enlace_enviado','Enlace enviado. Revisa tu email.'), 'ok');
   } catch (err) {
-    _showMsg(msg, `⚠ ${err?.message || 'Error al enviar'}`, 'error');
-    _setBtnLoading(btn, false, 'Enviar enlace de reseteo');
+    const code = err?.code || '';
+    _showMsg(msg, '⚠ ' + (code === 'rate_limited'
+      ? _t('auth_error_rate_reset','Demasiadas solicitudes. Espera 1 hora.')
+      : (err?.message || _t('auth_error_generico','Error al enviar.'))), 'error');
+  } finally {
+    _setBtnLoading(btn, false, _t('auth_enviar_enlace','Enviar enlace de reseteo'));
+    _modalLoading = false;
+  }
+}
+
+async function _handleUpdatePassword() {
+  if (_modalLoading) return;
+  const pass  = _val('mn-newpw-password');
+  const pass2 = _val('mn-newpw-password2');
+  const msg   = document.getElementById('mn-newpw-msg');
+  const btn   = document.getElementById('mn-newpw-submit-btn');
+
+  if (pass.length < 8) { _showMsg(msg, '⚠ ' + _t('auth_error_pw_corta','Mínimo 8 caracteres.'), 'error'); return; }
+  if (pass !== pass2)  { _showMsg(msg, '⚠ ' + _t('auth_error_pw_no_coincide','Las contraseñas no coinciden.'), 'error'); return; }
+
+  _setBtnLoading(btn, true, _t('auth_guardando','Guardando…'));
+  _modalLoading = true;
+  try {
+    await window.MNSupabaseAuth.updatePassword(pass);
+    _toast('✅ ' + _t('auth_pw_actualizada','Contraseña actualizada correctamente.'));
+    closeAuthModal();
+    _switchMode('plan');
+  } catch (err) {
+    _showMsg(msg, '⚠ ' + (err?.message || _t('auth_error_generico','Error al actualizar.')), 'error');
+  } finally {
+    _setBtnLoading(btn, false, _t('auth_guardar_contrasena','Guardar contraseña'));
+    _modalLoading = false;
+  }
+}
+
+async function _handleOAuth(provider) {
+  if (!window.MNSupabaseAuth) {
+    _toast('⚠ ' + _t('auth_error_oauth','Error al conectar con el proveedor.'));
+    return;
+  }
+  try {
+    if (provider === 'google') await window.MNSupabaseAuth.signInWithGoogle();
+    if (provider === 'apple')  await window.MNSupabaseAuth.signInWithApple();
+    // Redirect happens — user leaves the page
+  } catch (err) {
+    _toast('⚠ ' + (err?.message || _t('auth_error_oauth','Error al conectar.')));
   }
 }
 
@@ -656,20 +720,108 @@ async function _handleLogout() {
   closeAuthModal();
   renderAuthBadge();
   renderTrialPill();
-  _toast('Sesión cerrada.');
+  if (typeof updateSidebarLogo === 'function') updateSidebarLogo();
+  _toast(_t('auth_sesion_cerrada','Sesión cerrada.'));
 }
 
 
 // ════════════════════════════════════════════════════════════════
-//  HELPERS UI
+//  SHARED UI HELPERS
 // ════════════════════════════════════════════════════════════════
 
-function _refreshModal() {
+function _oauthButtons() {
+  return `
+    <div class="mn-oauth-row">
+      <button class="mn-oauth-btn" id="mn-oauth-google" title="Google">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+          <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+          <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+          <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+        </svg>
+        <span>Google</span>
+      </button>
+      <button class="mn-oauth-btn" id="mn-oauth-apple" title="Apple">
+        <svg width="16" height="18" viewBox="0 0 814 1000" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+          <path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76 0-103.7 40.8-165.9 40.8s-105-37.5-155.5-127.4c-43-81.8-89.9-209.1-89.9-330 0-199.6 129.5-305 256-305 66.7 0 122.5 44.7 164 44.7 39.5 0 101.7-48.3 178.6-48.3zm-70.2-316.9c32.1-38.2 56.1-91.6 56.1-145 0-7.7-.6-15.4-1.9-21.8-53.4 2-116.8 35.5-155.5 80.9-29.5 33.3-56.7 87.9-56.7 142.1 0 8.3 1.3 16.6 1.9 19.2 3.2.6 8.3 1.3 13.4 1.3 47.7 0 109.2-32.1 142.7-76.7z"/>
+        </svg>
+        <span>Apple</span>
+      </button>
+    </div>`;
+}
+
+function _closeBtn() {
+  return `<button class="mn-auth-close-btn" onclick="MNAuthUI.closeAuthModal()" aria-label="Cerrar">✕</button>`;
+}
+
+function _planHeader(title, color) {
+  return `
+    <div class="mn-auth-modal-header">
+      <div class="mn-auth-eyebrow">${_t('auth_tu_plan','Tu plan actual')}</div>
+      <div class="mn-auth-headline" style="color:${color}">${title}</div>
+    </div>`;
+}
+
+function _field(type, id, label, autocomplete, placeholder, inputMode) {
+  return `
+    <div class="mn-auth-field-wrap">
+      <label class="mn-auth-field-label">${label}</label>
+      <input class="mn-auth-input" type="${type}" id="${id}"
+        placeholder="${placeholder}" autocomplete="${autocomplete || 'off'}"
+        ${inputMode ? `inputmode="${inputMode}"` : ''}>
+    </div>`;
+}
+
+function _fieldPassword(id, label, autocomplete) {
+  return `
+    <div class="mn-auth-field-wrap">
+      <label class="mn-auth-field-label">${label}</label>
+      <div style="position:relative">
+        <input class="mn-auth-input" type="password" id="${id}"
+          placeholder="••••••••" autocomplete="${autocomplete || 'current-password'}"
+          style="padding-right:42px">
+        <button class="mn-pw-toggle-btn" type="button"
+          onclick="_mnTogglePw('${id}',this)" tabindex="-1" aria-label="Mostrar contraseña">👁</button>
+      </div>
+    </div>`;
+}
+
+function _fieldPasswordStrength(id, label, autocomplete) {
+  return `
+    <div class="mn-auth-field-wrap">
+      <label class="mn-auth-field-label">${label}</label>
+      <div style="position:relative">
+        <input class="mn-auth-input" type="password" id="${id}"
+          placeholder="••••••••" autocomplete="${autocomplete || 'new-password'}"
+          style="padding-right:42px"
+          oninput="_mnCheckPwStrength(this.value,'${id}-strength')">
+        <button class="mn-pw-toggle-btn" type="button"
+          onclick="_mnTogglePw('${id}',this)" tabindex="-1" aria-label="Mostrar contraseña">👁</button>
+      </div>
+      <div class="mn-pw-strength-bar" id="${id}-strength" style="display:none">
+        <div class="mn-pw-bar-track"><div class="mn-pw-bar-fill" id="${id}-strength-fill"></div></div>
+        <span class="mn-pw-bar-label" id="${id}-strength-label"></span>
+      </div>
+    </div>`;
+}
+
+function _modalFooter(user) {
+  const id = (user.id || '').slice(0, 14);
+  return `<div class="mn-auth-footer">ID: <code>${id}…</code>${user.email ? ` · ${user.email}` : ''}</div>`;
+}
+
+function _switchMode(mode) {
+  _modalMode = mode;
   const card = document.getElementById('authModalCard');
   if (!card) return;
   card.innerHTML = _buildContent(_auth.getUser());
   _attachListeners(_auth.getUser());
 }
+
+
+// ════════════════════════════════════════════════════════════════
+//  DOM HELPERS
+// ════════════════════════════════════════════════════════════════
 
 function _on(id, fn) {
   const el = document.getElementById(id);
@@ -685,7 +837,9 @@ function _val(id) {
   return (document.getElementById(id)?.value || '').trim();
 }
 
-function _validEmail(e) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e); }
+function _validEmail(e) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
+}
 
 function _showMsg(el, text, type) {
   if (!el) return;
@@ -704,7 +858,7 @@ function _showMsgHtml(el, html, type) {
 function _setBtnLoading(btn, loading, text) {
   if (!btn) return;
   btn.disabled = loading;
-  btn.textContent = text;
+  btn.textContent = loading ? text : text;
   btn.style.opacity = loading ? '0.7' : '1';
 }
 
@@ -712,33 +866,52 @@ function _toast(msg) {
   if (typeof window.toast === 'function') { window.toast(msg); return; }
   const el = document.createElement('div');
   el.textContent = msg;
-  el.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#111827;color:#E8EFF7;padding:12px 20px;border-radius:12px;font-size:.85rem;font-weight:600;z-index:99999;box-shadow:0 8px 32px rgba(0,0,0,.4)';
+  el.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#111827;color:#E8EFF7;padding:12px 20px;border-radius:12px;font-size:.85rem;font-weight:600;z-index:99999;box-shadow:0 8px 32px rgba(0,0,0,.4);pointer-events:none';
   document.body.appendChild(el);
   setTimeout(() => el.remove(), 3000);
 }
 
+function _planBadgeConfig(user) {
+  const hoursLeft  = _auth.trialHoursLeft ? _auth.trialHoursLeft() : 0;
+  const isLoggedIn = window.MNSupabaseAuth?.isLoggedIn() ?? false;
+  const suffix     = isLoggedIn ? '' : ' · sin sesión';
+  const configs = {
+    trial:        { icon:'⏳', label:`Trial · ${Math.ceil(hoursLeft)}h${suffix}`, color:C.indigo,  bg:'rgba(99,102,241,.1)',  border:'rgba(99,102,241,.25)' },
+    locked_local: { icon:'🔒', label:_t('auth_bloqueado','Bloqueado'),             color:C.red,     bg:'rgba(244,63,94,.1)',   border:'rgba(244,63,94,.25)'  },
+    local:        { icon:'💾', label:_t('auth_plan_local_badge','Local'),           color:C.accent,  bg:'rgba(0,212,170,.1)',   border:'rgba(0,212,170,.25)'  },
+    pro:          { icon:'⚡', label:'Pro',                                         color:C.accent,  bg:'rgba(0,212,170,.12)',  border:'rgba(0,212,170,.3)'   },
+  };
+  return configs[user.plan] || configs.trial;
+}
+
 
 // ════════════════════════════════════════════════════════════════
-//  INYECCIÓN DE HTML Y CSS
+//  INJECT MODAL SHELL + STYLES
 // ════════════════════════════════════════════════════════════════
 
 function _injectModalShell() {
   const overlay = document.createElement('div');
   overlay.id = 'authModal';
-  overlay.style.cssText = 'position:fixed;inset:0;z-index:9900;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.6);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)';
+  overlay.style.cssText = [
+    'position:fixed', 'inset:0', 'z-index:9900',
+    'display:none', 'align-items:center', 'justify-content:center',
+    'background:rgba(0,0,0,.65)', 'backdrop-filter:blur(12px)',
+    '-webkit-backdrop-filter:blur(12px)',
+  ].join(';');
   overlay.innerHTML = `
     <div id="authModalCard" style="
       background:var(--card,#111827);
       border:1px solid var(--border2,rgba(255,255,255,.08));
       border-radius:24px;
-      width:min(440px,calc(100vw - 32px));
+      width:min(460px,calc(100vw - 32px));
       max-height:calc(100dvh - 48px);
       overflow-y:auto;
       padding:32px 28px 24px;
-      box-shadow:0 40px 100px rgba(0,0,0,.6);
+      box-shadow:0 40px 100px rgba(0,0,0,.65);
       animation:mnCardIn .4s cubic-bezier(0.22,1,0.36,1) forwards;
-      position:relative;">
-    </div>`;
+      position:relative;
+      scrollbar-width:thin;
+    "></div>`;
   document.body.appendChild(overlay);
 }
 
@@ -749,35 +922,84 @@ function _injectGlobalStyles() {
   style.textContent = `
     @keyframes mnCardIn { from{opacity:0;transform:scale(.96) translateY(12px)} to{opacity:1;transform:none} }
 
-    .mn-auth-modal-header { margin-bottom:20px; }
+    /* ── Layout ────────────────────────────────────────────────── */
+    .mn-auth-modal-header { margin-bottom:20px; position:relative; }
+    .mn-auth-eyebrow      { font-size:.68rem;font-weight:700;color:var(--text3,#94A3B8);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px; }
+    .mn-auth-headline     { font-size:1.3rem;font-weight:800;letter-spacing:-.03em;line-height:1.2; }
     .mn-auth-section      { margin-bottom:16px; }
     .mn-auth-divider      { border:none;border-top:1px solid var(--border2,rgba(255,255,255,.08));margin:18px 0; }
     .mn-auth-form-col     { display:flex;flex-direction:column;gap:12px; }
     .mn-auth-field-wrap   { display:flex;flex-direction:column;gap:5px; }
     .mn-auth-field-label  { font-size:.72rem;font-weight:700;color:var(--text2,#94A3B8);text-transform:uppercase;letter-spacing:.06em; }
+    .mn-auth-msg          { font-size:.78rem;margin-top:2px;line-height:1.5; }
 
-    .mn-auth-trial-note {
-      background:rgba(99,102,241,.07);border:1px solid rgba(99,102,241,.18);
-      border-radius:12px;padding:12px 14px;font-size:.8rem;
-      color:var(--text2,#94A3B8);line-height:1.6;margin-bottom:16px;
+    /* ── Close button ──────────────────────────────────────────── */
+    .mn-auth-close-btn {
+      position:absolute;top:0;right:0;
+      background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);
+      color:#64748B;font-size:.75rem;width:28px;height:28px;
+      border-radius:50%;cursor:pointer;display:flex;align-items:center;
+      justify-content:center;transition:all .15s;font-family:inherit;
+      z-index:1;
+    }
+    .mn-auth-close-btn:hover { background:rgba(255,255,255,.1);color:#E8EFF7; }
+
+    /* ── OAuth buttons ─────────────────────────────────────────── */
+    .mn-oauth-row { display:flex;gap:10px;margin-bottom:4px; }
+    .mn-oauth-btn {
+      flex:1;display:flex;align-items:center;justify-content:center;gap:8px;
+      padding:11px 16px;border-radius:12px;cursor:pointer;font-family:inherit;
+      font-size:.85rem;font-weight:700;transition:all .18s;
+      background:rgba(255,255,255,.05);
+      border:1.5px solid var(--border2,rgba(255,255,255,.1));
+      color:var(--text,#E8EFF7);
+    }
+    .mn-oauth-btn:hover { background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.2); }
+
+    /* ── Or divider ────────────────────────────────────────────── */
+    .mn-auth-or {
+      display:flex;align-items:center;gap:10px;
+      margin:14px 0;font-size:.7rem;color:var(--text3,#64748B);font-weight:600;
+    }
+    .mn-auth-or::before,.mn-auth-or::after {
+      content:'';flex:1;height:1px;background:var(--border2,rgba(255,255,255,.08));
     }
 
+    /* ── Trial note ────────────────────────────────────────────── */
+    .mn-auth-trial-note {
+      background:rgba(99,102,241,.07);border:1px solid rgba(99,102,241,.18);
+      border-radius:12px;padding:11px 14px;font-size:.8rem;
+      color:var(--text2,#94A3B8);line-height:1.6;margin-bottom:14px;
+    }
+
+    /* ── Session chip ──────────────────────────────────────────── */
+    .mn-auth-session-chip {
+      text-align:center;font-size:.75rem;color:var(--text2,#94A3B8);
+      margin-bottom:12px;padding:7px 12px;
+      background:rgba(0,212,170,.06);border:1px solid rgba(0,212,170,.12);
+      border-radius:10px;
+    }
+    .mn-auth-session-chip strong { color:var(--text,#E8EFF7); }
+
+    /* ── Trial box ─────────────────────────────────────────────── */
     .mn-auth-trial-box {
       background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.2);
       border-radius:16px;padding:20px;text-align:center;margin-bottom:18px;
     }
-    .mn-auth-trial-time  { font-size:2.2rem;font-weight:800;color:#6366F1;letter-spacing:-.05em;line-height:1; }
-    .mn-auth-trial-label { font-size:.78rem;color:var(--text2,#94A3B8);margin:4px 0 12px; }
+    .mn-auth-trial-time  { font-size:2.4rem;font-weight:800;color:#6366F1;letter-spacing:-.06em;line-height:1; }
+    .mn-auth-trial-label { font-size:.75rem;color:var(--text2,#94A3B8);margin:4px 0 12px; }
     .mn-auth-progress-track { height:6px;background:rgba(255,255,255,.08);border-radius:99px;overflow:hidden; }
     .mn-auth-progress-bar   { height:100%;border-radius:99px;transition:width .6s; }
 
+    /* ── CTA box ───────────────────────────────────────────────── */
     .mn-auth-cta-box {
       background:rgba(0,212,170,.06);border:1px solid rgba(0,212,170,.15);
       border-radius:16px;padding:18px;margin-bottom:4px;
     }
     .mn-auth-cta-label { font-size:.75rem;font-weight:700;color:${C.accent};margin-bottom:6px; }
-    .mn-auth-cta-desc  { font-size:.78rem;color:var(--text2,#94A3B8);line-height:1.5; }
+    .mn-auth-cta-desc  { font-size:.78rem;color:var(--text2,#94A3B8);line-height:1.55; }
 
+    /* ── Alert box ─────────────────────────────────────────────── */
     .mn-auth-alert-box {
       display:flex;align-items:center;gap:14px;
       background:rgba(244,63,94,.08);border:1px solid rgba(244,63,94,.2);
@@ -786,16 +1008,18 @@ function _injectGlobalStyles() {
     .mn-auth-alert-icon { font-size:2rem;flex-shrink:0; }
     .mn-auth-alert-text { font-size:.82rem;color:var(--text,#E8EFF7);line-height:1.6; }
 
+    /* ── Price card ────────────────────────────────────────────── */
     .mn-auth-price-card {
       background:linear-gradient(135deg,rgba(0,212,170,.1),rgba(0,212,170,.04));
       border:1px solid rgba(0,212,170,.25);border-radius:16px;padding:20px;margin-bottom:18px;
     }
     .mn-auth-price-label  { font-size:.68rem;font-weight:700;color:${C.accent};text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px; }
     .mn-auth-price-amount { font-size:2rem;font-weight:800;color:var(--text,#E8EFF7);letter-spacing:-.05em;line-height:1;margin-bottom:10px; }
-    .mn-auth-price-amount span { font-size:.95rem;font-weight:600;color:var(--text2,#94A3B8); }
+    .mn-auth-price-amount span { font-size:.9rem;font-weight:600;color:var(--text2,#94A3B8); }
     .mn-auth-price-features { display:flex;flex-direction:column;gap:6px; }
     .mn-auth-pf { font-size:.78rem;color:var(--text2,#94A3B8); }
 
+    /* ── Status boxes ──────────────────────────────────────────── */
     .mn-auth-status-box { display:flex;align-items:center;gap:14px;border-radius:14px;padding:16px;margin-bottom:18px; }
     .mn-status-ok  { background:rgba(0,212,170,.08);border:1px solid rgba(0,212,170,.2); }
     .mn-status-pro { background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.3); }
@@ -803,34 +1027,43 @@ function _injectGlobalStyles() {
     .mn-status-title { font-size:.95rem;font-weight:700;color:var(--text,#E8EFF7); }
     .mn-status-desc  { font-size:.78rem;color:var(--text2,#94A3B8);margin-top:2px; }
 
+    /* ── Upgrade box ───────────────────────────────────────────── */
     .mn-auth-upgrade-box {
       background:linear-gradient(135deg,rgba(99,102,241,.08),rgba(99,102,241,.03));
       border:1px solid rgba(99,102,241,.2);border-radius:16px;padding:20px;
     }
-    .mn-auth-upgrade-header  { display:flex;align-items:center;gap:12px;margin-bottom:14px;font-size:1.5rem; }
-    .mn-auth-upgrade-title   { font-size:.9rem;font-weight:700;color:var(--text,#E8EFF7); }
-    .mn-auth-upgrade-subtitle{ font-size:.75rem;color:${C.indigo};font-weight:600; }
-    .mn-auth-upgrade-features{ display:flex;flex-direction:column;gap:6px;margin-bottom:16px; }
-    .mn-auth-uf { font-size:.78rem;color:var(--text2,#94A3B8); }
+    .mn-auth-upgrade-header   { display:flex;align-items:center;gap:12px;margin-bottom:14px;font-size:1.5rem; }
+    .mn-auth-upgrade-title    { font-size:.9rem;font-weight:700;color:var(--text,#E8EFF7); }
+    .mn-auth-upgrade-subtitle { font-size:.75rem;color:${C.indigo};font-weight:600; }
+    .mn-auth-upgrade-features { display:flex;flex-direction:column;gap:6px;margin-bottom:16px; }
+    .mn-auth-uf     { font-size:.78rem;color:var(--text2,#94A3B8); }
     .mn-auth-pro-note { font-size:.7rem;color:var(--text2,#94A3B8);text-align:center;margin-top:8px; }
 
+    /* ── Features grid ─────────────────────────────────────────── */
     .mn-auth-features-grid { display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:18px; }
     .mn-auth-fg {
       background:rgba(0,212,170,.06);border:1px solid rgba(0,212,170,.12);
-      border-radius:10px;padding:10px 12px;font-size:.78rem;color:var(--text,#E8EFF7);font-weight:600;
+      border-radius:10px;padding:10px 12px;font-size:.78rem;
+      color:var(--text,#E8EFF7);font-weight:600;
     }
+
+    /* ── Trial reminder ────────────────────────────────────────── */
     .mn-auth-trial-reminder {
       background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);
       border-radius:12px;padding:14px;font-size:.78rem;color:var(--text2,#94A3B8);
       line-height:1.5;margin-bottom:16px;text-align:center;
     }
+
+    /* ── Cancel ────────────────────────────────────────────────── */
     .mn-btn-danger { color:${C.red}!important;border-color:rgba(244,63,94,.25)!important; }
     .mn-btn-danger:hover { border-color:${C.red}!important;background:rgba(244,63,94,.08)!important; }
     .mn-auth-cancel-note { font-size:.7rem;color:var(--text2,#94A3B8);text-align:center;margin-top:6px; }
-    .mn-auth-footer { font-size:.68rem;color:var(--text3,#64748B);text-align:center;margin-top:18px;line-height:1.5; }
-    .mn-auth-footer code { font-size:.65rem;opacity:.6; }
 
-    /* Input */
+    /* ── Footer ────────────────────────────────────────────────── */
+    .mn-auth-footer { font-size:.65rem;color:var(--text3,#64748B);text-align:center;margin-top:18px;line-height:1.5;opacity:.7; }
+    .mn-auth-footer code { font-size:.62rem; }
+
+    /* ── Input ─────────────────────────────────────────────────── */
     .mn-auth-input {
       width:100%;padding:11px 14px;border-radius:10px;
       border:1.5px solid var(--border2,rgba(255,255,255,.1));
@@ -840,35 +1073,34 @@ function _injectGlobalStyles() {
     }
     .mn-auth-input:focus { border-color:${C.accent}; }
 
-    .mn-auth-msg { font-size:.78rem;margin-top:4px;line-height:1.5; }
-
-    /* Password toggle */
+    /* ── Password toggle ───────────────────────────────────────── */
     .mn-pw-toggle-btn {
       position:absolute;right:10px;top:50%;transform:translateY(-50%);
       background:none;border:none;cursor:pointer;font-size:.9rem;
-      color:var(--text2,#94A3B8);padding:2px;
+      color:var(--text2,#94A3B8);padding:2px;line-height:1;
     }
 
-    /* Password strength */
+    /* ── Password strength ─────────────────────────────────────── */
     .mn-pw-strength-bar { display:flex;align-items:center;gap:8px;margin-top:4px; }
     .mn-pw-bar-track { flex:1;height:4px;background:rgba(255,255,255,.08);border-radius:99px;overflow:hidden; }
-    .mn-pw-bar-fill  { height:100%;border-radius:99px;transition:width .3s,background .3s; }
-    .mn-pw-bar-label { font-size:.68rem;font-weight:700;min-width:60px;text-align:right; }
+    .mn-pw-bar-fill  { height:100%;border-radius:99px;transition:width .3s,background .3s;width:0; }
+    .mn-pw-bar-label { font-size:.68rem;font-weight:700;min-width:56px;text-align:right; }
 
-    /* Link buttons */
+    /* ── Link buttons ──────────────────────────────────────────── */
     .mn-link-btn { background:none;border:none;cursor:pointer;font-size:.8rem;color:var(--text2,#94A3B8);font-family:inherit;padding:2px;transition:color .15s; }
     .mn-link-btn:hover { color:var(--text,#E8EFF7); }
     .mn-link-btn--accent { color:${C.accent}; }
     .mn-link-btn--accent:hover { color:${C.accentDark}; }
 
-    /* Buttons */
+    /* ── Buttons ───────────────────────────────────────────────── */
     .mn-btn-primary, .mn-btn-pro, .mn-btn-secondary, .mn-btn-ghost {
       padding:13px 20px;border-radius:13px;border:none;
       font-size:.88rem;font-weight:800;cursor:pointer;
-      font-family:inherit;letter-spacing:-.01em;transition:transform .18s,box-shadow .18s,opacity .18s;
+      font-family:inherit;letter-spacing:-.01em;
+      transition:transform .18s,box-shadow .18s,opacity .18s;
     }
-    .mn-btn-full  { width:100%;display:block; }
-    .mn-btn-large { padding:16px;font-size:1rem; }
+    .mn-btn-full  { width:100%;display:block;text-align:center; }
+    .mn-btn-large { padding:16px!important;font-size:1rem!important; }
     .mn-btn-sm    { padding:9px 14px!important;font-size:.8rem!important;width:auto!important; }
 
     .mn-btn-primary {
@@ -876,13 +1108,13 @@ function _injectGlobalStyles() {
       color:#0A0E17;box-shadow:0 6px 20px rgba(0,212,170,.3);
     }
     .mn-btn-primary:hover:not(:disabled) { transform:translateY(-2px);box-shadow:0 10px 30px rgba(0,212,170,.4); }
-    .mn-btn-primary:disabled { opacity:.6;cursor:default; }
+    .mn-btn-primary:disabled { opacity:.6;cursor:default;transform:none; }
 
     .mn-btn-pro {
       background:linear-gradient(135deg,${C.indigo},${C.indigoDark});
       color:#fff;box-shadow:0 6px 20px rgba(99,102,241,.3);
     }
-    .mn-btn-pro:hover { transform:translateY(-2px);box-shadow:0 10px 30px rgba(99,102,241,.4); }
+    .mn-btn-pro:hover:not(:disabled) { transform:translateY(-2px);box-shadow:0 10px 30px rgba(99,102,241,.4); }
 
     .mn-btn-secondary {
       background:rgba(255,255,255,.06);
@@ -897,13 +1129,26 @@ function _injectGlobalStyles() {
       color:var(--text2,#94A3B8);
     }
     .mn-btn-ghost:hover { border-color:${C.accent}!important;color:${C.accent}; }
+
+    /* ── Light mode overrides ──────────────────────────────────── */
+    [data-theme="light"] .mn-auth-input {
+      background:rgba(0,0,0,.04);
+      border-color:rgba(0,0,0,.12);
+      color:#0F172A;
+    }
+    [data-theme="light"] .mn-oauth-btn {
+      background:rgba(0,0,0,.04);
+      border-color:rgba(0,0,0,.12);
+      color:#0F172A;
+    }
+    [data-theme="light"] .mn-auth-trial-box { background:rgba(99,102,241,.06); }
   `;
   document.head.appendChild(style);
 }
 
 
 // ════════════════════════════════════════════════════════════════
-//  HELPERS GLOBALES (expuestos en window para inline HTML)
+//  GLOBAL HELPERS (called from inline HTML attrs)
 // ════════════════════════════════════════════════════════════════
 
 window._mnTogglePw = function(id, btn) {
@@ -913,52 +1158,37 @@ window._mnTogglePw = function(id, btn) {
   if (btn) btn.textContent = inp.type === 'password' ? '👁' : '🙈';
 };
 
-window._mnCheckPwStrength = function(pw) {
-  const wrap  = document.getElementById('mn-reg-pw-strength');
-  const fill  = document.getElementById('mn-reg-pw-fill');
-  const label = document.getElementById('mn-reg-pw-label');
+window._mnCheckPwStrength = function(pw, barId) {
+  const wrapId  = barId;
+  const fillId  = barId + '-fill';
+  const labelId = barId + '-label';
+  const wrap    = document.getElementById(wrapId);
+  const fill    = document.getElementById(fillId);
+  const label   = document.getElementById(labelId);
   if (!wrap || !fill || !label) return;
   if (!pw) { wrap.style.display = 'none'; return; }
   wrap.style.display = 'flex';
   let score = 0;
-  if (pw.length >= 8) score++;
-  if (/[A-Z]/.test(pw)) score++;
-  if (/[0-9]/.test(pw)) score++;
+  if (pw.length >= 8)           score++;
+  if (/[A-Z]/.test(pw))         score++;
+  if (/[0-9]/.test(pw))         score++;
   if (/[^A-Za-z0-9]/.test(pw)) score++;
   const levels = [
-    { pct:'25%', color:'#F43F5E', text:'Muy débil' },
-    { pct:'50%', color:'#F59E0B', text:'Débil' },
-    { pct:'75%', color:'#6366F1', text:'Buena' },
-    { pct:'100%',color:'#00D4AA', text:'Fuerte ✓' },
+    { pct:'25%',  color:'#F43F5E', text:'Muy débil' },
+    { pct:'50%',  color:'#F59E0B', text:'Débil' },
+    { pct:'75%',  color:'#6366F1', text:'Buena' },
+    { pct:'100%', color:'#00D4AA', text:'Fuerte ✓' },
   ];
   const lv = levels[Math.max(0, score - 1)];
-  fill.style.width = lv.pct;
+  fill.style.width      = lv.pct;
   fill.style.background = lv.color;
-  label.textContent = lv.text;
-  label.style.color = lv.color;
+  label.textContent     = lv.text;
+  label.style.color     = lv.color;
 };
 
 
 // ════════════════════════════════════════════════════════════════
-//  BADGE CONFIG
-// ════════════════════════════════════════════════════════════════
-
-function _planBadgeConfig(user) {
-  const hoursLeft = _auth.trialHoursLeft ? _auth.trialHoursLeft() : 0;
-  const isLoggedIn = window.MNSupabaseAuth?.isLoggedIn() ?? false;
-  const loggedSuffix = isLoggedIn ? '' : ' ·  Sin sesión';
-  const configs = {
-    trial:        { icon:'⏳', label:`Trial · ${Math.ceil(hoursLeft)}h${loggedSuffix}`, color:'#6366F1', bg:'rgba(99,102,241,.1)',  border:'rgba(99,102,241,.25)' },
-    locked_local: { icon:'🔒', label:'Bloqueado',                                        color:C.red,     bg:'rgba(244,63,94,.1)',   border:'rgba(244,63,94,.25)'  },
-    local:        { icon:'💾', label:'Local',                                            color:C.accent,  bg:'rgba(0,212,170,.1)',   border:'rgba(0,212,170,.25)'  },
-    pro:          { icon:'⚡', label:'Pro',                                              color:C.accent,  bg:'rgba(0,212,170,.12)',  border:'rgba(0,212,170,.3)'   },
-  };
-  return configs[user.plan] || configs.trial;
-}
-
-
-// ════════════════════════════════════════════════════════════════
-//  EXPORT GLOBAL
+//  EXPORT
 // ════════════════════════════════════════════════════════════════
 
 window.MNAuthUI = {
