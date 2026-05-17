@@ -1959,7 +1959,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20px 24px 0;
+  padding: 28px 28px 0;
   margin-bottom: 0;
 }
 
@@ -1988,14 +1988,14 @@
 }
 .mnpo-close:hover { background: rgba(255,255,255,0.1); color: #E8EFF7; border-color: rgba(255,255,255,0.15); }
 
-.mnpo-body { padding: 16px 24px 24px; display: flex; flex-direction: column; gap: 16px; }
+.mnpo-body { padding: 20px 28px 32px; display: flex; flex-direction: column; gap: 20px; }
 
 /* Plan summary */
 .mnpo-plan-summary {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 14px;
+  padding: 16px 18px;
   border-radius: 14px;
   background: rgba(255,255,255,0.03);
   border: 1px solid rgba(255,255,255,0.06);
@@ -2023,11 +2023,12 @@
   font-size: 0.7rem;
   color: #64748B;
   font-weight: 500;
-  margin-top: -4px;
+  line-height: 1.6;
+  margin-top: 2px;
 }
 
 /* Stripe element container */
-#mnPoElement { min-height: 80px; }
+#mnPoElement { min-height: 80px; padding-top: 4px; }
 
 /* Error */
 .mnpo-error {
@@ -2060,7 +2061,8 @@
   align-items: center;
   justify-content: center;
   gap: 10px;
-  margin-top: 4px;
+  margin-top: 8px;
+  margin-bottom: 6px;
 }
 .mnpo-pay-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 10px 32px rgba(0,212,170,0.45); }
 .mnpo-pay-btn:disabled { opacity: 0.5; cursor: default; transform: none; }
@@ -2081,6 +2083,8 @@
   font-size: 0.68rem;
   color: var(--text3, #64748B);
   font-weight: 500;
+  line-height: 1.6;
+  padding-top: 4px;
 }
 
 /* Success state */

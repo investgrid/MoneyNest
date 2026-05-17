@@ -9035,10 +9035,10 @@ function _obRightHTML(step) {
   if (step === 4) return `
     <div class="ob-step-pill"><div class="ob-step-pill-dot"></div>Paso 4 de ${OB_TOTAL}</div>
     <div class="ob-headline">Crea tu<br><span class="ob-headline-accent">acceso seguro</span></div>
-    <p class="ob-lead">Tu cuenta protege tus datos en este dispositivo. Opcional — puedes saltarla.</p>
+    <p class="ob-lead">Crea tu cuenta para guardar el acceso y activar tu prueba de 24h asociada a tu email.</p>
     <div class="ob-fields">
       <div class="ob-field-wrap">
-        <label class="ob-field-label">Correo electrónico</label>
+        <label class="ob-field-label">Correo electrónico *</label>
         <div class="ob-input-wrap">
           <span class="ob-input-icon">✉️</span>
           <input class="ob-field-input" id="obEmail" type="email" placeholder="tu@email.com"
@@ -9048,13 +9048,13 @@ function _obRightHTML(step) {
         </div>
       </div>
       <div class="ob-field-wrap">
-        <label class="ob-field-label">Contraseña</label>
+        <label class="ob-field-label">Contraseña * <span style="font-weight:400;text-transform:none;letter-spacing:0">(mín. 8 caracteres)</span></label>
         <div class="ob-input-wrap">
           <span class="ob-input-icon">🔑</span>
           <input class="ob-field-input" id="obPassword" type="password" placeholder="Mínimo 8 caracteres"
             value="${obData.password}" autocomplete="new-password"
             oninput="obData.password=this.value;_obCheckPwStrength(this.value)"
-            onkeydown="if(event.key==='Enter')obNext()">
+            onkeydown="if(event.key==='Enter')document.getElementById('obPassword2')?.focus()">
           <button class="ob-pw-toggle" onclick="_obTogglePw()" tabindex="-1">👁</button>
         </div>
         <div class="ob-pw-strength" id="obPwStrength" style="display:none">
@@ -9062,8 +9062,19 @@ function _obRightHTML(step) {
           <span class="ob-pw-label" id="obPwLabel"></span>
         </div>
       </div>
+      <div class="ob-field-wrap">
+        <label class="ob-field-label">Confirmar contraseña *</label>
+        <div class="ob-input-wrap">
+          <span class="ob-input-icon">🔑</span>
+          <input class="ob-field-input" id="obPassword2" type="password" placeholder="Repite la contraseña"
+            value="${obData.password2 || ''}" autocomplete="new-password"
+            oninput="obData.password2=this.value"
+            onkeydown="if(event.key==='Enter')obNext()">
+          <button class="ob-pw-toggle" onclick="_obTogglePw2()" tabindex="-1">👁</button>
+        </div>
+      </div>
+      <div class="ob-field-error" id="obAccountError" style="display:none;color:#F43F5E;font-size:.78rem;margin-top:2px"></div>
     </div>
-    <button class="ob-skip-link" onclick="obData.email='';obData.password='';obNext()">Saltar por ahora →</button>
     <div class="ob-actions-row">
       ${backBtn}
       <button class="ob-next-btn" onclick="obNext()">
@@ -9221,7 +9232,49 @@ function _obTogglePw() {
   inp.type = inp.type === 'password' ? 'text' : 'password'
 }
 
+function _obTogglePw2() {
+  const inp = document.getElementById('obPassword2')
+  if (!inp) return
+  inp.type = inp.type === 'password' ? 'text' : 'password'
+}
+
 function obNext() {
+  // ── Validaciones por paso ──────────────────────────────────
+  if (obStep === 2) {
+    const nombre = document.getElementById('obNombre')?.value?.trim() || ''
+    if (!nombre) {
+      const inp = document.getElementById('obNombre')
+      if (inp) { inp.style.borderColor = '#F43F5E'; inp.focus(); inp.addEventListener('input', () => { inp.style.borderColor = '' }, { once: true }) }
+      return
+    }
+    obData.nombre = nombre
+  }
+
+  if (obStep === 4) {
+    const email = (document.getElementById('obEmail')?.value || '').trim()
+    const pw    = document.getElementById('obPassword')?.value || ''
+    const pw2   = document.getElementById('obPassword2')?.value || ''
+    const errEl = document.getElementById('obAccountError')
+
+    const showErr = (msg) => {
+      if (errEl) { errEl.textContent = msg; errEl.style.display = 'block' }
+    }
+
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      showErr('⚠ Introduce un correo electrónico válido.'); document.getElementById('obEmail')?.focus(); return
+    }
+    if (pw.length < 8) {
+      showErr('⚠ La contraseña debe tener al menos 8 caracteres.'); document.getElementById('obPassword')?.focus(); return
+    }
+    if (pw !== pw2) {
+      showErr('⚠ Las contraseñas no coinciden.'); document.getElementById('obPassword2')?.focus(); return
+    }
+    obData.email    = email
+    obData.password = pw
+    obData.password2 = pw2
+    if (errEl) errEl.style.display = 'none'
+  }
+
   if (obStep === OB_TOTAL) { finishOnboarding(); return }
   obStep++
   obRender('forward')
@@ -9612,22 +9665,20 @@ function reloadDemoWithScenario() {
 function finishOnboarding() {
   if (obData.nombre) S.usuario.nombre = obData.nombre
   S.usuario.mode = 'personal'
-  // Apply theme — resolve 'auto' to system preference
+
   if (obData.theme) {
     let resolved = obData.theme
     if (resolved === 'auto') resolved = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
     S.theme = resolved
   }
-  // Register email if provided (local auth)
-  if (obData.email && typeof patchUser === 'function') {
-    patchUser({ email: obData.email, createdAt: Date.now() })
-  }
+
   if (obData.lang) { _currentLang = obData.lang; try { localStorage.setItem(LANG_STORAGE_KEY, obData.lang) } catch(e){} }
   _setObSeen()
   document.getElementById('onboardingOverlay').style.display = 'none'
   document.body.style.overflow = ''
   applyTheme()
   updateModeUI()
+
   if (obData.loadDemo) {
     loadDemoData('standard', obData.nombre || 'Demo')
     _setTutDone()
@@ -9635,15 +9686,49 @@ function finishOnboarding() {
     render()
     toast('Datos de ejemplo cargados — explora libremente')
     _renderDemoFab()
+    // Register in background after demo loaded
+    _obRegisterSupabase()
     return
   }
+
   save()
   render()
+
+  // ── Registro en Supabase con el email/password del onboarding ──
+  _obRegisterSupabase()
+
   if (obData.startTutorial === true) {
     setTimeout(() => startTutorial(), 400)
   } else {
     _setTutDone()
     toast(`${t('hola')} ${S.usuario.nombre || 'Usuario'}! 🎉`)
+  }
+}
+
+async function _obRegisterSupabase() {
+  if (!obData.email || !obData.password) return
+  if (!window.MNSupabaseAuth) return
+  try {
+    await window.MNSupabaseAuth.signUp(obData.email, obData.password)
+    if (typeof window.MNAuth !== 'undefined') {
+      window.MNAuth.upgradeTrial(obData.email)
+    }
+    if (window.MNAuthUI) {
+      window.MNAuthUI.renderAuthBadge('authPlanBadge')
+      window.MNAuthUI.renderTrialPill('trialPillContainer')
+    }
+  } catch (err) {
+    // Si ya existe la cuenta, intentar login silencioso
+    if (err?.message?.includes('already registered')) {
+      try {
+        await window.MNSupabaseAuth.signIn(obData.email, obData.password)
+        if (window.MNAuthUI) {
+          window.MNAuthUI.renderAuthBadge('authPlanBadge')
+          window.MNAuthUI.renderTrialPill('trialPillContainer')
+        }
+      } catch (_) {}
+    }
+    // No bloqueamos el flujo si falla — funciona local de todas formas
   }
 }
 
