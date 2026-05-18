@@ -1382,12 +1382,5 @@
   })();
 </script>
 <script src="js/premium-ux.js"></script>
-<script>
-  // Hard failsafe: if mnMiniIntro is still visible after 4s, kill it
-  setTimeout(function() {
-    var el = document.getElementById('mnMiniIntro');
-    if (el) { el.style.transition = 'opacity 0.3s'; el.style.opacity = '0'; setTimeout(function(){ if(el.parentNode) el.parentNode.removeChild(el); }, 300); }
-  }, 4000);
-</script>
 </body>
 </html>

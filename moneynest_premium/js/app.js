@@ -105,6 +105,7 @@ const USER_KEY  = 'mn_user'
 const TRIAL_DAYS = 1 // 24 horas (v2 — ver js/auth.js)
 
 const PLANS = Object.freeze({ GUEST:'trial', TRIAL:'trial', LOCKED_LOCAL:'locked_local', LOCAL:'local', PRO:'pro' })
+window.PLANS = PLANS
 
 const DEFAULT_USER = Object.freeze({
   id:           null,
@@ -9319,7 +9320,7 @@ async function _obForgotPassword() {
   }
 }
 
-function obNext() {
+async function obNext() {
   // ── Validaciones por paso ──────────────────────────────────
   if (obStep === 2) {
     const nombre = document.getElementById('obNombre')?.value?.trim() || ''
