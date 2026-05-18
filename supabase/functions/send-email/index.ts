@@ -40,7 +40,7 @@ function rateCheck(ip: string, max = 5, windowMs = 10 * 60 * 1000): boolean {
   return true;
 }
 
-const LOGO_URL = 'https://jwddciqqhmfkbqhdrfre.supabase.co/storage/v1/object/public/assets/icon-192.png';
+const LOGO_URL = 'https://jwddciqqhmfkbqhdrfre.supabase.co/storage/v1/object/public/assets/logo-icon.png';
 
 // Envuelve cualquier card en el layout base
 function wrap(cardHtml: string): string {
@@ -61,7 +61,7 @@ function wrap(cardHtml: string): string {
     <table border="0" cellpadding="0" cellspacing="0">
     <tr>
       <td style="vertical-align:middle;padding-right:12px">
-        <img src="${LOGO_URL}" width="65" height="65" alt="MoneyNest" style="display:block;border:0">
+        <img src="${LOGO_URL}" width="65" height="65" alt="MoneyNest" style="display:block;border:0;border-radius:14px">
       </td>
       <td style="vertical-align:middle">
         <span style="font-size:33px;font-weight:900;color:#ffffff;letter-spacing:-1.5px;font-family:Helvetica Neue,Helvetica,Arial,sans-serif">Money</span><span style="font-size:33px;font-weight:900;color:#00D4AA;letter-spacing:-1.5px;font-family:Helvetica Neue,Helvetica,Arial,sans-serif">Nest</span>
