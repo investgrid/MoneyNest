@@ -95,11 +95,11 @@
       throw Object.assign(new Error('Demasiados intentos. Espera unos minutos.'), { code: 'rate_limited' });
     }
 
+    // Step 1: create the account
     const { data, error } = await sb.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: `${location.origin}${location.pathname}?action=confirm-email`,
         data: { display_name: displayName || null },
       },
     });
@@ -108,12 +108,25 @@
       if (error.message?.includes('already registered') || error.status === 422) {
         throw Object.assign(new Error('Este email ya está registrado.'), { code: 'email_exists' });
       }
+      // User already exists but unconfirmed — treat as existing
+      if (error.message?.includes('User already registered')) {
+        throw Object.assign(new Error('Este email ya está registrado.'), { code: 'email_exists' });
+      }
       throw error;
     }
 
+    // Step 2: send OTP code (6-digit) for email verification via Resend custom email
+    // We use signInWithOtp which sends a numeric code Supabase can verify
+    await sb.auth.signInWithOtp({
+      email,
+      options: {
+        shouldCreateUser: false, // user already created above
+        data: { display_name: displayName || null },
+      },
+    });
+
     if (data.user) {
       await _ensureProfile(data.user.id, email, displayName);
-      if (data.session) await _syncProfileToLocal(data.user);
     }
 
     _rl.reset(`signup:${email}`);
@@ -136,7 +149,8 @@
     if (!_rl.check(`resend:${email}`, 3, 5 * 60 * 1000)) {
       throw Object.assign(new Error('Espera unos minutos antes de reenviar.'), { code: 'rate_limited' });
     }
-    const { error } = await sb.auth.resend({ type: 'signup', email });
+    // Use signInWithOtp to send a fresh 6-digit code
+    const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
     if (error) throw error;
   }
 
@@ -228,17 +242,14 @@
 
       function onMessage(e) {
         if (e.origin !== location.origin) return;
-        if (e.data?.type === 'mn_oauth_success') {
+        if (e.data?.type === 'mn_oauth_callback') {
           cleanup();
-          // Session is already stored in localStorage by the callback page
-          // Trigger session refresh in main window
-          sb.auth.getSession().then(({ data: { session } }) => {
-            if (session) resolve({ session });
-            else reject(new Error('No session after OAuth'));
+          // Process the PKCE exchange in the main window using the callback URL
+          const callbackHref = e.data.href;
+          sb.auth.exchangeCodeForSession(callbackHref).then(({ data, error }) => {
+            if (error) reject(error);
+            else resolve({ session: data.session });
           });
-        } else if (e.data?.type === 'mn_oauth_error') {
-          cleanup();
-          reject(new Error(e.data.error || 'OAuth error'));
         }
       }
 
