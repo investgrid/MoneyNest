@@ -77,9 +77,11 @@ window.MNPayment = (() => {
 
   function _setPlanSummary(priceId) {
     const isLocal = priceId === MNStripeConfig.prices.local;
-    document.getElementById('mnPoTitle').textContent = isLocal
-      ? 'Activar Local — 5€'
-      : 'Activar Pro — 10€ primer año';
+    const titleEl = document.getElementById('mnPoTitle');
+    if (titleEl) titleEl.textContent = isLocal ? 'Activar Local — 5€' : 'Activar Pro — 10€ primer año';
+
+    const rightTitleEl = document.querySelector('#mnPoBody .mnpo-right-title');
+    if (rightTitleEl) rightTitleEl.textContent = isLocal ? 'Activar Local — 5€' : 'Activar Pro — 10€ primer año';
 
     document.getElementById('mnPoPlanSummary').innerHTML = isLocal ? `
       <div class="mnpo-left-inner mnpo-left-inner--local">
