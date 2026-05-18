@@ -64,8 +64,10 @@ CREATE POLICY "Pro users can delete own cloud data"
 -- ── 4. RPC para que el frontend verifique el plan sin exponer datos ─
 -- Devuelve el plan actual del usuario autenticado.
 -- Uso: await supabase.rpc('get_my_plan')
--- Ya existe en 002, pero lo reforzamos aquí por si no se corrió 002.
-CREATE OR REPLACE FUNCTION public.get_my_plan()
+-- DROP primero porque añadimos cloud_enabled al RETURNS TABLE
+-- y Postgres no permite cambiar tipos de retorno con CREATE OR REPLACE.
+DROP FUNCTION IF EXISTS public.get_my_plan();
+CREATE FUNCTION public.get_my_plan()
 RETURNS TABLE(
   plan             TEXT,
   trial_ends_at    TIMESTAMPTZ,
