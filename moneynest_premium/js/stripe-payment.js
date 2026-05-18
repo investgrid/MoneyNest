@@ -130,19 +130,24 @@ window.MNPayment = (() => {
 
   // ── Payment flow ───────────────────────────────────────────────
 
-  let _activePriceId = null;
-  let _activeEmail   = null;
+  let _activePriceId  = null;
+  let _activeEmail    = null;
+  let _activeFlowType = 'payment'; // 'payment' | 'setup'
 
   async function _handlePay() {
     _hideError();
     _setLoading(true);
 
     const stripe = _getStripe();
-    const returnUrl = `${location.origin}${location.pathname}?checkout=success&plan=${
-      _activePriceId === MNStripeConfig.prices.local ? 'local' : 'pro'
-    }`;
+    const cfg = window.MNStripeConfig;
+    const isLocal = _activePriceId === cfg.prices.local;
+    const returnUrl = `${location.origin}${location.pathname}?checkout=success&plan=${isLocal ? 'local' : 'pro'}`;
 
-    const { error } = await stripe.confirmPayment({
+    const confirmFn = _activeFlowType === 'setup'
+      ? stripe.confirmSetup.bind(stripe)
+      : stripe.confirmPayment.bind(stripe);
+
+    const { error } = await confirmFn({
       elements: _elements,
       confirmParams: { return_url: returnUrl },
       redirect: 'if_required',
@@ -153,7 +158,6 @@ window.MNPayment = (() => {
       return;
     }
 
-    // Payment succeeded without redirect
     _onPaymentSuccess(_activePriceId, _activeEmail);
   }
 
@@ -226,6 +230,7 @@ window.MNPayment = (() => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? 'server_error');
 
+      _activeFlowType = data.type ?? 'payment';
       const stripe   = _getStripe();
       const appearance = {
         theme: 'night',
