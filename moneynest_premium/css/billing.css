@@ -2153,3 +2153,49 @@
 
 .mnpo-success-btn:hover { background: rgba(0,212,170,0.18); }
 
+
+/* ── Pro plan price breakdown (Local + Pro/yr) ─────────────── */
+.mn-price-stack {
+  display: flex !important;
+  flex-direction: column;
+  gap: 3px;
+  align-items: flex-start;
+}
+.mn-price-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+.mn-price-row-label {
+  font-size: .65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  padding: 2px 7px;
+  border-radius: 99px;
+  flex-shrink: 0;
+}
+.mn-price-row--local .mn-price-row-label {
+  background: rgba(16,185,129,0.15);
+  color: #10B981;
+}
+.mn-price-row--pro-yr .mn-price-row-label {
+  background: rgba(99,102,241,0.15);
+  color: #818CF8;
+}
+.mn-price-row-amount {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #fff;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  letter-spacing: -.02em;
+}
+[data-theme="light"] .mn-price-row-amount { color: #0F172A; }
+.mn-price-row-plus {
+  font-size: .72rem;
+  font-weight: 800;
+  color: rgba(255,255,255,0.25);
+  padding-left: 4px;
+}
+[data-theme="light"] .mn-price-row-plus { color: rgba(0,0,0,0.25); }

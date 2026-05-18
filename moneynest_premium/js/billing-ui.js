@@ -323,12 +323,19 @@ function _renderTrial(content) {
         <div class="mn-plan-card mn-plan-card--pro">
           <div class="mn-plan-card__icon">⚡</div>
           <div class="mn-plan-card__name">${t('billing_plan_pro_name')}</div>
-          <div class="mn-plan-card__price-block">
-            <span class="mn-price-currency mn-price-currency--pro">€</span>
-            <span class="mn-price-amount mn-price-amount--pro">5</span>
-            <span class="mn-price-period">${t('billing_plan_pro_period_unit')}</span>
+          <!-- Price breakdown: Local 5€ + Pro 5€/yr -->
+          <div class="mn-plan-card__price-block mn-price-stack">
+            <div class="mn-price-row mn-price-row--local">
+              <span class="mn-price-row-label">Local</span>
+              <span class="mn-price-row-amount">5€ <span style="font-size:.65rem;font-weight:600;opacity:.6">único</span></span>
+            </div>
+            <div class="mn-price-row-plus">+</div>
+            <div class="mn-price-row mn-price-row--pro-yr">
+              <span class="mn-price-row-label">Pro</span>
+              <span class="mn-price-row-amount">5€ <span style="font-size:.65rem;font-weight:600;opacity:.6">/año</span></span>
+            </div>
           </div>
-          <div class="mn-plan-card__period">${t('billing_plan_pro_trial_included')}</div>
+          <div class="mn-plan-card__period" style="color:rgba(255,255,255,0.4);font-size:.72rem">${t('billing_plan_pro_trial_included')}</div>
           <ul class="mn-plan-card__features">
             <li>${t('billing_plan_feat_cloud')}</li>
             <li>${t('billing_plan_feat_multi')}</li>
