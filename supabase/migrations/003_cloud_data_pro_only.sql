@@ -1,26 +1,22 @@
 -- ════════════════════════════════════════════════════════════════
---  MoneyNest Migration 003
+--  MoneyNest Migration 003  (idempotente — se puede ejecutar N veces)
 --  Cloud data access restricted to Pro users only (server-enforced)
 --
 --  HOW TO RUN:
 --  Supabase Dashboard → SQL Editor → New query → paste → Run
 -- ════════════════════════════════════════════════════════════════
 
--- ── 1. Fix the cloud_data column name consistency ─────────────────
--- The schema already uses "data" (JSONB). This confirms it exists.
--- Nothing to change here — sync.js has been updated to use "data".
+-- ── 1. Drop ALL policies on cloud_data (old + new, por si acaso) ──
+DROP POLICY IF EXISTS "Users can view own cloud data"         ON public.cloud_data;
+DROP POLICY IF EXISTS "Users can insert own cloud data"       ON public.cloud_data;
+DROP POLICY IF EXISTS "Users can update own cloud data"       ON public.cloud_data;
+DROP POLICY IF EXISTS "Users can delete own cloud data"       ON public.cloud_data;
+DROP POLICY IF EXISTS "Pro users can select own cloud data"   ON public.cloud_data;
+DROP POLICY IF EXISTS "Pro users can insert own cloud data"   ON public.cloud_data;
+DROP POLICY IF EXISTS "Pro users can update own cloud data"   ON public.cloud_data;
+DROP POLICY IF EXISTS "Pro users can delete own cloud data"   ON public.cloud_data;
 
--- ── 2. Drop old open RLS policies on cloud_data ───────────────────
-DROP POLICY IF EXISTS "Users can view own cloud data"   ON public.cloud_data;
-DROP POLICY IF EXISTS "Users can insert own cloud data" ON public.cloud_data;
-DROP POLICY IF EXISTS "Users can update own cloud data" ON public.cloud_data;
-DROP POLICY IF EXISTS "Users can delete own cloud data" ON public.cloud_data;
-
--- ── 3. Create Pro-gated RLS policies ─────────────────────────────
--- A user can only touch cloud_data if:
---   a) auth.uid() matches their row (own data)
---   b) their profile.plan = 'pro' (cloud feature)
-
+-- ── 2. Recrear policies Pro-only ─────────────────────────────────
 CREATE POLICY "Pro users can select own cloud data"
   ON public.cloud_data FOR SELECT
   USING (
@@ -61,18 +57,15 @@ CREATE POLICY "Pro users can delete own cloud data"
     )
   );
 
--- ── 4. RPC para que el frontend verifique el plan sin exponer datos ─
--- Devuelve el plan actual del usuario autenticado.
--- Uso: await supabase.rpc('get_my_plan')
--- DROP primero porque añadimos cloud_enabled al RETURNS TABLE
--- y Postgres no permite cambiar tipos de retorno con CREATE OR REPLACE.
+-- ── 3. get_my_plan() — DROP siempre antes de recrear ─────────────
 DROP FUNCTION IF EXISTS public.get_my_plan();
+
 CREATE FUNCTION public.get_my_plan()
 RETURNS TABLE(
-  plan             TEXT,
-  trial_ends_at    TIMESTAMPTZ,
+  plan              TEXT,
+  trial_ends_at     TIMESTAMPTZ,
   pro_trial_ends_at TIMESTAMPTZ,
-  cloud_enabled    BOOLEAN
+  cloud_enabled     BOOLEAN
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -80,19 +73,13 @@ SET search_path = public
 AS $$
 BEGIN
   RETURN QUERY
-    SELECT
-      p.plan,
-      p.trial_ends_at,
-      p.pro_trial_ends_at,
-      p.cloud_enabled
+    SELECT p.plan, p.trial_ends_at, p.pro_trial_ends_at, p.cloud_enabled
     FROM public.profiles p
     WHERE p.id = auth.uid();
 END;
 $$;
 
--- ── 5. Trigger: al activar Pro, marcar cloud_enabled = TRUE ──────
--- Esto ya lo hace activate_pro_plan(), pero reforzamos con trigger
--- por si el webhook actualiza plan directamente via service_role.
+-- ── 4. Trigger: cloud_enabled se sincroniza al cambiar plan ───────
 CREATE OR REPLACE FUNCTION public.sync_cloud_enabled_on_plan_change()
 RETURNS TRIGGER
 LANGUAGE plpgsql
