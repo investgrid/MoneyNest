@@ -9125,61 +9125,73 @@ function _obRightHTML(step) {
   if (step === 4) return `
     <div class="ob-step-pill"><div class="ob-step-pill-dot"></div>Paso 4 de ${OB_TOTAL}</div>
     <div class="ob-headline">Elige tu<br><span class="ob-headline-accent">plan</span></div>
-    <p class="ob-lead">Puedes cambiar en cualquier momento. Sin permanencia.</p>
+    <p class="ob-lead">Sin permanencia. Cambia cuando quieras.</p>
     <div class="ob-plan-cards" id="obPlanCards">
+
       <div class="ob-plan-card ob-plan-card--trial ${obData.plan === 'trial' ? 'selected' : ''}" onclick="obSelectPlan('trial')">
-        <div class="ob-plan-header">
-          <div class="ob-plan-icon" style="background:rgba(245,158,11,0.15);color:#F59E0B">🕐</div>
-          <div class="ob-plan-badge ob-plan-badge--free">Gratis</div>
+        <div class="ob-pc-top">
+          <span class="ob-pc-emoji">🕐</span>
+          <span class="ob-pc-tag ob-pc-tag--free">Gratis</span>
         </div>
-        <div class="ob-plan-name">Free Trial</div>
-        <div class="ob-plan-price"><span class="ob-plan-amount">0€</span><span class="ob-plan-period">/24h</span></div>
-        <ul class="ob-plan-feats">
-          <li>✓ Acceso completo 24h</li>
-          <li>✓ Todos los módulos</li>
-          <li class="feat-locked">✗ Sin cloud</li>
+        <div class="ob-pc-name">Free Trial</div>
+        <div class="ob-pc-price-main">0<span class="ob-pc-cur">€</span></div>
+        <div class="ob-pc-period">durante 24 horas</div>
+        <div class="ob-pc-divider"></div>
+        <ul class="ob-pc-feats">
+          <li class="ok">Acceso completo 24h</li>
+          <li class="ok">Todos los módulos</li>
+          <li class="no">Sin sincronización cloud</li>
         </ul>
-        <div class="ob-plan-radio"><div class="ob-plan-radio-dot"></div></div>
+        <div class="ob-pc-check ${obData.plan === 'trial' ? 'active' : ''}">
+          <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
       </div>
+
       <div class="ob-plan-card ob-plan-card--local ${obData.plan === 'local' ? 'selected' : ''}" onclick="obSelectPlan('local')">
-        <div class="ob-plan-header">
-          <div class="ob-plan-icon" style="background:rgba(16,185,129,0.15);color:#10B981">💾</div>
-          <div class="ob-plan-badge ob-plan-badge--local">Único</div>
+        <div class="ob-pc-top">
+          <span class="ob-pc-emoji">💾</span>
+          <span class="ob-pc-tag ob-pc-tag--local">Pago único</span>
         </div>
-        <div class="ob-plan-name">Local</div>
-        <div class="ob-plan-price"><span class="ob-plan-amount">5€</span><span class="ob-plan-period"> único</span></div>
-        <ul class="ob-plan-feats">
-          <li>✓ Acceso ilimitado</li>
-          <li>✓ Sin suscripción</li>
-          <li class="feat-locked">✗ Sin cloud</li>
+        <div class="ob-pc-name">Local</div>
+        <div class="ob-pc-price-main">5<span class="ob-pc-cur">€</span></div>
+        <div class="ob-pc-period">para siempre</div>
+        <div class="ob-pc-divider"></div>
+        <ul class="ob-pc-feats">
+          <li class="ok">Acceso ilimitado</li>
+          <li class="ok">Sin suscripción</li>
+          <li class="no">Sin sincronización cloud</li>
         </ul>
-        <div class="ob-plan-radio"><div class="ob-plan-radio-dot"></div></div>
+        <div class="ob-pc-check ${obData.plan === 'local' ? 'active' : ''}">
+          <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
       </div>
+
       <div class="ob-plan-card ob-plan-card--pro ${obData.plan === 'pro' ? 'selected' : ''}" onclick="obSelectPlan('pro')">
-        <div class="ob-plan-header">
-          <div class="ob-plan-icon" style="background:rgba(99,102,241,0.15);color:#6366F1">⚡</div>
-          <div class="ob-plan-badge ob-plan-badge--pro">Popular</div>
+        <div class="ob-pc-popular">⚡ Popular</div>
+        <div class="ob-pc-top">
+          <span class="ob-pc-emoji">🚀</span>
+          <span class="ob-pc-tag ob-pc-tag--pro">Todo incluido</span>
         </div>
-        <div class="ob-plan-name">Pro</div>
-        <div class="ob-plan-price ob-plan-price--stack">
-          <div class="ob-plan-price-row">
-            <span class="ob-plan-price-label ob-plan-price-label--local">Local</span>
-            <span class="ob-plan-amount" style="font-size:.95rem">5€</span><span class="ob-plan-period"> único</span>
-          </div>
-          <div class="ob-plan-price-row">
-            <span class="ob-plan-price-label ob-plan-price-label--pro">Pro</span>
-            <span class="ob-plan-amount" style="font-size:.95rem">5€</span><span class="ob-plan-period">/año</span>
-          </div>
+        <div class="ob-pc-name">Pro</div>
+        <div class="ob-pc-price-stack">
+          <div class="ob-pc-price-row"><span class="ob-pc-price-lbl ob-pc-price-lbl--local">Local</span><span class="ob-pc-price-val">5€ único</span></div>
+          <div class="ob-pc-price-plus">+</div>
+          <div class="ob-pc-price-row"><span class="ob-pc-price-lbl ob-pc-price-lbl--pro">Pro</span><span class="ob-pc-price-val">5€/año</span></div>
         </div>
-        <ul class="ob-plan-feats">
-          <li>✓ Todo lo de Local</li>
-          <li>✓ Cloud sync</li>
-          <li>✓ 7 días gratis</li>
+        <div class="ob-pc-period">7 días de prueba gratis</div>
+        <div class="ob-pc-divider"></div>
+        <ul class="ob-pc-feats">
+          <li class="ok">Todo lo de Local</li>
+          <li class="ok">Sincronización cloud</li>
+          <li class="ok">7 días gratis incluidos</li>
         </ul>
-        <div class="ob-plan-radio"><div class="ob-plan-radio-dot"></div></div>
+        <div class="ob-pc-check ${obData.plan === 'pro' ? 'active' : ''}">
+          <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
       </div>
+
     </div>
-    <div class="ob-actions-row" style="margin-top:16px">
+    <div class="ob-actions-row" style="margin-top:20px">
       ${backBtn}
       <button class="ob-next-btn" onclick="obNext()">
         Continuar <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="display:inline;vertical-align:middle"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -9219,11 +9231,18 @@ function _obRightHTML(step) {
 
 function obSelectPlan(plan) {
   obData.plan = plan
-  document.querySelectorAll('#obPlanCards .ob-plan-card').forEach(el => el.classList.remove('selected'))
+  document.querySelectorAll('#obPlanCards .ob-plan-card').forEach(el => {
+    el.classList.remove('selected')
+    const chk = el.querySelector('.ob-pc-check')
+    if (chk) chk.classList.remove('active')
+  })
   const map = { trial: 0, local: 1, pro: 2 }
   const els = document.querySelectorAll('#obPlanCards .ob-plan-card')
-  if (els[map[plan]]) els[map[plan]].classList.add('selected')
-  // Update left panel icon/title live
+  if (els[map[plan]]) {
+    els[map[plan]].classList.add('selected')
+    const chk = els[map[plan]].querySelector('.ob-pc-check')
+    if (chk) chk.classList.add('active')
+  }
   const leftPanel = document.getElementById('obLeftPanel')
   if (leftPanel) leftPanel.innerHTML = _obLeftHTML(4)
 }

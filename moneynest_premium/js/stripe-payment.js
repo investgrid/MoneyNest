@@ -20,26 +20,44 @@ window.MNPayment = (() => {
     el.innerHTML = `
       <div class="mnpo-backdrop"></div>
       <div class="mnpo-sheet" id="mnPaymentSheet" role="dialog" aria-modal="true" aria-label="Pago seguro">
-        <div class="mnpo-handle"></div>
         <div class="mnpo-header">
-          <div class="mnpo-title" id="mnPoTitle">Activar plan</div>
-          <button class="mnpo-close" id="mnPoClose" aria-label="Cerrar">✕</button>
+          <div class="mnpo-header-left">
+            <div class="mnpo-logo">
+              <svg width="16" height="16" viewBox="0 0 22 22" fill="none"><path d="M4 16L8 9l3 4 4-6 4 4" stroke="#00D4AA" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div>
+              <div class="mnpo-title" id="mnPoTitle">Activar plan</div>
+              <div class="mnpo-subtitle">MoneyNest · Pago seguro</div>
+            </div>
+          </div>
+          <button class="mnpo-close" id="mnPoClose" aria-label="Cerrar">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 1l10 10M11 1L1 11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          </button>
         </div>
+        <div class="mnpo-plan-hero" id="mnPoPlanSummary"></div>
         <div class="mnpo-body" id="mnPoBody">
-          <div class="mnpo-plan-summary" id="mnPoPlanSummary"></div>
+          <div class="mnpo-section-label">Método de pago</div>
           <div id="mnPoElement"></div>
           <div class="mnpo-error" id="mnPoError" style="display:none"></div>
           <button class="mnpo-pay-btn" id="mnPoPayBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="flex-shrink:0"><rect x="2" y="5" width="20" height="14" rx="3" stroke="currentColor" stroke-width="2"/><path d="M2 10h20" stroke="currentColor" stroke-width="2"/></svg>
             <span id="mnPoPayBtnText">Pagar ahora</span>
             <span class="mnpo-pay-spinner" id="mnPoSpinner" style="display:none"></span>
           </button>
-          <div class="mnpo-secure-note">🔒 Pago 100% seguro con Stripe · No almacenamos tu tarjeta</div>
+          <div class="mnpo-secure-row">
+            <svg width="12" height="14" viewBox="0 0 12 14" fill="none"><path d="M6 1L1 3.5v3.5C1 10.1 3.2 12.7 6 13.5 8.8 12.7 11 10.1 11 7V3.5L6 1z" stroke="#10B981" stroke-width="1.4" fill="none"/></svg>
+            <span>Pago cifrado con SSL · Procesado por Stripe · No guardamos tu tarjeta</span>
+          </div>
         </div>
         <div class="mnpo-success" id="mnPoSuccess" style="display:none">
-          <div class="mnpo-success-icon">✓</div>
+          <div class="mnpo-success-ring">
+            <div class="mnpo-success-icon">
+              <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><path d="M5 14l6 6 12-12" stroke="#0A0E17" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+          </div>
           <div class="mnpo-success-title" id="mnPoSuccessTitle">¡Plan activado!</div>
           <div class="mnpo-success-sub" id="mnPoSuccessSub"></div>
-          <button class="mnpo-success-btn" id="mnPoSuccessBtn">Continuar</button>
+          <button class="mnpo-success-btn" id="mnPoSuccessBtn">Continuar →</button>
         </div>
       </div>
     `;
@@ -58,13 +76,42 @@ window.MNPayment = (() => {
       ? 'Activar Local — 5€'
       : 'Activar Pro — 10€ primer año';
 
-    document.getElementById('mnPoPlanSummary').innerHTML = isLocal
-      ? `<div class="mnpo-plan-tag mnpo-plan-tag--local">💾 Local</div>
-         <div class="mnpo-plan-desc">Acceso ilimitado · Sin suscripción · Sin cloud</div>
-         <div class="mnpo-plan-price"><span class="mnpo-price-big">5€</span><span class="mnpo-price-period">único</span></div>`
-      : `<div class="mnpo-plan-tag mnpo-plan-tag--pro">⚡ Pro</div>
-         <div class="mnpo-plan-desc">5€ Local + 5€/año · Incluye 7 días gratis · Cloud sync</div>
-         <div class="mnpo-plan-price"><span class="mnpo-price-big">10€</span><span class="mnpo-price-period">1er año</span></div>`;
+    document.getElementById('mnPoPlanSummary').innerHTML = isLocal ? `
+      <div class="mnpo-hero mnpo-hero--local">
+        <div class="mnpo-hero-left">
+          <div class="mnpo-hero-icon">💾</div>
+          <div>
+            <div class="mnpo-hero-name">Plan Local</div>
+            <div class="mnpo-hero-feats">
+              <span>✓ Acceso ilimitado</span>
+              <span>✓ Sin suscripción</span>
+              <span>✓ Datos en tu dispositivo</span>
+            </div>
+          </div>
+        </div>
+        <div class="mnpo-hero-price">
+          <span class="mnpo-hero-amount">5€</span>
+          <span class="mnpo-hero-period">único</span>
+        </div>
+      </div>` : `
+      <div class="mnpo-hero mnpo-hero--pro">
+        <div class="mnpo-hero-left">
+          <div class="mnpo-hero-icon">⚡</div>
+          <div>
+            <div class="mnpo-hero-name">Plan Pro</div>
+            <div class="mnpo-hero-feats">
+              <span>✓ Local incluido</span>
+              <span>✓ Cloud sync</span>
+              <span>✓ 7 días gratis</span>
+            </div>
+          </div>
+        </div>
+        <div class="mnpo-hero-price">
+          <div class="mnpo-hero-price-row"><span class="mnpo-hero-lbl-local">Local</span><span class="mnpo-hero-amount" style="font-size:1.1rem">5€</span><span class="mnpo-hero-period">único</span></div>
+          <div class="mnpo-hero-price-plus">+</div>
+          <div class="mnpo-hero-price-row"><span class="mnpo-hero-lbl-pro">Pro</span><span class="mnpo-hero-amount" style="font-size:1.1rem">5€</span><span class="mnpo-hero-period">/año</span></div>
+        </div>
+      </div>`;
   }
 
   function _setLoading(on) {

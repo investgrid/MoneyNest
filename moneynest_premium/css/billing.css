@@ -1896,258 +1896,157 @@
    ════════════════════════════════════════════════════════════════ */
 
 #mnPaymentOverlay {
-  position: fixed;
-  inset: 0;
-  z-index: 9800;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-  padding: 24px;
+  position: fixed; inset: 0; z-index: 9800;
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: none; padding: 20px;
 }
 #mnPaymentOverlay.mnpo--open { pointer-events: all; }
-
 .mnpo-backdrop {
-  position: absolute;
-  inset: 0;
-  background: rgba(0,0,0,0);
-  backdrop-filter: blur(0px);
-  transition: background 0.3s ease, backdrop-filter 0.3s ease;
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,0); backdrop-filter: blur(0px);
+  transition: background .3s, backdrop-filter .3s;
 }
 #mnPaymentOverlay.mnpo--open .mnpo-backdrop {
-  background: rgba(0,0,0,0.8);
-  backdrop-filter: blur(24px) saturate(0.7);
+  background: rgba(0,0,0,0.82);
+  backdrop-filter: blur(28px) saturate(0.6);
 }
-
 .mnpo-sheet {
-  position: relative;
-  z-index: 1;
-  width: min(560px, 100%);
-  max-height: 92dvh;
-  overflow-y: auto;
-  background: #0D1421;
-  border: 1px solid rgba(255,255,255,0.09);
-  border-radius: 32px;
-  box-shadow:
-    0 0 0 1px rgba(0,212,170,0.06),
-    0 48px 120px rgba(0,0,0,0.85),
-    0 0 80px rgba(0,212,170,0.03);
-  opacity: 0;
-  transform: scale(0.93) translateY(24px);
-  transition: opacity 0.32s ease, transform 0.38s cubic-bezier(0.22,1,0.36,1);
-}
-#mnPaymentOverlay.mnpo--open .mnpo-sheet {
-  opacity: 1;
-  transform: scale(1) translateY(0);
-}
-.mnpo-sheet::before {
-  content: '';
-  display: block;
-  height: 3px;
-  background: linear-gradient(90deg, #00D4AA 0%, #6366F1 50%, #A78BFA 100%);
-  border-radius: 32px 32px 0 0;
-}
-.mnpo-handle { display: none; }
-
-.mnpo-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 32px 36px 0;
-}
-.mnpo-title {
-  font-size: 1.05rem;
-  font-weight: 800;
-  color: #E8EFF7;
-  letter-spacing: -0.025em;
-}
-.mnpo-close {
-  background: rgba(255,255,255,0.05);
+  position: relative; z-index: 1;
+  width: min(520px, 100%);
+  max-height: 94dvh; overflow-y: auto;
+  background: #0C1220;
   border: 1px solid rgba(255,255,255,0.08);
-  color: #64748B;
-  font-size: 0.85rem;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s;
-  font-family: inherit;
+  border-radius: 28px;
+  box-shadow: 0 48px 120px rgba(0,0,0,0.9), 0 0 0 1px rgba(0,212,170,0.06);
+  opacity: 0; transform: translateY(32px) scale(0.96);
+  transition: opacity .32s, transform .36s cubic-bezier(0.22,1,0.36,1);
+}
+#mnPaymentOverlay.mnpo--open .mnpo-sheet { opacity: 1; transform: none; }
+.mnpo-sheet::before {
+  content: ''; display: block; height: 3px;
+  background: linear-gradient(90deg, #00D4AA 0%, #6366F1 60%, #A78BFA 100%);
+  border-radius: 28px 28px 0 0;
+}
+
+/* Header */
+.mnpo-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 24px 28px 0;
+}
+.mnpo-header-left { display: flex; align-items: center; gap: 12px; }
+.mnpo-logo {
+  width: 34px; height: 34px; border-radius: 10px;
+  background: linear-gradient(135deg, #00D4AA, #00A882);
+  display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
+}
+.mnpo-title { font-size: 1rem; font-weight: 800; color: #E8EFF7; letter-spacing: -.025em; line-height: 1.2; }
+.mnpo-subtitle { font-size: .68rem; color: #475569; font-weight: 500; margin-top: 1px; }
+.mnpo-close {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
+  color: #64748B; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: all .15s; font-family: inherit; flex-shrink: 0;
 }
 .mnpo-close:hover { background: rgba(255,255,255,0.1); color: #E8EFF7; border-color: rgba(255,255,255,0.15); }
 
-.mnpo-body {
-  padding: 28px 36px 40px;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
+/* Plan hero */
+.mnpo-plan-hero {
+  margin: 20px 28px 0;
+  border-radius: 16px;
+  overflow: hidden;
 }
+.mnpo-hero {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 20px; gap: 12px;
+}
+.mnpo-hero--local {
+  background: linear-gradient(135deg, rgba(16,185,129,0.12) 0%, rgba(16,185,129,0.04) 100%);
+  border: 1px solid rgba(16,185,129,0.2);
+  border-radius: 16px;
+}
+.mnpo-hero--pro {
+  background: linear-gradient(135deg, rgba(99,102,241,0.14) 0%, rgba(99,102,241,0.04) 100%);
+  border: 1px solid rgba(99,102,241,0.22);
+  border-radius: 16px;
+}
+.mnpo-hero-left { display: flex; align-items: center; gap: 14px; }
+.mnpo-hero-icon { font-size: 1.8rem; line-height: 1; flex-shrink: 0; }
+.mnpo-hero-name { font-size: .95rem; font-weight: 800; color: #E8EFF7; letter-spacing: -.02em; margin-bottom: 6px; }
+.mnpo-hero-feats { display: flex; flex-direction: column; gap: 3px; }
+.mnpo-hero-feats span { font-size: .7rem; color: rgba(255,255,255,0.5); font-weight: 500; }
+.mnpo-hero-price { text-align: right; flex-shrink: 0; }
+.mnpo-hero-amount { font-size: 1.6rem; font-weight: 900; color: #fff; font-family: 'Plus Jakarta Sans', sans-serif; letter-spacing: -.05em; line-height: 1; display: block; }
+.mnpo-hero-period { font-size: .65rem; color: rgba(255,255,255,0.35); font-weight: 600; }
+.mnpo-hero-price-row { display: flex; align-items: center; gap: 6px; justify-content: flex-end; }
+.mnpo-hero-price-plus { font-size: .65rem; font-weight: 700; color: rgba(255,255,255,0.2); text-align: right; margin: 1px 0; }
+.mnpo-hero-lbl-local { font-size: .55rem; font-weight: 800; text-transform: uppercase; letter-spacing: .07em; padding: 1px 5px; border-radius: 4px; background: rgba(16,185,129,0.18); color: #10B981; }
+.mnpo-hero-lbl-pro   { font-size: .55rem; font-weight: 800; text-transform: uppercase; letter-spacing: .07em; padding: 1px 5px; border-radius: 4px; background: rgba(99,102,241,0.18); color: #A5B4FC; }
 
-/* Plan summary */
-.mnpo-plan-summary {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 16px;
-  padding: 20px 24px;
-  border-radius: 18px;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.07);
+/* Body */
+.mnpo-body { padding: 24px 28px 32px; display: flex; flex-direction: column; gap: 20px; }
+.mnpo-section-label {
+  font-size: .65rem; font-weight: 800; text-transform: uppercase;
+  letter-spacing: .12em; color: #475569; margin-bottom: -8px;
 }
-.mnpo-plan-tag {
-  padding: 5px 12px;
-  border-radius: 99px;
-  font-size: 0.65rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-.mnpo-plan-tag--local { background: rgba(0,212,170,0.12); color: #00D4AA; border: 1px solid rgba(0,212,170,0.22); }
-.mnpo-plan-tag--pro   { background: rgba(167,139,250,0.12); color: #C4B5FD; border: 1px solid rgba(167,139,250,0.22); }
-
-.mnpo-plan-desc {
-  font-size: 0.78rem;
-  color: #64748B;
-  font-weight: 500;
-  line-height: 1.5;
-}
-.mnpo-plan-price {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 1px;
-  flex-shrink: 0;
-}
-.mnpo-price-big  { font-size: 1.5rem; font-weight: 900; color: #E8EFF7; letter-spacing: -0.05em; line-height: 1; }
-.mnpo-price-period { font-size: 0.68rem; color: #64748B; font-weight: 600; }
-
-/* Divider */
-.mnpo-divider {
-  height: 1px;
-  background: rgba(255,255,255,0.06);
-  margin: 0 -36px;
-}
-
-/* Stripe element */
 #mnPoElement { min-height: 80px; }
 
 /* Error */
 .mnpo-error {
-  padding: 12px 16px;
-  border-radius: 12px;
-  background: rgba(251,113,133,0.08);
-  border: 1px solid rgba(251,113,133,0.18);
-  color: #FB7185;
-  font-size: 0.8rem;
-  font-weight: 600;
-  line-height: 1.5;
+  padding: 12px 16px; border-radius: 12px;
+  background: rgba(251,113,133,0.08); border: 1px solid rgba(251,113,133,0.2);
+  color: #FB7185; font-size: .8rem; font-weight: 600; line-height: 1.5;
 }
 
 /* Pay button */
 .mnpo-pay-btn {
-  width: 100%;
-  padding: 17px;
-  border-radius: 16px;
-  border: none;
+  width: 100%; padding: 16px; border-radius: 14px; border: none;
   background: linear-gradient(135deg, #00D4AA, #00A882);
-  color: #041510;
-  font-size: 0.95rem;
-  font-weight: 800;
-  font-family: inherit;
-  cursor: pointer;
-  letter-spacing: -0.01em;
-  transition: all 0.22s cubic-bezier(0.22,1,0.36,1);
-  box-shadow: 0 8px 28px rgba(0,212,170,0.32);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
+  color: #041510; font-size: .95rem; font-weight: 800;
+  font-family: inherit; cursor: pointer;
+  transition: transform .2s, box-shadow .2s;
+  box-shadow: 0 6px 24px rgba(0,212,170,0.3);
+  display: flex; align-items: center; justify-content: center; gap: 10px;
 }
-.mnpo-pay-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 14px 40px rgba(0,212,170,0.48); }
+.mnpo-pay-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 12px 36px rgba(0,212,170,0.45); }
 .mnpo-pay-btn:disabled { opacity: 0.45; cursor: default; transform: none; }
-
 .mnpo-pay-spinner {
-  width: 18px;
-  height: 18px;
-  border: 2px solid rgba(4,21,16,0.2);
-  border-top-color: #041510;
-  border-radius: 50%;
-  animation: mnpoSpin 0.7s linear infinite;
+  width: 16px; height: 16px;
+  border: 2px solid rgba(4,21,16,0.2); border-top-color: #041510;
+  border-radius: 50%; animation: mnpoSpin .7s linear infinite;
 }
 @keyframes mnpoSpin { to { transform: rotate(360deg); } }
 
-.mnpo-secure-note {
-  text-align: center;
-  font-size: 0.7rem;
-  color: #475569;
-  font-weight: 500;
-  line-height: 1.6;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
+/* Secure row */
+.mnpo-secure-row {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  font-size: .67rem; color: #475569; font-weight: 500;
+  margin-top: -8px;
 }
 
-/* Success state */
+/* Success */
 .mnpo-success {
-  padding: 48px 36px;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: 14px;
-  animation: mnpoSuccessIn 0.45s cubic-bezier(0.22,1,0.36,1);
+  padding: 48px 32px; flex-direction: column; align-items: center;
+  text-align: center; gap: 14px;
+  animation: mnpoSuccessIn .4s cubic-bezier(0.22,1,0.36,1);
 }
-@keyframes mnpoSuccessIn {
-  from { opacity: 0; transform: scale(0.95) translateY(12px); }
-  to   { opacity: 1; transform: scale(1) translateY(0); }
-}
-.mnpo-success-icon {
-  width: 72px;
-  height: 72px;
-  border-radius: 50%;
+@keyframes mnpoSuccessIn { from { opacity:0; transform:scale(.95) translateY(10px); } to { opacity:1; transform:none; } }
+.mnpo-success-ring {
+  width: 76px; height: 76px; border-radius: 50%;
   background: linear-gradient(135deg, #00D4AA, #00A882);
-  color: #0A0E17;
-  font-size: 1.8rem;
-  font-weight: 900;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 10px 36px rgba(0,212,170,0.42);
-  animation: mnpoCheckPop 0.55s cubic-bezier(0.34,1.56,0.64,1) 0.1s both;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 12px 40px rgba(0,212,170,0.45);
+  animation: mnpoCheckPop .5s cubic-bezier(0.34,1.56,.64,1) .1s both;
 }
-@keyframes mnpoCheckPop {
-  from { transform: scale(0) rotate(-20deg); }
-  to   { transform: scale(1) rotate(0deg); }
-}
-.mnpo-success-title {
-  font-size: 1.35rem;
-  font-weight: 800;
-  color: #E8EFF7;
-  letter-spacing: -0.04em;
-}
-.mnpo-success-sub {
-  font-size: 0.82rem;
-  color: #94A3B8;
-  line-height: 1.65;
-  max-width: 300px;
-}
+@keyframes mnpoCheckPop { from { transform:scale(0) rotate(-20deg); } to { transform:scale(1) rotate(0); } }
+.mnpo-success-icon { display: flex; align-items: center; justify-content: center; }
+.mnpo-success-title { font-size: 1.3rem; font-weight: 800; color: #E8EFF7; letter-spacing: -.04em; }
+.mnpo-success-sub { font-size: .82rem; color: #94A3B8; line-height: 1.65; max-width: 290px; }
 .mnpo-success-btn {
-  margin-top: 10px;
-  padding: 13px 36px;
-  border-radius: 14px;
-  background: rgba(0,212,170,0.1);
-  border: 1px solid rgba(0,212,170,0.25);
-  color: #00D4AA;
-  font-size: 0.88rem;
-  font-weight: 700;
-  font-family: inherit;
-  cursor: pointer;
-  transition: background 0.18s;
+  margin-top: 8px; padding: 13px 36px; border-radius: 14px;
+  background: rgba(0,212,170,0.1); border: 1px solid rgba(0,212,170,0.25);
+  color: #00D4AA; font-size: .88rem; font-weight: 700;
+  font-family: inherit; cursor: pointer; transition: background .18s;
 }
 .mnpo-success-btn:hover { background: rgba(0,212,170,0.18); }
 
