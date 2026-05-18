@@ -9406,8 +9406,6 @@ async function _obGoogleAuth() {
     await window.MNSupabaseAuth.signInWithGoogle()
     // Browser redirects to Google — execution stops here
   } catch (err) {
-    const errEl = document.getElementById('obAccountError')
-    if (errEl) { errEl.textContent = '⚠ Error al conectar con Google. Intenta con email.'; errEl.style.display = 'block' }
     if (btn) {
       btn.disabled = false
       btn.style.opacity = ''
@@ -9420,6 +9418,11 @@ async function _obGoogleAuth() {
           <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
         </svg>
         ${isLogin ? 'Entrar con Google' : 'Registrarse con Google'}`
+    }
+    // Don't show error if user just closed the popup
+    if (err?.code !== 'popup_closed') {
+      const errEl = document.getElementById('obAccountError')
+      if (errEl) { errEl.textContent = '⚠ Error al conectar con Google. Intenta con email.'; errEl.style.display = 'block' }
     }
   }
 }

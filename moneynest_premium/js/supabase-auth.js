@@ -192,16 +192,56 @@
   // ════════════════════════════════════════════════════════════════
 
   async function signInWithGoogle() {
-    const { data, error } = await sb.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo:   `${location.origin}${location.pathname}?action=oauth-callback`,
-        queryParams:  { access_type: 'offline', prompt: 'consent' },
-        scopes:       'openid email profile',
-      },
+    return new Promise((resolve, reject) => {
+      const redirectTo = `${location.origin}${location.pathname}?action=oauth-callback`;
+      const width  = 500;
+      const height = 620;
+      const left   = Math.round(window.screenX + (window.outerWidth  - width)  / 2);
+      const top    = Math.round(window.screenY + (window.outerHeight - height) / 2);
+
+      // Get the OAuth URL from Supabase without triggering redirect
+      sb.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo,
+          skipBrowserRedirect: true,
+          queryParams: { access_type: 'offline', prompt: 'select_account' },
+          scopes: 'openid email profile',
+        },
+      }).then(({ data, error }) => {
+        if (error) { reject(error); return; }
+
+        const popup = window.open(
+          data.url,
+          'mn_google_auth',
+          `width=${width},height=${height},left=${left},top=${top},toolbar=0,menubar=0,location=0,status=0`,
+        );
+
+        if (!popup) {
+          // Popup blocked — fall back to redirect
+          sb.auth.signInWithOAuth({
+            provider: 'google',
+            options: { redirectTo, queryParams: { access_type: 'offline', prompt: 'select_account' }, scopes: 'openid email profile' },
+          });
+          resolve({ popup: false });
+          return;
+        }
+
+        // Poll until popup closes or session appears
+        const timer = setInterval(async () => {
+          if (popup.closed) {
+            clearInterval(timer);
+            // Check if session was established
+            const { data: { session } } = await sb.auth.getSession();
+            if (session) {
+              resolve({ session });
+            } else {
+              reject(Object.assign(new Error('Login cancelado.'), { code: 'popup_closed' }));
+            }
+          }
+        }, 400);
+      });
     });
-    if (error) throw error;
-    return data;
   }
 
   async function signInWithApple() {
