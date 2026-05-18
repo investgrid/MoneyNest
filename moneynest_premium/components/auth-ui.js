@@ -114,6 +114,87 @@ function renderTrialPill(containerId = 'trialPillContainer') {
   }
 }
 
+// ─── Trial countdown banner (prominent, top of page) ─────────────
+function renderTrialBanner() {
+  const user = _auth.getUser();
+
+  // Remove banner if plan is no longer trial
+  const existing = document.getElementById('mn-trial-banner');
+  if (user.plan !== 'trial') {
+    if (existing) existing.remove();
+    return;
+  }
+
+  const ms    = _auth.trialMsLeft ? _auth.trialMsLeft() : 0;
+  const label = _auth.trialTimeLeftLabel ? _auth.trialTimeLeftLabel() : '—';
+  const h     = Math.floor(ms / 3600000);
+
+  // Urgency colours: <2h red, <6h amber, else indigo
+  const urgent  = h < 2;
+  const warning = h < 6;
+  const accent  = urgent ? '#F43F5E' : warning ? '#F59E0B' : C.indigo;
+  const accentBg = urgent
+    ? 'rgba(244,63,94,.1)'
+    : warning
+      ? 'rgba(245,158,11,.1)'
+      : 'rgba(99,102,241,.1)';
+  const accentBorder = urgent
+    ? 'rgba(244,63,94,.35)'
+    : warning
+      ? 'rgba(245,158,11,.35)'
+      : 'rgba(99,102,241,.3)';
+  const emoji = urgent ? '🚨' : warning ? '⚠️' : '⏳';
+
+  const html = `
+    <div id="mn-trial-banner" style="
+      position:fixed;top:0;left:0;right:0;z-index:8800;
+      background:${accentBg};
+      border-bottom:1px solid ${accentBorder};
+      backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+      display:flex;align-items:center;justify-content:center;gap:10px;
+      padding:8px 16px;font-size:.78rem;font-weight:600;
+      font-family:inherit;
+      animation:mnTrialBannerIn .35s ease forwards;
+    ">
+      <span style="color:${accent}">${emoji} Prueba gratuita: queda <strong style="color:#fff">${label}</strong></span>
+      <button onclick="MNAuthUI.showAuthModal()" style="
+        padding:4px 14px;border-radius:99px;border:1.5px solid ${accent};
+        background:transparent;color:${accent};font-size:.72rem;font-weight:800;
+        cursor:pointer;font-family:inherit;transition:all .15s;
+        white-space:nowrap;
+      " onmouseover="this.style.background='${accent}';this.style.color='#0A0E17'"
+         onmouseout="this.style.background='transparent';this.style.color='${accent}'">
+        Desbloquear →
+      </button>
+      <button onclick="document.getElementById('mn-trial-banner').remove()" style="
+        position:absolute;right:12px;background:none;border:none;
+        color:rgba(255,255,255,.3);font-size:1rem;cursor:pointer;
+        padding:2px 6px;border-radius:6px;font-family:inherit;
+        transition:color .15s;
+      " onmouseover="this.style.color='rgba(255,255,255,.7)'"
+         onmouseout="this.style.color='rgba(255,255,255,.3)'" aria-label="Cerrar">✕</button>
+    </div>`;
+
+  if (existing) {
+    existing.outerHTML = html;
+  } else {
+    document.body.insertAdjacentHTML('afterbegin', html);
+  }
+
+  // Inject keyframe once
+  if (!document.getElementById('mn-trial-banner-kf')) {
+    const s = document.createElement('style');
+    s.id = 'mn-trial-banner-kf';
+    s.textContent = `@keyframes mnTrialBannerIn{from{opacity:0;transform:translateY(-100%)}to{opacity:1;transform:translateY(0)}}`;
+    document.head.appendChild(s);
+  }
+
+  // Refresh every minute
+  if (!renderTrialBanner._timer) {
+    renderTrialBanner._timer = setInterval(renderTrialBanner, 60_000);
+  }
+}
+
 
 // ════════════════════════════════════════════════════════════════
 //  CONTENT ROUTER
@@ -1346,6 +1427,7 @@ window.MNAuthUI = {
   closeAuthModal,
   renderAuthBadge,
   renderTrialPill,
+  renderTrialBanner,
 };
 
 window._showAuthModal = showAuthModal;
