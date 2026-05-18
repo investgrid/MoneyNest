@@ -212,10 +212,10 @@
         redirectTo: `${location.origin}/?action=oauth-callback`,
         queryParams: { access_type: 'offline', prompt: 'select_account' },
         scopes: 'openid email profile',
+        skipBrowserRedirect: false,
       },
     });
     if (error) throw error;
-    // Browser redirects to Google — execution stops here
     return data;
   }
 
@@ -236,9 +236,19 @@
     const action = params.get('action');
 
     if (action === 'oauth-callback') {
-      // Supabase detectSessionInUrl processes the code/token automatically.
-      // Just clean the URL — onAuthStateChange will fire with the session.
+      // Force PKCE code exchange explicitly — detectSessionInUrl alone is unreliable
+      // when the app reinitializes after redirect.
+      const code = params.get('code');
       history.replaceState({}, '', location.pathname);
+      if (code) {
+        try {
+          const { data, error } = await sb.auth.exchangeCodeForSession(location.href.split('?')[0] + '?code=' + code);
+          if (!error && data?.session) {
+            _session = data.session;
+            await _syncProfileToLocal(data.session.user);
+          }
+        } catch (_) {}
+      }
       return;
     }
 
