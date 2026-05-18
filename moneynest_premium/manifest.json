@@ -1,6 +1,7 @@
 {
   "name": "MoneyNest — Personal Finance",
   "short_name": "MoneyNest",
+  "id": "/",
   "description": "Tu gestor de finanzas personales inteligente. Ingresos, gastos, inversiones, deudas y patrimonio en un solo lugar.",
   "start_url": "/",
   "scope": "/",
