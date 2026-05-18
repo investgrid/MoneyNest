@@ -15,17 +15,29 @@
 <div class="spinner"></div>
 <p>Conectando…</p>
 <script>
-  // Send the full callback URL to the opener so it can process PKCE exchange
-  if (window.opener && !window.opener.closed) {
-    window.opener.postMessage(
-      { type: 'mn_oauth_callback', href: location.href },
-      location.origin
-    );
-    window.close();
-  } else {
-    // No opener (e.g. redirect fallback) — go to app
-    location.replace('/');
+  // BroadcastChannel works across same-origin windows without needing opener reference.
+  // This avoids the Cross-Origin-Opener-Policy block that Google sets.
+  try {
+    const ch = new BroadcastChannel('mn_oauth');
+    ch.postMessage({ type: 'mn_oauth_callback', href: location.href });
+    ch.close();
+  } catch (e) {
+    // BroadcastChannel not supported — try postMessage as fallback
+    try {
+      if (window.opener) {
+        window.opener.postMessage({ type: 'mn_oauth_callback', href: location.href }, location.origin);
+      }
+    } catch (_) {}
   }
+  // Close popup after a short delay
+  setTimeout(() => {
+    window.close();
+    // If window.close() is blocked, show a message
+    setTimeout(() => {
+      document.querySelector('p').textContent = 'Puedes cerrar esta ventana.';
+      document.querySelector('.spinner').style.display = 'none';
+    }, 800);
+  }, 300);
 </script>
 </body>
 </html>

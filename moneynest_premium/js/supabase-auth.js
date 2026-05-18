@@ -240,31 +240,40 @@
         return;
       }
 
+      // BroadcastChannel avoids COOP issues from Google's headers
+      const bc = new BroadcastChannel('mn_oauth');
+
+      // Timeout: if nothing arrives in 3 minutes, reject
+      const timeout = setTimeout(() => {
+        cleanup();
+        reject(Object.assign(new Error('Login cancelado.'), { code: 'popup_closed' }));
+      }, 3 * 60 * 1000);
+
+      bc.onmessage = (e) => {
+        if (e.data?.type === 'mn_oauth_callback') {
+          cleanup();
+          sb.auth.exchangeCodeForSession(e.data.href).then(({ data, error }) => {
+            if (error) reject(error);
+            else resolve({ session: data.session });
+          });
+        }
+      };
+
+      // Fallback postMessage (for browsers without BroadcastChannel)
       function onMessage(e) {
         if (e.origin !== location.origin) return;
         if (e.data?.type === 'mn_oauth_callback') {
           cleanup();
-          // Process the PKCE exchange in the main window using the callback URL
-          const callbackHref = e.data.href;
-          sb.auth.exchangeCodeForSession(callbackHref).then(({ data, error }) => {
+          sb.auth.exchangeCodeForSession(e.data.href).then(({ data, error }) => {
             if (error) reject(error);
             else resolve({ session: data.session });
           });
         }
       }
 
-      // Fallback: poll for popup close if postMessage doesn't arrive
-      const pollTimer = setInterval(async () => {
-        if (popup.closed) {
-          cleanup();
-          const { data: { session } } = await sb.auth.getSession();
-          if (session) resolve({ session });
-          else reject(Object.assign(new Error('Login cancelado.'), { code: 'popup_closed' }));
-        }
-      }, 500);
-
       function cleanup() {
-        clearInterval(pollTimer);
+        clearTimeout(timeout);
+        bc.close();
         window.removeEventListener('message', onMessage);
       }
 
