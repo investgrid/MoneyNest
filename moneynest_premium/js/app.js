@@ -338,7 +338,7 @@ const TRANSLATIONS = {
     // Buttons
     btn_guardar: 'Guardar', btn_cancelar: 'Cancelar',
     btn_eliminar: 'Eliminar', btn_editar: 'Editar',
-    btn_nuevo: 'Nuevo', btn_exportar: '⬆ Exportar',
+    btn_nuevo: 'Nuevo', btn_exportar: '↗ Exportar',
     btn_nuevo_ingreso: '+ Nuevo ingreso',
     btn_nuevo_gasto: '+ Nuevo gasto',
     btn_nueva_inversion: '+ Nueva inversión',
@@ -433,7 +433,7 @@ const TRANSLATIONS = {
     cfg_exportar_pdf: '📊 Exportar informe completo (PDF / Excel)',
     cfg_backup_json: '📤 Copia de seguridad (JSON)',
     cfg_drive: '☁️ Guardar en Google Drive',
-    cfg_importar: '📥 Importar copia de seguridad',
+    cfg_importar: '↓ Importar copia de seguridad',
     cfg_borrar_todo: '🗑 Borrar todos los datos',
     cfg_demo_titulo: 'Modo demo',
     cfg_demo_activo_lbl: '● Activo · datos de ejemplo cargados',
@@ -730,7 +730,7 @@ const TRANSLATIONS = {
     topbar_activar_pro: '⚡ Activar Pro',
     topbar_cambiar_tema: 'Cambiar tema',
     topbar_disponible: 'Disponible',
-    topbar_exportar: '⬆ Exportar',
+    topbar_exportar: '↗ Exportar',
     tut_salir: '✕ Salir',
     tut_siguiente: 'Siguiente →',
     ver_movimientos_btn: '📋 Ver movimientos',
@@ -794,7 +794,7 @@ const TRANSLATIONS = {
     hola: 'Hello,',
     btn_guardar: 'Save', btn_cancelar: 'Cancel',
     btn_eliminar: 'Delete', btn_editar: 'Edit',
-    btn_nuevo: 'New', btn_exportar: '⬆ Export',
+    btn_nuevo: 'New', btn_exportar: '↗ Export',
     btn_nuevo_ingreso: '+ New income',
     btn_nuevo_gasto: '+ New expense',
     btn_nueva_inversion: '+ New investment',
@@ -876,7 +876,7 @@ const TRANSLATIONS = {
     cfg_exportar_pdf: '📊 Export full report (PDF / Excel)',
     cfg_backup_json: '📤 Backup (JSON)',
     cfg_drive: '☁️ Save to Google Drive',
-    cfg_importar: '📥 Import backup',
+    cfg_importar: '↓ Import backup',
     cfg_borrar_todo: '🗑 Delete all data',
     cfg_demo_titulo: 'Demo mode',
     cfg_demo_activo_lbl: '● Active · sample data loaded',
@@ -1172,7 +1172,7 @@ const TRANSLATIONS = {
     topbar_activar_pro: '⚡ Upgrade Pro',
     topbar_cambiar_tema: 'Change theme',
     topbar_disponible: 'Available',
-    topbar_exportar: '⬆ Export',
+    topbar_exportar: '↗ Export',
     tut_salir: '✕ Exit',
     tut_siguiente: 'Next →',
     ver_movimientos_btn: '📋 View movements',
@@ -1287,7 +1287,7 @@ const TRANSLATIONS = {
     cfg_exportar_pdf: '📊 Esporta report completo (PDF / Excel)',
     cfg_backup_json: '📤 Backup (JSON)',
     cfg_drive: '☁️ Salva su Google Drive',
-    cfg_importar: '📥 Importa backup',
+    cfg_importar: '↓ Importa backup',
     cfg_borrar_todo: '🗑 Elimina tutti i dati',
     cfg_demo_titulo: 'Modalità demo',
     cfg_demo_activo_lbl: '● Attivo · dati di esempio caricati',
@@ -1698,7 +1698,7 @@ const TRANSLATIONS = {
     cfg_exportar_pdf: '📊 Exporter rapport complet (PDF / Excel)',
     cfg_backup_json: '📤 Sauvegarde (JSON)',
     cfg_drive: '☁️ Sauvegarder sur Google Drive',
-    cfg_importar: '📥 Importer une sauvegarde',
+    cfg_importar: '↓ Importer une sauvegarde',
     cfg_borrar_todo: '🗑 Supprimer toutes les données',
     cfg_demo_titulo: 'Mode démo',
     cfg_demo_activo_lbl: '● Actif · données exemples chargées',
@@ -2109,7 +2109,7 @@ const TRANSLATIONS = {
     cfg_exportar_pdf: '📊 Vollständigen Bericht exportieren (PDF / Excel)',
     cfg_backup_json: '📤 Sicherungskopie (JSON)',
     cfg_drive: '☁️ Auf Google Drive speichern',
-    cfg_importar: '📥 Sicherung importieren',
+    cfg_importar: '↓ Sicherung importieren',
     cfg_borrar_todo: '🗑 Alle Daten löschen',
     cfg_demo_titulo: 'Demo-Modus',
     cfg_demo_activo_lbl: '● Aktiv · Beispieldaten geladen',
@@ -2456,7 +2456,7 @@ const TRANSLATIONS = {
     primer_mes: 'Primeiro mês', ingresos_año: 'Receitas', gastos_año: 'Despesas',
     resumen_financiero: 'Resumo financeiro', hola: 'Olá,',
     btn_guardar: 'Guardar', btn_cancelar: 'Cancelar', btn_eliminar: 'Eliminar',
-    btn_editar: 'Editar', btn_nuevo: 'Novo', btn_exportar: '⬆ Exportar',
+    btn_editar: 'Editar', btn_nuevo: 'Novo', btn_exportar: '↗ Exportar',
     btn_nuevo_ingreso: '+ Nova receita', btn_nuevo_gasto: '+ Nova despesa',
     btn_nueva_inversion: '+ Novo investimento', btn_nueva_deuda: '+ Nova dívida',
     btn_nuevo_objetivo: '+ Novo objetivo',
@@ -2520,7 +2520,7 @@ const TRANSLATIONS = {
     cfg_exportar_pdf: '📊 Exportar relatório completo (PDF / Excel)',
     cfg_backup_json: '📤 Cópia de segurança (JSON)',
     cfg_drive: '☁️ Guardar no Google Drive',
-    cfg_importar: '📥 Importar cópia de segurança',
+    cfg_importar: '↓ Importar cópia de segurança',
     cfg_borrar_todo: '🗑 Apagar todos os dados',
     cfg_demo_titulo: 'Modo demo',
     cfg_demo_activo_lbl: '● Ativo · dados de exemplo carregados',
@@ -2816,7 +2816,7 @@ const TRANSLATIONS = {
     topbar_activar_pro: '⚡ Ativar Pro',
     topbar_cambiar_tema: 'Mudar tema',
     topbar_disponible: 'Disponível',
-    topbar_exportar: '⬆ Exportar',
+    topbar_exportar: '↗ Exportar',
     tut_salir: '✕ Sair',
     tut_siguiente: 'Próximo →',
     ver_movimientos_btn: '📋 Ver movimentos',
@@ -4455,7 +4455,7 @@ function renderIngresos() {
   <div class="section-header">
     <div><div class="page-h1">💰 ${t('page_ingresos')}</div><div class="page-sub">${ingPeriodLabel} · ${S.ingresos.filter(i=>i.status!=='pending').length} cobrados · ${pendingIngs.length} pendientes</div></div>
     <div class="section-actions">
-      <button class="btn btn-secondary btn-sm" onclick="exportarIngresos()">⬆ Exportar</button>
+      <button class="btn btn-secondary btn-sm" onclick="exportarIngresos()">↗ Exportar</button>
       <button class="btn btn-primary btn-sm" onclick="openModal('ingresoModal');resetIngresoForm()">+ Nuevo ingreso</button>
     </div>
   </div>
@@ -4786,7 +4786,7 @@ function renderInversiones() {
       <div class="page-sub">Cartera · Las ganancias en activos volátiles no se proyectan</div>
     </div>
     <div class="section-actions">
-      <button class="btn btn-secondary btn-sm" onclick="exportarInversiones()">⬆ Exportar</button>
+      <button class="btn btn-secondary btn-sm" onclick="exportarInversiones()">↗ Exportar</button>
       <button class="btn btn-primary btn-sm" onclick="openModal('inversionModal');resetInvForm()">+ Nueva inversión</button>
     </div>
   </div>
@@ -5023,7 +5023,7 @@ function renderDeudas() {
   <div class="section-header">
     <div><div class="page-h1">${t('deudas_lbl')}</div><div class="page-sub">Seguimiento, reducción y estrategia de pago</div></div>
     <div class="section-actions">
-      <button class="btn btn-secondary btn-sm" onclick="exportarDeudas()">⬆ Exportar</button>
+      <button class="btn btn-secondary btn-sm" onclick="exportarDeudas()">↗ Exportar</button>
       <button class="btn btn-primary btn-sm" onclick="openModal('deudaModal');resetDeudaForm()">+ Nueva deuda</button>
     </div>
   </div>
@@ -5454,7 +5454,7 @@ function renderObjetivos() {
   <div class="section-header">
     <div><div class="page-h1">🎯 Objetivos</div><div class="page-sub">Metas financieras y predicciones</div></div>
     <div class="section-actions">
-      <button class="btn btn-secondary btn-sm" onclick="exportarObjetivos()">⬆ Exportar</button>
+      <button class="btn btn-secondary btn-sm" onclick="exportarObjetivos()">↗ Exportar</button>
       <button class="btn btn-primary btn-sm" onclick="openModal('objetivoModal');resetObjForm()">+ Nuevo objetivo</button>
     </div>
   </div>
@@ -5620,7 +5620,7 @@ function renderPresupuestos() {
   <div class="section-header">
     <div><div class="page-h1">📊 Presupuestos</div><div class="page-sub">${monthLabel(m)} · Control de límites por categoría</div></div>
     <div class="section-actions">
-      <button class="btn btn-secondary btn-sm" onclick="exportarPresupuestos()">⬆ Exportar</button>
+      <button class="btn btn-secondary btn-sm" onclick="exportarPresupuestos()">↗ Exportar</button>
       <button class="btn btn-primary btn-sm" onclick="openModal('presupuestoModal');resetPresForm()">+ Nuevo presupuesto</button>
     </div>
   </div>
@@ -7242,22 +7242,34 @@ function removeCat(key, cat) {
 // Limpia la sesión de MNAuth (plan, trial) y recarga la app para
 // volver al onboarding. Los datos financieros (S) se conservan.
 function mnCerrarSesion() {
-  // Open account selector instead of full reset
-  if (window.MNAccounts) {
-    window.MNAccounts.openAccountSelector()
-  } else {
-    // Fallback if MNAccounts not loaded
-    confirmar(
-      t('confirm_cerrar_sesion'),
-      () => {
-        try { localStorage.removeItem('mn_auth_user'); } catch(e) {}
-        try { localStorage.removeItem('mn_billing_sub'); } catch(e) {}
-        try { localStorage.removeItem('mn_billing_history'); } catch(e) {}
-        setTimeout(() => location.reload(), 120)
-      },
-      { titulo: t('confirm_cerrar_sesion_titulo'), icono: '🚪', btnLabel: t('confirm_cerrar_sesion_btn') }
-    )
-  }
+  confirmar(
+    t('confirm_cerrar_sesion'),
+    async () => {
+      // Sign out from Supabase
+      if (window.MNSupabaseAuth) {
+        try { await window.MNSupabaseAuth.signOut() } catch(e) {}
+      }
+      // Clear auth state but keep financial data
+      try { localStorage.removeItem('mn_supabase_session') } catch(e) {}
+      try { localStorage.removeItem('mn_auth_user') } catch(e) {}
+      try { localStorage.removeItem('mn_billing_sub') } catch(e) {}
+      try { localStorage.removeItem('mn_billing_history') } catch(e) {}
+      // Clear onboarding flag so it shows again
+      try { localStorage.removeItem(OB_FLAG_KEY) } catch(e) {}
+      try { localStorage.removeItem(TUT_FLAG_KEY) } catch(e) {}
+      // Show onboarding
+      obStep = 1
+      obData = { nombre: '', email: '', password: '', mode: 'personal', lang: _currentLang || 'es', theme: S.theme || 'dark', plan: 'trial', startTutorial: false, loadDemo: false }
+      const ov = document.getElementById('onboardingOverlay')
+      if (ov) {
+        ov.style.display = 'flex'
+        requestAnimationFrame(() => ov.classList.add('ob-visible'))
+        document.body.style.overflow = 'hidden'
+        obRender()
+      }
+    },
+    { titulo: t('confirm_cerrar_sesion_titulo'), icono: '🚪', btnLabel: t('confirm_cerrar_sesion_btn') }
+  )
 }
 
 function borrarTodo() {
@@ -7280,17 +7292,12 @@ function borrarTodo() {
     } catch(e) {}
     currentPage = 'dashboard'
     save()
-    // Reset onboarding + tutorial flags so onboarding runs again after reset
-    try {
-      localStorage.removeItem(OB_FLAG_KEY)
-      localStorage.removeItem(TUT_FLAG_KEY)
-    } catch(e) {}
+    // Do NOT reset onboarding flags — user stays logged in, just data cleared
     destroyAllCharts()
-    // Re-init properly (same as first launch)
+    currentPage = 'dashboard'
     render()
     _updateSidebarLang()
     updateSidebarLogo()
-    checkOnboarding()
     toast(t('toast_datos_eliminados'))
   }, {titulo:t('confirm_borrar_todo_titulo'),icono:'⚠️',btnLabel:t('confirm_borrar_todo_btn')})
 }
