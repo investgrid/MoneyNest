@@ -4599,6 +4599,7 @@ function renderGastos() {
     <div><div class="page-h1">💳 ${t('page_gastos')}</div><div class="page-sub">${_gPeriodLabel()} · ${t('control_salidas')}</div></div>
     <div class="section-actions">
       <button class="btn btn-secondary btn-sm" onclick="exportarGastos()">${t('btn_exportar')}</button>
+      <button class="btn btn-ghost btn-sm" onclick="window.MNCSVImport&&MNCSVImport.openModal()" title="Importar extracto bancario CSV">📂 Importar CSV</button>
       <button class="btn btn-primary btn-sm" onclick="openModal('gastoModal');resetGastoForm()">${t('btn_nuevo_gasto')}</button>
     </div>
   </div>
@@ -8589,6 +8590,50 @@ function renderAnalisis() {
       ${tips.map(t=>`<div class="insight-item"><div class="insight-icon" style="background:${t.bg}">${t.icon}</div><div class="insight-text">${t.txt}</div></div>`).join('')}
     </div>`
   })()}
+
+  <!-- Financial Planner — 3 scenarios -->
+  ${(() => {
+    const months3 = getMonths(3)
+    const avgInc3 = months3.reduce((a,mo)=>a+calcIngresosMes(mo),0)/3
+    const avgGas3 = months3.reduce((a,mo)=>a+calcGastosMes(mo),0)/3
+    const cashFlow = avgInc3 - avgGas3
+    const saldoInicial = S.cuentas.reduce((a,c)=>a+(Number(c.saldo)||0),0)
+    const buildSeries = mul => {
+      let val = saldoInicial
+      return Array.from({length:12},(_,i)=>{ val += cashFlow*mul; return Math.round(val) })
+    }
+    const cons = buildSeries(0.8)
+    const mod  = buildSeries(1.0)
+    const opt  = buildSeries(1.2)
+    const eur2 = v => new Intl.NumberFormat('es-ES',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(v)
+    const diff = (arr) => arr[arr.length-1] - saldoInicial
+    const scenarios = [
+      {label:'Conservador', icon:'📉', val:cons[11], dif:diff(cons), color:'#F87171', dimColor:'rgba(248,113,113,0.1)', series:cons},
+      {label:'Moderado',    icon:'➡️', val:mod[11],  dif:diff(mod),  color:'#00D4AA', dimColor:'rgba(0,212,170,0.1)',   series:mod},
+      {label:'Optimista',   icon:'📈', val:opt[11],  dif:diff(opt),  color:'#10B981', dimColor:'rgba(16,185,129,0.1)',  series:opt},
+    ]
+    const cards = scenarios.map(s=>`
+      <div style="flex:1;background:${s.dimColor};border:1px solid ${s.color}33;border-radius:14px;padding:16px 14px;text-align:center;min-width:0">
+        <div style="font-size:1.4rem;margin-bottom:6px">${s.icon}</div>
+        <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:${s.color};margin-bottom:4px">${s.label}</div>
+        <div style="font-size:1.1rem;font-weight:800;color:#fff">${eur2(s.val)}</div>
+        <div style="font-size:.72rem;color:${s.dif>=0?'#10B981':'#f43f5e'};margin-top:3px;font-weight:600">${s.dif>=0?'+':''}${eur2(s.dif)} en 12 meses</div>
+      </div>`).join('')
+    return `
+    <div class="card" style="margin-top:24px;margin-bottom:16px">
+      <div class="card-header">
+        <div>
+          <div class="card-title">🔭 Si sigues así…</div>
+          <div class="card-subtitle">Proyección a 12 meses en 3 escenarios</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">${cards}</div>
+      <div class="chart-container" style="height:220px"><canvas id="chartFinancialPlanner"></canvas></div>
+      <div style="margin-top:10px;font-size:.72rem;color:rgba(255,255,255,.3)">
+        Basado en tus últimos 3 meses. Escenario conservador asume -20% de tu ritmo actual.
+      </div>
+    </div>`
+  })()}
 `
 
   // Charts
@@ -8610,6 +8655,23 @@ function renderAnalisis() {
       const nonZero = meses.filter((_,i)=>mesesIngData[i]>0||mesesGasData[i]>0).length
       const tendBarPct = nonZero <= 1 ? 0.2 : nonZero <= 3 ? 0.5 : 0.75
       charts['analisisTend'] = new Chart(tendCtx,{type:'bar',data:{labels:meses.map(monthLabel),datasets:[{label:'Ingresos',data:mesesIngData,backgroundColor:'rgba(16,185,129,.75)',borderRadius:5,categoryPercentage:tendBarPct,barPercentage:0.85},{label:'Gastos',data:mesesGasData,backgroundColor:'rgba(244,63,94,.75)',borderRadius:5,categoryPercentage:tendBarPct,barPercentage:0.85}]},options:{...chartDefaults(),plugins:{...chartDefaults().plugins,legend:{display:true,labels:{color:labelColor(),boxWidth:10,font:{size:10}}}},scales:{x:{grid:{color:'transparent'},ticks:{color:labelColor(),font:{size:10}}},y:{grid:{color:gridColor()},ticks:{color:labelColor(),font:{size:10},callback:v=>eur(v)},suggestedMin:0,suggestedMax:allVals.length?Math.max(...allVals)*1.2:100}}}})
+    }
+    // Financial Planner chart
+    const planCtx = document.getElementById('chartFinancialPlanner')
+    if(planCtx){
+      destroyChart('financialPlanner')
+      const months3p = getMonths(3)
+      const avgInc3p = months3p.reduce((a,mo)=>a+calcIngresosMes(mo),0)/3
+      const avgGas3p = months3p.reduce((a,mo)=>a+calcGastosMes(mo),0)/3
+      const cfp = avgInc3p - avgGas3p
+      const saldo0 = S.cuentas.reduce((a,c)=>a+(Number(c.saldo)||0),0)
+      const mkSeries = mul => { let v=saldo0; return Array.from({length:12},()=>{ v+=cfp*mul; return Math.round(v) }) }
+      const labels12 = Array.from({length:12},(_,i)=>{const d=new Date();d.setMonth(d.getMonth()+i+1);return d.toLocaleString('es-ES',{month:'short'})})
+      charts['financialPlanner'] = new Chart(planCtx,{type:'line',data:{labels:labels12,datasets:[
+        {label:'Optimista',   data:mkSeries(1.2),borderColor:'#10B981',fill:false,tension:.4,pointRadius:0,borderWidth:2},
+        {label:'Moderado',    data:mkSeries(1.0),borderColor:'#00D4AA',fill:'+1',tension:.4,pointRadius:0,borderWidth:2,backgroundColor:'rgba(0,212,170,0.06)'},
+        {label:'Conservador', data:mkSeries(0.8),borderColor:'#F87171',borderDash:[4,3],fill:false,tension:.4,pointRadius:0,borderWidth:1.5}
+      ]},options:{...chartDefaults(),plugins:{...chartDefaults().plugins,legend:{display:true,labels:{color:labelColor(),boxWidth:10,font:{size:10}}}},scales:{x:{grid:{color:gridColor()},ticks:{color:labelColor(),font:{size:10}}},y:{grid:{color:gridColor()},ticks:{color:labelColor(),font:{size:10},callback:v=>eur(v)}}}}})
     }
   },60)
 }
@@ -12056,6 +12118,7 @@ function init() {
   recordPatrimonio()
   updateSidebarLogo()
   updateStreak()
+  if (window.MNRecurring) try { MNRecurring.processDueRecurrings() } catch {}
   render()                    // ← app renders first (visible behind overlay)
   _updateSidebarLang()
   translateDOM()              // PASO 3: traduce modales estáticos index.html

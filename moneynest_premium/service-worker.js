@@ -39,6 +39,17 @@ self.addEventListener('activate', event => {
   )
 })
 
+self.addEventListener('notificationclick', event => {
+  event.notification.close()
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+      const existing = list.find(c => c.url.includes('moneynest') || c.url.includes('localhost'))
+      if (existing) return existing.focus()
+      return clients.openWindow('./')
+    })
+  )
+})
+
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return
   const url = event.request.url
