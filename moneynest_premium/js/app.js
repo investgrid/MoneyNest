@@ -9386,13 +9386,41 @@ function _obToggleAuthMode() {
 }
 
 async function _obGoogleAuth() {
-  if (!window.MNSupabaseAuth) return
+  if (!window.MNSupabaseAuth) {
+    const errEl = document.getElementById('obAccountError')
+    if (errEl) { errEl.textContent = '⚠ Servicio no disponible. Intenta con email.'; errEl.style.display = 'block' }
+    return
+  }
+  const btn = document.querySelector('.ob-google-btn')
+  if (btn) {
+    btn.disabled = true
+    btn.style.opacity = '0.6'
+    btn.innerHTML = `
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="flex-shrink:0;animation:mnSpin 600ms linear infinite">
+        <circle cx="12" cy="12" r="9" stroke="rgba(255,255,255,0.2)" stroke-width="2.5"/>
+        <path d="M12 3a9 9 0 0 1 9 9" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+      </svg>
+      Conectando con Google…`
+  }
   try {
     await window.MNSupabaseAuth.signInWithGoogle()
-    // Redirect happens — Supabase handles callback
+    // Browser redirects to Google — execution stops here
   } catch (err) {
     const errEl = document.getElementById('obAccountError')
-    if (errEl) { errEl.textContent = '⚠ Error al conectar con Google.'; errEl.style.display = 'block' }
+    if (errEl) { errEl.textContent = '⚠ Error al conectar con Google. Intenta con email.'; errEl.style.display = 'block' }
+    if (btn) {
+      btn.disabled = false
+      btn.style.opacity = ''
+      const isLogin = obData._authMode === 'login'
+      btn.innerHTML = `
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="flex-shrink:0">
+          <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+          <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+          <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+          <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+        </svg>
+        ${isLogin ? 'Entrar con Google' : 'Registrarse con Google'}`
+    }
   }
 }
 
@@ -9459,6 +9487,31 @@ async function obNext() {
         if (btn) { btn.disabled = false; btn.innerHTML = 'Entrar <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="display:inline;vertical-align:middle"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' }
         return
       }
+    } else {
+      // Registration flow: create account + send OTP, show verification screen
+      const btn = document.querySelector('#obContentArea .ob-next-btn')
+      if (btn) { btn.disabled = true; btn.textContent = 'Creando cuenta…' }
+      try {
+        await window.MNSupabaseAuth.signUp(email, pw)
+        obData._registered = true
+        // Supabase sends the OTP email automatically on signUp.
+        // Show our verification overlay to collect the code.
+        _obShowOtpOverlay(email)
+        if (btn) { btn.disabled = false; btn.innerHTML = 'Crear cuenta <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="display:inline;vertical-align:middle"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' }
+        return
+      } catch (err) {
+        const code = err?.code || ''
+        if (code === 'email_exists') {
+          // Account exists — let them log in
+          showErr('⚠ Este email ya tiene cuenta. Usa "Iniciar sesión →"')
+        } else if (code === 'rate_limited') {
+          showErr('⚠ Demasiados intentos. Espera unos minutos.')
+        } else {
+          showErr('⚠ ' + (err?.message || 'Error al crear la cuenta.'))
+        }
+        if (btn) { btn.disabled = false; btn.innerHTML = 'Crear cuenta <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="display:inline;vertical-align:middle"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' }
+        return
+      }
     }
   }
 
@@ -9498,6 +9551,186 @@ function obPrev() {
   obRender('back')
 }
 
+
+// ════════════════════════════════════════════════════════════════
+// OTP VERIFICATION OVERLAY
+// Shown after signup to verify email before proceeding.
+// Uses Supabase built-in OTP (sent by Supabase) + Resend custom email.
+// ════════════════════════════════════════════════════════════════
+
+function _obShowOtpOverlay(email) {
+  // Remove any existing overlay
+  document.getElementById('obOtpOverlay')?.remove()
+
+  const overlay = document.createElement('div')
+  overlay.id = 'obOtpOverlay'
+  overlay.style.cssText = `
+    position:fixed;inset:0;z-index:9999;
+    display:flex;align-items:center;justify-content:center;
+    background:rgba(6,11,20,0.92);backdrop-filter:blur(12px);
+    animation:mnFadeIn 200ms ease;
+  `
+  overlay.innerHTML = `
+    <div style="
+      background:#0D1424;border:1px solid rgba(255,255,255,0.08);border-radius:24px;
+      padding:40px 36px;max-width:420px;width:calc(100% - 32px);
+      box-shadow:0 32px 80px rgba(0,0,0,0.6);text-align:center;
+    ">
+      <!-- icon -->
+      <div style="
+        width:64px;height:64px;margin:0 auto 20px;border-radius:16px;
+        background:rgba(99,102,241,0.12);border:1px solid rgba(99,102,241,0.3);
+        display:flex;align-items:center;justify-content:center;font-size:28px;
+      ">📬</div>
+
+      <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:#6366F1;text-transform:uppercase;letter-spacing:2px">Verificación de email</p>
+      <h2 style="margin:0 0 10px;font-size:22px;font-weight:900;color:#F1F5F9;letter-spacing:-0.5px">Revisa tu bandeja</h2>
+      <p style="margin:0 0 28px;font-size:14px;color:#64748B;line-height:1.65">
+        Hemos enviado un código de 6 dígitos a<br>
+        <strong style="color:#94A3B8">${email}</strong>
+      </p>
+
+      <!-- OTP input row -->
+      <div style="display:flex;gap:8px;justify-content:center;margin-bottom:10px" id="obOtpInputs">
+        ${[0,1,2,3,4,5].map(i => `
+          <input id="obOtpD${i}" type="text" inputmode="numeric" pattern="[0-9]" maxlength="1"
+            autocomplete="${i===0?'one-time-code':'off'}"
+            style="
+              width:44px;height:56px;border-radius:12px;border:1.5px solid rgba(99,102,241,0.3);
+              background:#111827;color:#A5B4FC;font-size:24px;font-weight:900;text-align:center;
+              font-family:inherit;outline:none;transition:border-color 150ms;
+            "
+            oninput="_obOtpInput(this,${i})"
+            onkeydown="_obOtpKey(event,${i})"
+            onpaste="_obOtpPaste(event)">
+        `).join('')}
+      </div>
+      <p style="margin:0 0 24px;font-size:12px;color:#475569">Caduca en <strong style="color:#94A3B8">15 minutos</strong></p>
+
+      <div id="obOtpError" style="display:none;font-size:13px;color:#F43F5E;margin-bottom:16px;padding:10px 14px;background:rgba(244,63,94,0.08);border-radius:8px"></div>
+
+      <button id="obOtpVerifyBtn" onclick="_obVerifyOtp()" style="
+        width:100%;padding:14px;border-radius:12px;border:none;cursor:pointer;
+        background:linear-gradient(135deg,#6366F1,#4F46E5);color:#fff;
+        font-size:15px;font-weight:700;font-family:inherit;
+        transition:opacity 150ms;
+      ">Verificar código</button>
+
+      <div style="margin-top:20px;display:flex;align-items:center;gap:8px;justify-content:center">
+        <span style="font-size:13px;color:#475569">¿No llegó el email?</span>
+        <button id="obOtpResendBtn" onclick="_obResendOtp()" style="
+          background:none;border:none;font-size:13px;color:#00D4AA;font-weight:700;
+          cursor:pointer;font-family:inherit;padding:0;
+        ">Reenviar</button>
+      </div>
+
+      <div style="margin-top:12px">
+        <button onclick="_obCloseOtpOverlay()" style="
+          background:none;border:none;font-size:12px;color:rgba(255,255,255,0.2);
+          cursor:pointer;font-family:inherit;padding:0;
+        ">Volver atrás</button>
+      </div>
+    </div>
+  `
+
+  document.body.appendChild(overlay)
+  setTimeout(() => document.getElementById('obOtpD0')?.focus(), 100)
+}
+
+function _obOtpInput(el, idx) {
+  el.value = el.value.replace(/\D/g, '').slice(-1)
+  if (el.value && idx < 5) {
+    document.getElementById(`obOtpD${idx+1}`)?.focus()
+  }
+  // Auto-verify when all 6 digits filled
+  const code = [0,1,2,3,4,5].map(i => document.getElementById(`obOtpD${i}`)?.value || '').join('')
+  if (code.length === 6) setTimeout(_obVerifyOtp, 80)
+}
+
+function _obOtpKey(e, idx) {
+  if (e.key === 'Backspace' && !e.target.value && idx > 0) {
+    const prev = document.getElementById(`obOtpD${idx-1}`)
+    if (prev) { prev.value = ''; prev.focus() }
+  }
+  if (e.key === 'Enter') _obVerifyOtp()
+}
+
+function _obOtpPaste(e) {
+  e.preventDefault()
+  const text = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '').slice(0,6)
+  text.split('').forEach((ch, i) => {
+    const inp = document.getElementById(`obOtpD${i}`)
+    if (inp) inp.value = ch
+  })
+  document.getElementById(`obOtpD${Math.min(text.length, 5)}`)?.focus()
+  if (text.length === 6) setTimeout(_obVerifyOtp, 80)
+}
+
+async function _obVerifyOtp() {
+  const code = [0,1,2,3,4,5].map(i => document.getElementById(`obOtpD${i}`)?.value || '').join('')
+  if (code.length < 6) return
+
+  const errEl = document.getElementById('obOtpError')
+  const btn   = document.getElementById('obOtpVerifyBtn')
+  if (btn) { btn.disabled = true; btn.textContent = 'Verificando…' }
+  if (errEl) errEl.style.display = 'none'
+
+  // Highlight inputs while verifying
+  for (let i = 0; i < 6; i++) {
+    const inp = document.getElementById(`obOtpD${i}`)
+    if (inp) inp.style.borderColor = 'rgba(99,102,241,0.6)'
+  }
+
+  try {
+    await window.MNSupabaseAuth.verifyEmailOtp(obData.email, code)
+    // OTP verified — close overlay and advance onboarding
+    _obCloseOtpOverlay()
+    obStep++
+    obRender('forward')
+  } catch (err) {
+    if (errEl) {
+      errEl.textContent = err?.message?.includes('expired')
+        ? '⚠ El código ha caducado. Reenvía uno nuevo.'
+        : '⚠ Código incorrecto. Compruébalo e inténtalo de nuevo.'
+      errEl.style.display = 'block'
+    }
+    // Shake inputs on error
+    for (let i = 0; i < 6; i++) {
+      const inp = document.getElementById(`obOtpD${i}`)
+      if (inp) { inp.style.borderColor = '#F43F5E'; inp.value = '' }
+    }
+    document.getElementById('obOtpD0')?.focus()
+    if (btn) { btn.disabled = false; btn.textContent = 'Verificar código' }
+  }
+}
+
+async function _obResendOtp() {
+  const email = obData.email
+  const btn   = document.getElementById('obOtpResendBtn')
+  if (!email || !window.MNSupabaseAuth) return
+  if (btn) { btn.disabled = true; btn.textContent = 'Enviando…' }
+  try {
+    await window.MNSupabaseAuth.resendVerificationEmail(email)
+    if (btn) {
+      btn.textContent = '✓ Enviado'
+      btn.style.color = '#00D4AA'
+      setTimeout(() => { if (btn) { btn.disabled = false; btn.textContent = 'Reenviar'; btn.style.color = '' } }, 30000)
+    }
+  } catch (err) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Reenviar' }
+    const errEl = document.getElementById('obOtpError')
+    if (errEl) { errEl.textContent = '⚠ ' + (err?.message || 'Error al reenviar.'); errEl.style.display = 'block' }
+  }
+}
+
+function _obCloseOtpOverlay() {
+  const overlay = document.getElementById('obOtpOverlay')
+  if (overlay) {
+    overlay.style.opacity = '0'
+    overlay.style.transition = 'opacity 150ms'
+    setTimeout(() => overlay.remove(), 150)
+  }
+}
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -9918,29 +10151,16 @@ function finishOnboarding() {
 }
 
 async function _obRegisterSupabase() {
-  if (!obData.email || !obData.password) return
-  if (!window.MNSupabaseAuth) return
-  try {
-    const data = await window.MNSupabaseAuth.signUp(obData.email, obData.password)
-    if (typeof window.MNAuth !== 'undefined') {
-      window.MNAuth.upgradeTrial(obData.email)
-    }
-    // Send welcome email in background
-    if (window.MNEmail) MNEmail.sendWelcome(obData.email, obData.nombre || '')
-    if (window.MNAuthUI) {
-      window.MNAuthUI.renderAuthBadge('authPlanBadge')
-      window.MNAuthUI.renderTrialPill('trialPillContainer')
-    }
-  } catch (err) {
-    if (err?.message?.includes('already registered') || err?.code === 'email_exists') {
-      try {
-        await window.MNSupabaseAuth.signIn(obData.email, obData.password)
-        if (window.MNAuthUI) {
-          window.MNAuthUI.renderAuthBadge('authPlanBadge')
-          window.MNAuthUI.renderTrialPill('trialPillContainer')
-        }
-      } catch (_) {}
-    }
+  // Account was already created during OTP verification (obNext step 1).
+  // Just sync the auth badge and send welcome email.
+  if (!obData.email) return
+  if (window.MNEmail && obData._registered && !obData._welcomeSent) {
+    obData._welcomeSent = true
+    MNEmail.sendWelcome(obData.email, obData.nombre || '')
+  }
+  if (window.MNAuthUI) {
+    window.MNAuthUI.renderAuthBadge('authPlanBadge')
+    window.MNAuthUI.renderTrialPill('trialPillContainer')
   }
 }
 

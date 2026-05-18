@@ -253,22 +253,59 @@ window.MNPayment = (() => {
     const plan     = params.get('plan');
 
     if (checkout === 'success' && plan) {
-      const pi = params.get('payment_intent');
-      const si = params.get('setup_intent');
+      // Clean URL immediately
+      history.replaceState({}, '', location.pathname);
 
-      if (pi || si) {
-        const stripe = _getStripe();
-        if (pi) await stripe.retrievePaymentIntent(params.get('payment_intent_client_secret') ?? '');
-        const email = MNAuth.getUser()?.email ?? '';
-        _onPaymentSuccess(
-          plan === 'local' ? MNStripeConfig.prices.local : MNStripeConfig.prices.pro,
-          email,
-        );
-      }
+      const priceId = plan === 'local' ? MNStripeConfig.prices.local : MNStripeConfig.prices.pro;
+      const email   = MNAuth.getUser()?.email ?? '';
 
-      // Clean URL
-      const clean = location.pathname;
-      history.replaceState({}, '', clean);
+      // Stripe Checkout session redirect — webhook may already have updated Supabase.
+      // Apply local state optimistically, then sync from server to confirm.
+      _onPaymentSuccess(priceId, email);
+
+      // Sync plan from Supabase (webhook runs async — retry a few times)
+      _syncPlanFromServer(plan);
+      return;
+    }
+
+    // Elements flow: payment_intent or setup_intent in URL (3DS redirect)
+    const pi = params.get('payment_intent');
+    const si = params.get('setup_intent');
+    if ((pi || si) && plan) {
+      history.replaceState({}, '', location.pathname);
+      const stripe = _getStripe();
+      if (pi) await stripe.retrievePaymentIntent(params.get('payment_intent_client_secret') ?? '');
+      const email = MNAuth.getUser()?.email ?? '';
+      _onPaymentSuccess(
+        plan === 'local' ? MNStripeConfig.prices.local : MNStripeConfig.prices.pro,
+        email,
+      );
+    }
+  }
+
+  async function _syncPlanFromServer(plan, retries = 4, delayMs = 2000) {
+    if (!window.MNSupabaseAuth?.isLoggedIn()) return;
+    for (let i = 0; i < retries; i++) {
+      await new Promise(r => setTimeout(r, i === 0 ? 1000 : delayMs));
+      try {
+        const profile = await window.MNSupabaseAuth.getProfile(true);
+        if (!profile) continue;
+        const expectedPlan = plan === 'local' ? 'local' : 'pro';
+        if (profile.plan === expectedPlan || profile.plan === 'local_lifetime' || profile.plan === 'pro_annual' || profile.plan === 'pro') {
+          // Server confirmed — re-sync to localStorage
+          await window.MNSupabaseAuth._sb.auth.getSession(); // refresh session
+          // Trigger the sync path in supabase-auth.js
+          const { data: { session } } = await window.MNSupabaseAuth._sb.auth.getSession();
+          if (session?.user) {
+            // Force profile re-sync
+            if (window.MNAuthUI) {
+              window.MNAuthUI.renderAuthBadge('authPlanBadge');
+              window.MNAuthUI.renderTrialPill('trialPillContainer');
+            }
+          }
+          break;
+        }
+      } catch (_) {}
     }
   }
 
