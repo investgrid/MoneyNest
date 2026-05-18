@@ -55,11 +55,27 @@
     try { localStorage.removeItem(PENDING_KEY); } catch {}
   }
 
+  // ─── Pro plan guard ───────────────────────────────────────────────
+  function _isPro() {
+    try {
+      // Check MNAuth (local plan state)
+      if (window.MNAuth && typeof MNAuth.isPro === 'function') return MNAuth.isPro();
+      // Fallback: read localStorage directly
+      const raw = localStorage.getItem('mn_user') || localStorage.getItem('mn_auth');
+      if (!raw) return false;
+      const u = JSON.parse(raw);
+      return u.plan === 'pro';
+    } catch { return false; }
+  }
+
   // ─── Core sync ────────────────────────────────────────────────────
   async function syncToCloud(data) {
     try {
       const session = await _getSession();
       if (!session) { addToPendingQueue(data); return; }
+
+      // Cloud sync is a Pro feature
+      if (!_isPro()) return;
 
       const client = _getClient();
       if (!client) { addToPendingQueue(data); return; }
@@ -69,7 +85,7 @@
       const { error } = await client
         .from('cloud_data')
         .upsert(
-          { user_id: session.user.id, data_json: data, synced_at: new Date().toISOString() },
+          { user_id: session.user.id, data: data, synced_at: new Date().toISOString() },
           { onConflict: 'user_id' }
         );
 
@@ -87,36 +103,37 @@
   async function triggerSync(data) {
     if (!navigator.onLine) { addToPendingQueue(data); showSyncIndicator('offline'); return; }
     const session = await _getSession();
-    if (!session) return; // local-only user, no error
+    if (!session) return;  // local-only user — silent, no error
+    if (!_isPro()) return; // free/trial user — cloud sync not available
     await syncToCloud(data);
   }
 
   async function fetchFromCloud() {
     try {
       const session = await _getSession();
-      if (!session) return null;
+      if (!session || !_isPro()) return null;
 
       const client = _getClient();
       if (!client) return null;
 
-      const { data, error } = await client
+      const { data: row, error } = await client
         .from('cloud_data')
-        .select('data_json, synced_at')
+        .select('data, synced_at')
         .eq('user_id', session.user.id)
         .order('synced_at', { ascending: false })
         .limit(1)
         .single();
 
-      if (error || !data) return null;
+      if (error || !row) return null;
 
-      // Only suggest cloud data if it's newer than local
+      // Only return cloud data if it's newer than what's stored locally
       const localStr = localStorage.getItem('mn_data');
-      if (!localStr) return data.data_json;
+      if (!localStr) return row.data;
 
       const localObj = JSON.parse(localStr);
-      const localTs = localObj._updatedAt || 0;
-      const cloudTs = new Date(data.synced_at).getTime();
-      return cloudTs > localTs ? data.data_json : null;
+      const localTs  = localObj._updatedAt || 0;
+      const cloudTs  = new Date(row.synced_at).getTime();
+      return cloudTs > localTs ? row.data : null;
     } catch(e) {
       console.warn('[MNSync] fetchFromCloud failed:', e);
       return null;
