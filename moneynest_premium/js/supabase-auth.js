@@ -206,79 +206,17 @@
   // ════════════════════════════════════════════════════════════════
 
   async function signInWithGoogle() {
-    const callbackUrl = `${location.origin}/oauth-callback.html`;
-    const width  = 500;
-    const height = 620;
-    const left   = Math.round(window.screenX + (window.outerWidth  - width)  / 2);
-    const top    = Math.round(window.screenY + (window.outerHeight - height) / 2);
-
     const { data, error } = await sb.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo:          callbackUrl,
-        skipBrowserRedirect: true,
-        queryParams:         { access_type: 'offline', prompt: 'select_account' },
-        scopes:              'openid email profile',
+        redirectTo: `${location.origin}/?action=oauth-callback`,
+        queryParams: { access_type: 'offline', prompt: 'select_account' },
+        scopes: 'openid email profile',
       },
     });
     if (error) throw error;
-
-    return new Promise((resolve, reject) => {
-      const popup = window.open(
-        data.url,
-        'mn_google_auth',
-        `width=${width},height=${height},left=${left},top=${top},toolbar=0,menubar=0,location=0,status=0`,
-      );
-
-      if (!popup) {
-        // Popup blocked — fallback to full redirect
-        sb.auth.signInWithOAuth({
-          provider: 'google',
-          options: { redirectTo: `${location.origin}${location.pathname}?action=oauth-callback`, queryParams: { access_type: 'offline', prompt: 'select_account' }, scopes: 'openid email profile' },
-        });
-        resolve({ popup: false });
-        return;
-      }
-
-      // BroadcastChannel avoids COOP issues from Google's headers
-      const bc = new BroadcastChannel('mn_oauth');
-
-      // Timeout: if nothing arrives in 3 minutes, reject
-      const timeout = setTimeout(() => {
-        cleanup();
-        reject(Object.assign(new Error('Login cancelado.'), { code: 'popup_closed' }));
-      }, 3 * 60 * 1000);
-
-      bc.onmessage = (e) => {
-        if (e.data?.type === 'mn_oauth_callback') {
-          cleanup();
-          sb.auth.exchangeCodeForSession(e.data.href).then(({ data, error }) => {
-            if (error) reject(error);
-            else resolve({ session: data.session });
-          });
-        }
-      };
-
-      // Fallback postMessage (for browsers without BroadcastChannel)
-      function onMessage(e) {
-        if (e.origin !== location.origin) return;
-        if (e.data?.type === 'mn_oauth_callback') {
-          cleanup();
-          sb.auth.exchangeCodeForSession(e.data.href).then(({ data, error }) => {
-            if (error) reject(error);
-            else resolve({ session: data.session });
-          });
-        }
-      }
-
-      function cleanup() {
-        clearTimeout(timeout);
-        bc.close();
-        window.removeEventListener('message', onMessage);
-      }
-
-      window.addEventListener('message', onMessage);
-    });
+    // Browser redirects to Google — execution stops here
+    return data;
   }
 
   async function signInWithApple() {
@@ -298,7 +236,8 @@
     const action = params.get('action');
 
     if (action === 'oauth-callback') {
-      // Legacy redirect fallback (popup handles this via oauth-callback.html normally)
+      // Supabase detectSessionInUrl processes the code/token automatically.
+      // Just clean the URL — onAuthStateChange will fire with the session.
       history.replaceState({}, '', location.pathname);
       return;
     }

@@ -1336,20 +1336,18 @@
 <!-- ══ MONEYNEST AUTH INIT ══ -->
 <script>
   (function () {
-    // Handle OAuth callback — show loading spinner while Supabase processes session
+    // Handle OAuth callback — show loading overlay while Supabase processes session
     (function _handleOAuthReturn() {
       const params = new URLSearchParams(location.search);
       const action = params.get('action');
       if (action === 'oauth-callback') {
-        // Supabase detectSessionInUrl will process the hash/code.
-        // Show a brief loading overlay so the user doesn't see a flash.
         const el = document.createElement('div');
         el.id = 'mnOAuthLoading';
         el.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#060B14;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;';
-        el.innerHTML = '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" style="animation:mnSpin 700ms linear infinite"><circle cx="12" cy="12" r="9" stroke="rgba(255,255,255,0.1)" stroke-width="2.5"/><path d="M12 3a9 9 0 0 1 9 9" stroke="#00D4AA" stroke-width="2.5" stroke-linecap="round"/></svg><p style="color:#475569;font-size:13px;font-family:inherit;margin:0">Iniciando sesión…</p>';
+        el.innerHTML = '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" style="animation:mnSpin 700ms linear infinite"><circle cx="12" cy="12" r="9" stroke="rgba(255,255,255,0.1)" stroke-width="2.5"/><path d="M12 3a9 9 0 0 1 9 9" stroke="#00D4AA" stroke-width="2.5" stroke-linecap="round"/></svg><p style="color:#475569;font-size:13px;font-family:inherit;margin:0">Iniciando sesión con Google…</p>';
         document.body.appendChild(el);
-        // Remove after session loads (max 4s fallback)
-        setTimeout(() => el?.remove(), 4000);
+        // Removed by onAuthChange or after 5s fallback
+        setTimeout(() => el?.remove(), 5000);
       }
     })();
 
