@@ -192,55 +192,72 @@
   // ════════════════════════════════════════════════════════════════
 
   async function signInWithGoogle() {
+    const callbackUrl = `${location.origin}/oauth-callback.html`;
+    const width  = 500;
+    const height = 620;
+    const left   = Math.round(window.screenX + (window.outerWidth  - width)  / 2);
+    const top    = Math.round(window.screenY + (window.outerHeight - height) / 2);
+
+    const { data, error } = await sb.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo:          callbackUrl,
+        skipBrowserRedirect: true,
+        queryParams:         { access_type: 'offline', prompt: 'select_account' },
+        scopes:              'openid email profile',
+      },
+    });
+    if (error) throw error;
+
     return new Promise((resolve, reject) => {
-      const redirectTo = `${location.origin}${location.pathname}?action=oauth-callback`;
-      const width  = 500;
-      const height = 620;
-      const left   = Math.round(window.screenX + (window.outerWidth  - width)  / 2);
-      const top    = Math.round(window.screenY + (window.outerHeight - height) / 2);
+      const popup = window.open(
+        data.url,
+        'mn_google_auth',
+        `width=${width},height=${height},left=${left},top=${top},toolbar=0,menubar=0,location=0,status=0`,
+      );
 
-      // Get the OAuth URL from Supabase without triggering redirect
-      sb.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo,
-          skipBrowserRedirect: true,
-          queryParams: { access_type: 'offline', prompt: 'select_account' },
-          scopes: 'openid email profile',
-        },
-      }).then(({ data, error }) => {
-        if (error) { reject(error); return; }
+      if (!popup) {
+        // Popup blocked — fallback to full redirect
+        sb.auth.signInWithOAuth({
+          provider: 'google',
+          options: { redirectTo: `${location.origin}${location.pathname}?action=oauth-callback`, queryParams: { access_type: 'offline', prompt: 'select_account' }, scopes: 'openid email profile' },
+        });
+        resolve({ popup: false });
+        return;
+      }
 
-        const popup = window.open(
-          data.url,
-          'mn_google_auth',
-          `width=${width},height=${height},left=${left},top=${top},toolbar=0,menubar=0,location=0,status=0`,
-        );
-
-        if (!popup) {
-          // Popup blocked — fall back to redirect
-          sb.auth.signInWithOAuth({
-            provider: 'google',
-            options: { redirectTo, queryParams: { access_type: 'offline', prompt: 'select_account' }, scopes: 'openid email profile' },
+      function onMessage(e) {
+        if (e.origin !== location.origin) return;
+        if (e.data?.type === 'mn_oauth_success') {
+          cleanup();
+          // Session is already stored in localStorage by the callback page
+          // Trigger session refresh in main window
+          sb.auth.getSession().then(({ data: { session } }) => {
+            if (session) resolve({ session });
+            else reject(new Error('No session after OAuth'));
           });
-          resolve({ popup: false });
-          return;
+        } else if (e.data?.type === 'mn_oauth_error') {
+          cleanup();
+          reject(new Error(e.data.error || 'OAuth error'));
         }
+      }
 
-        // Poll until popup closes or session appears
-        const timer = setInterval(async () => {
-          if (popup.closed) {
-            clearInterval(timer);
-            // Check if session was established
-            const { data: { session } } = await sb.auth.getSession();
-            if (session) {
-              resolve({ session });
-            } else {
-              reject(Object.assign(new Error('Login cancelado.'), { code: 'popup_closed' }));
-            }
-          }
-        }, 400);
-      });
+      // Fallback: poll for popup close if postMessage doesn't arrive
+      const pollTimer = setInterval(async () => {
+        if (popup.closed) {
+          cleanup();
+          const { data: { session } } = await sb.auth.getSession();
+          if (session) resolve({ session });
+          else reject(Object.assign(new Error('Login cancelado.'), { code: 'popup_closed' }));
+        }
+      }, 500);
+
+      function cleanup() {
+        clearInterval(pollTimer);
+        window.removeEventListener('message', onMessage);
+      }
+
+      window.addEventListener('message', onMessage);
     });
   }
 
@@ -261,8 +278,7 @@
     const action = params.get('action');
 
     if (action === 'oauth-callback') {
-      // Supabase SDK already handles the token exchange via detectSessionInUrl.
-      // We just clean the URL.
+      // Legacy redirect fallback (popup handles this via oauth-callback.html normally)
       history.replaceState({}, '', location.pathname);
       return;
     }

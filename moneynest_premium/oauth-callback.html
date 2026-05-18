@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MoneyNest — Conectando...</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #060B14;
+    color: #F1F5F9;
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .spinner {
+    width: 40px; height: 40px;
+    border: 2.5px solid rgba(255,255,255,0.08);
+    border-top-color: #00D4AA;
+    border-radius: 50%;
+    animation: spin 700ms linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  p { font-size: 13px; color: #475569; }
+</style>
+</head>
+<body>
+<div class="spinner"></div>
+<p>Conectando con Google...</p>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+(async () => {
+  const SUPABASE_URL      = 'https://jwddciqqhmfkbqhdrfre.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp3ZGRjaXFxaG1ma2JxaGRyZnJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3NjkyMjcsImV4cCI6MjA5NDM0NTIyN30.Gqz39AWpW1BkWXhfhnR_vOUYUy93bgdSNvBfXYQ3VGk';
+
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { detectSessionInUrl: true, persistSession: true, storageKey: 'mn_supabase_session' },
+  });
+
+  try {
+    // Let Supabase process the session from the URL hash/code
+    const { data: { session }, error } = await sb.auth.getSession();
+
+    if (session && window.opener && !window.opener.closed) {
+      window.opener.postMessage({ type: 'mn_oauth_success', session }, window.opener.location.origin);
+    } else if (error) {
+      if (window.opener && !window.opener.closed) {
+        window.opener.postMessage({ type: 'mn_oauth_error', error: error.message }, window.opener.location.origin);
+      }
+    }
+  } catch (e) {
+    if (window.opener && !window.opener.closed) {
+      window.opener.postMessage({ type: 'mn_oauth_error', error: e.message }, window.opener.location.origin);
+    }
+  } finally {
+    // Always close the popup
+    setTimeout(() => window.close(), 300);
+  }
+})();
+</script>
+</body>
+</html>
