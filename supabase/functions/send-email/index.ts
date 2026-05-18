@@ -40,7 +40,7 @@ function rateCheck(ip: string, max = 5, windowMs = 10 * 60 * 1000): boolean {
   return true;
 }
 
-const LOGO_URL = 'https://jwddciqqhmfkbqhdrfre.supabase.co/storage/v1/object/public/assets/logo-email.png';
+const LOGO_URL = 'https://jwddciqqhmfkbqhdrfre.supabase.co/storage/v1/object/public/assets/icon-192.png';
 
 // Envuelve cualquier card en el layout base
 function wrap(cardHtml: string): string {
