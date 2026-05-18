@@ -58,16 +58,7 @@ function wrap(cardHtml: string): string {
 
   <!-- LOGO -->
   <tr><td align="center" style="padding-bottom:32px">
-    <table border="0" cellpadding="0" cellspacing="0">
-    <tr>
-      <td style="vertical-align:middle;padding-right:12px">
-        <img src="${LOGO_URL}" width="65" height="65" alt="MoneyNest" style="display:block;border:0;border-radius:14px">
-      </td>
-      <td style="vertical-align:middle">
-        <span style="font-size:33px;font-weight:900;color:#ffffff;letter-spacing:-1.5px;font-family:Helvetica Neue,Helvetica,Arial,sans-serif">Money</span><span style="font-size:33px;font-weight:900;color:#00D4AA;letter-spacing:-1.5px;font-family:Helvetica Neue,Helvetica,Arial,sans-serif">Nest</span>
-      </td>
-    </tr>
-    </table>
+    <img src="${LOGO_URL}" width="160" height="90" alt="MoneyNest" style="display:block;border:0;border-radius:16px;margin:0 auto">
   </td></tr>
 
   <!-- CARD -->
