@@ -16,6 +16,8 @@ const MNStripeConfig = Object.freeze({
   },
 });
 
+window.MNStripeConfig = MNStripeConfig;
+
 const MNStripe = {
   openPayment(priceId, email) {
     if (window.MNPayment) {
@@ -25,3 +27,4 @@ const MNStripe = {
     }
   },
 };
+window.MNStripe = MNStripe;

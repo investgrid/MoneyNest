@@ -9127,30 +9127,31 @@ function _obRightHTML(step) {
     <div class="ob-headline">Elige tu<br><span class="ob-headline-accent">plan</span></div>
     <p class="ob-lead">Puedes cambiar en cualquier momento. Sin permanencia.</p>
     <div class="ob-plan-cards" id="obPlanCards">
-      <div class="ob-plan-card ${obData.plan === 'trial' ? 'selected' : ''}" onclick="obSelectPlan('trial')">
+      <div class="ob-plan-card ob-plan-card--trial ${obData.plan === 'trial' ? 'selected' : ''}" onclick="obSelectPlan('trial')">
         <div class="ob-plan-header">
           <div class="ob-plan-icon" style="background:rgba(245,158,11,0.15);color:#F59E0B">🕐</div>
           <div class="ob-plan-badge ob-plan-badge--free">Gratis</div>
         </div>
         <div class="ob-plan-name">Free Trial</div>
-        <div class="ob-plan-price"><span class="ob-plan-amount">0€</span><span class="ob-plan-period"> / 24h</span></div>
+        <div class="ob-plan-price"><span class="ob-plan-amount">0€</span><span class="ob-plan-period">/24h</span></div>
         <ul class="ob-plan-feats">
-          <li>✓ Acceso completo 24 horas</li>
+          <li>✓ Acceso completo 24h</li>
           <li>✓ Todos los módulos</li>
-          <li style="color:rgba(255,255,255,0.3)">✗ Sin sincronización</li>
+          <li class="feat-locked">✗ Sin cloud</li>
         </ul>
         <div class="ob-plan-radio"><div class="ob-plan-radio-dot"></div></div>
       </div>
-      <div class="ob-plan-card ${obData.plan === 'local' ? 'selected' : ''}" onclick="obSelectPlan('local')">
+      <div class="ob-plan-card ob-plan-card--local ${obData.plan === 'local' ? 'selected' : ''}" onclick="obSelectPlan('local')">
         <div class="ob-plan-header">
           <div class="ob-plan-icon" style="background:rgba(16,185,129,0.15);color:#10B981">💾</div>
+          <div class="ob-plan-badge ob-plan-badge--local">Único</div>
         </div>
         <div class="ob-plan-name">Local</div>
         <div class="ob-plan-price"><span class="ob-plan-amount">5€</span><span class="ob-plan-period"> único</span></div>
         <ul class="ob-plan-feats">
           <li>✓ Acceso ilimitado</li>
-          <li>✓ Datos en tu dispositivo</li>
-          <li style="color:rgba(255,255,255,0.3)">✗ Sin sincronización</li>
+          <li>✓ Sin suscripción</li>
+          <li class="feat-locked">✗ Sin cloud</li>
         </ul>
         <div class="ob-plan-radio"><div class="ob-plan-radio-dot"></div></div>
       </div>
@@ -9160,11 +9161,20 @@ function _obRightHTML(step) {
           <div class="ob-plan-badge ob-plan-badge--pro">Popular</div>
         </div>
         <div class="ob-plan-name">Pro</div>
-        <div class="ob-plan-price"><span class="ob-plan-amount">5€</span><span class="ob-plan-period"> único + 5€/año</span></div>
+        <div class="ob-plan-price ob-plan-price--stack">
+          <div class="ob-plan-price-row">
+            <span class="ob-plan-price-label ob-plan-price-label--local">Local</span>
+            <span class="ob-plan-amount" style="font-size:.95rem">5€</span><span class="ob-plan-period"> único</span>
+          </div>
+          <div class="ob-plan-price-row">
+            <span class="ob-plan-price-label ob-plan-price-label--pro">Pro</span>
+            <span class="ob-plan-amount" style="font-size:.95rem">5€</span><span class="ob-plan-period">/año</span>
+          </div>
+        </div>
         <ul class="ob-plan-feats">
           <li>✓ Todo lo de Local</li>
-          <li>✓ Sincronización en la nube</li>
-          <li>✓ 7 días de prueba gratis</li>
+          <li>✓ Cloud sync</li>
+          <li>✓ 7 días gratis</li>
         </ul>
         <div class="ob-plan-radio"><div class="ob-plan-radio-dot"></div></div>
       </div>
