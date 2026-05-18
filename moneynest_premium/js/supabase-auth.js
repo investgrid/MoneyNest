@@ -115,12 +115,15 @@
       throw error;
     }
 
-    // Step 2: send OTP code (6-digit) for email verification via Resend custom email
-    // We use signInWithOtp which sends a numeric code Supabase can verify
+    // Step 2: send 6-digit OTP code for email verification.
+    // emailRedirectTo must be undefined/omitted so Supabase sends a numeric
+    // code instead of a magic link. Magic links only appear when a redirect
+    // URL is present in the request.
     await sb.auth.signInWithOtp({
       email,
       options: {
-        shouldCreateUser: false, // user already created above
+        shouldCreateUser:  false, // user already created above
+        emailRedirectTo:   undefined,
         data: { display_name: displayName || null },
       },
     });
@@ -149,8 +152,11 @@
     if (!_rl.check(`resend:${email}`, 3, 5 * 60 * 1000)) {
       throw Object.assign(new Error('Espera unos minutos antes de reenviar.'), { code: 'rate_limited' });
     }
-    // Use signInWithOtp to send a fresh 6-digit code
-    const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
+    // emailRedirectTo omitted → Supabase sends numeric OTP, not a magic link
+    const { error } = await sb.auth.signInWithOtp({
+      email,
+      options: { shouldCreateUser: false, emailRedirectTo: undefined },
+    });
     if (error) throw error;
   }
 
