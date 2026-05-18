@@ -56,15 +56,15 @@ window.MNPayment = (() => {
     const isLocal = priceId === MNStripeConfig.prices.local;
     document.getElementById('mnPoTitle').textContent = isLocal
       ? 'Activar Local — 5€'
-      : 'Activar Pro — 5€/año';
+      : 'Activar Pro — 10€ primer año';
 
     document.getElementById('mnPoPlanSummary').innerHTML = isLocal
-      ? `<div class="mnpo-plan-tag mnpo-plan-tag--local">💾 Local Lifetime</div>
-         <div class="mnpo-plan-price"><span class="mnpo-price-big">5€</span> <span class="mnpo-price-period">pago único</span></div>
-         <div class="mnpo-plan-desc">Acceso ilimitado · Sin suscripción · Sin cloud</div>`
-      : `<div class="mnpo-plan-tag mnpo-plan-tag--pro">⚡ Pro Annual</div>
-         <div class="mnpo-plan-price"><span class="mnpo-price-big">5€</span> <span class="mnpo-price-period">/año</span></div>
-         <div class="mnpo-plan-desc">7 días gratis · Cloud sync · Cancela cuando quieras</div>`;
+      ? `<div class="mnpo-plan-tag mnpo-plan-tag--local">💾 Local</div>
+         <div class="mnpo-plan-desc">Acceso ilimitado · Sin suscripción · Sin cloud</div>
+         <div class="mnpo-plan-price"><span class="mnpo-price-big">5€</span><span class="mnpo-price-period">único</span></div>`
+      : `<div class="mnpo-plan-tag mnpo-plan-tag--pro">⚡ Pro</div>
+         <div class="mnpo-plan-desc">5€ Local + 5€/año · Incluye 7 días gratis · Cloud sync</div>
+         <div class="mnpo-plan-price"><span class="mnpo-price-big">10€</span><span class="mnpo-price-period">1er año</span></div>`;
   }
 
   function _setLoading(on) {

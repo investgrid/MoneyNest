@@ -1903,9 +1903,8 @@
   align-items: center;
   justify-content: center;
   pointer-events: none;
-  padding: 20px;
+  padding: 24px;
 }
-
 #mnPaymentOverlay.mnpo--open { pointer-events: all; }
 
 .mnpo-backdrop {
@@ -1915,68 +1914,60 @@
   backdrop-filter: blur(0px);
   transition: background 0.3s ease, backdrop-filter 0.3s ease;
 }
-
 #mnPaymentOverlay.mnpo--open .mnpo-backdrop {
-  background: rgba(0,0,0,0.75);
-  backdrop-filter: blur(20px) saturate(0.8);
+  background: rgba(0,0,0,0.8);
+  backdrop-filter: blur(24px) saturate(0.7);
 }
 
 .mnpo-sheet {
   position: relative;
   z-index: 1;
-  width: min(480px, 100%);
-  max-height: 90dvh;
+  width: min(560px, 100%);
+  max-height: 92dvh;
   overflow-y: auto;
-  background: #0F172A;
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 28px;
+  background: #0D1421;
+  border: 1px solid rgba(255,255,255,0.09);
+  border-radius: 32px;
   box-shadow:
-    0 0 0 1px rgba(0,212,170,0.08),
-    0 40px 100px rgba(0,0,0,0.8),
-    0 0 60px rgba(0,212,170,0.04);
+    0 0 0 1px rgba(0,212,170,0.06),
+    0 48px 120px rgba(0,0,0,0.85),
+    0 0 80px rgba(0,212,170,0.03);
   opacity: 0;
-  transform: scale(0.94) translateY(20px);
-  transition: opacity 0.3s ease, transform 0.35s cubic-bezier(0.22,1,0.36,1);
+  transform: scale(0.93) translateY(24px);
+  transition: opacity 0.32s ease, transform 0.38s cubic-bezier(0.22,1,0.36,1);
 }
-
 #mnPaymentOverlay.mnpo--open .mnpo-sheet {
   opacity: 1;
   transform: scale(1) translateY(0);
 }
-
-/* Top accent bar */
 .mnpo-sheet::before {
   content: '';
   display: block;
   height: 3px;
-  background: linear-gradient(90deg, #00D4AA, #6366F1, #A78BFA);
-  border-radius: 28px 28px 0 0;
+  background: linear-gradient(90deg, #00D4AA 0%, #6366F1 50%, #A78BFA 100%);
+  border-radius: 32px 32px 0 0;
 }
-
 .mnpo-handle { display: none; }
 
 .mnpo-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 28px 28px 0;
-  margin-bottom: 0;
+  padding: 32px 36px 0;
 }
-
 .mnpo-title {
-  font-size: 0.95rem;
+  font-size: 1.05rem;
   font-weight: 800;
   color: #E8EFF7;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
 }
-
 .mnpo-close {
-  background: rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.05);
   border: 1px solid rgba(255,255,255,0.08);
   color: #64748B;
-  font-size: 0.8rem;
-  width: 28px;
-  height: 28px;
+  font-size: 0.85rem;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   cursor: pointer;
   display: flex;
@@ -1988,56 +1979,71 @@
 }
 .mnpo-close:hover { background: rgba(255,255,255,0.1); color: #E8EFF7; border-color: rgba(255,255,255,0.15); }
 
-.mnpo-body { padding: 20px 28px 32px; display: flex; flex-direction: column; gap: 20px; }
+.mnpo-body {
+  padding: 28px 36px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
 
 /* Plan summary */
 .mnpo-plan-summary {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: 10px;
-  padding: 16px 18px;
-  border-radius: 14px;
+  gap: 16px;
+  padding: 20px 24px;
+  border-radius: 18px;
   background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.06);
-  flex-wrap: wrap;
+  border: 1px solid rgba(255,255,255,0.07);
 }
-
 .mnpo-plan-tag {
-  padding: 3px 9px;
+  padding: 5px 12px;
   border-radius: 99px;
-  font-size: 0.6rem;
+  font-size: 0.65rem;
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   flex-shrink: 0;
+  white-space: nowrap;
 }
-.mnpo-plan-tag--local { background: rgba(0,212,170,0.1); color: #00D4AA; border: 1px solid rgba(0,212,170,0.2); }
-.mnpo-plan-tag--pro   { background: rgba(167,139,250,0.1); color: #C4B5FD; border: 1px solid rgba(167,139,250,0.2); }
-
-.mnpo-plan-price { display: flex; align-items: baseline; gap: 3px; margin-left: auto; }
-.mnpo-price-big  { font-size: 1.2rem; font-weight: 900; color: #E8EFF7; letter-spacing: -0.04em; }
-.mnpo-price-period { font-size: 0.7rem; color: #64748B; font-weight: 500; }
+.mnpo-plan-tag--local { background: rgba(0,212,170,0.12); color: #00D4AA; border: 1px solid rgba(0,212,170,0.22); }
+.mnpo-plan-tag--pro   { background: rgba(167,139,250,0.12); color: #C4B5FD; border: 1px solid rgba(167,139,250,0.22); }
 
 .mnpo-plan-desc {
-  width: 100%;
-  font-size: 0.7rem;
+  font-size: 0.78rem;
   color: #64748B;
   font-weight: 500;
-  line-height: 1.6;
-  margin-top: 2px;
+  line-height: 1.5;
+}
+.mnpo-plan-price {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  flex-shrink: 0;
+}
+.mnpo-price-big  { font-size: 1.5rem; font-weight: 900; color: #E8EFF7; letter-spacing: -0.05em; line-height: 1; }
+.mnpo-price-period { font-size: 0.68rem; color: #64748B; font-weight: 600; }
+
+/* Divider */
+.mnpo-divider {
+  height: 1px;
+  background: rgba(255,255,255,0.06);
+  margin: 0 -36px;
 }
 
-/* Stripe element container */
-#mnPoElement { min-height: 80px; padding-top: 4px; }
+/* Stripe element */
+#mnPoElement { min-height: 80px; }
 
 /* Error */
 .mnpo-error {
-  padding: 10px 14px;
-  border-radius: 10px;
+  padding: 12px 16px;
+  border-radius: 12px;
   background: rgba(251,113,133,0.08);
   border: 1px solid rgba(251,113,133,0.18);
   color: #FB7185;
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   font-weight: 600;
   line-height: 1.5;
 }
@@ -2045,114 +2051,105 @@
 /* Pay button */
 .mnpo-pay-btn {
   width: 100%;
-  padding: 15px;
-  border-radius: 14px;
+  padding: 17px;
+  border-radius: 16px;
   border: none;
   background: linear-gradient(135deg, #00D4AA, #00A882);
-  color: #051510;
-  font-size: 0.9rem;
+  color: #041510;
+  font-size: 0.95rem;
   font-weight: 800;
   font-family: inherit;
   cursor: pointer;
   letter-spacing: -0.01em;
   transition: all 0.22s cubic-bezier(0.22,1,0.36,1);
-  box-shadow: 0 6px 24px rgba(0,212,170,0.3);
+  box-shadow: 0 8px 28px rgba(0,212,170,0.32);
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
-  margin-top: 8px;
-  margin-bottom: 6px;
 }
-.mnpo-pay-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 10px 32px rgba(0,212,170,0.45); }
-.mnpo-pay-btn:disabled { opacity: 0.5; cursor: default; transform: none; }
+.mnpo-pay-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 14px 40px rgba(0,212,170,0.48); }
+.mnpo-pay-btn:disabled { opacity: 0.45; cursor: default; transform: none; }
 
 .mnpo-pay-spinner {
-  width: 16px;
-  height: 16px;
-  border: 2px solid rgba(10,14,23,0.25);
-  border-top-color: #0A0E17;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(4,21,16,0.2);
+  border-top-color: #041510;
   border-radius: 50%;
   animation: mnpoSpin 0.7s linear infinite;
 }
-
 @keyframes mnpoSpin { to { transform: rotate(360deg); } }
 
 .mnpo-secure-note {
   text-align: center;
-  font-size: 0.68rem;
-  color: var(--text3, #64748B);
+  font-size: 0.7rem;
+  color: #475569;
   font-weight: 500;
   line-height: 1.6;
-  padding-top: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
 
 /* Success state */
 .mnpo-success {
-  padding: 32px 24px;
+  padding: 48px 36px;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 12px;
+  gap: 14px;
   animation: mnpoSuccessIn 0.45s cubic-bezier(0.22,1,0.36,1);
 }
-
 @keyframes mnpoSuccessIn {
   from { opacity: 0; transform: scale(0.95) translateY(12px); }
   to   { opacity: 1; transform: scale(1) translateY(0); }
 }
-
 .mnpo-success-icon {
-  width: 64px;
-  height: 64px;
+  width: 72px;
+  height: 72px;
   border-radius: 50%;
   background: linear-gradient(135deg, #00D4AA, #00A882);
   color: #0A0E17;
-  font-size: 1.6rem;
+  font-size: 1.8rem;
   font-weight: 900;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 8px 28px rgba(0,212,170,0.4);
+  box-shadow: 0 10px 36px rgba(0,212,170,0.42);
   animation: mnpoCheckPop 0.55s cubic-bezier(0.34,1.56,0.64,1) 0.1s both;
 }
-
 @keyframes mnpoCheckPop {
   from { transform: scale(0) rotate(-20deg); }
   to   { transform: scale(1) rotate(0deg); }
 }
-
 .mnpo-success-title {
-  font-size: 1.2rem;
+  font-size: 1.35rem;
   font-weight: 800;
-  color: var(--text, #E8EFF7);
+  color: #E8EFF7;
   letter-spacing: -0.04em;
 }
-
 .mnpo-success-sub {
-  font-size: 0.8rem;
-  color: var(--text2, #94A3B8);
-  line-height: 1.6;
-  max-width: 280px;
+  font-size: 0.82rem;
+  color: #94A3B8;
+  line-height: 1.65;
+  max-width: 300px;
 }
-
 .mnpo-success-btn {
-  margin-top: 8px;
-  padding: 12px 32px;
-  border-radius: 12px;
-  border: none;
+  margin-top: 10px;
+  padding: 13px 36px;
+  border-radius: 14px;
   background: rgba(0,212,170,0.1);
   border: 1px solid rgba(0,212,170,0.25);
   color: #00D4AA;
-  font-size: 0.85rem;
+  font-size: 0.88rem;
   font-weight: 700;
   font-family: inherit;
   cursor: pointer;
   transition: background 0.18s;
 }
-
 .mnpo-success-btn:hover { background: rgba(0,212,170,0.18); }
-
 
 /* ── Pro plan price breakdown (Local + Pro/yr) ─────────────── */
 .mn-price-stack {

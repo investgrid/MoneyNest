@@ -9445,6 +9445,20 @@ async function obNext() {
   }
 
   if (obStep === OB_TOTAL) { finishOnboarding(); return }
+
+  // If user just chose a paid plan on step 4, open payment immediately
+  if (obStep === 4 && obData.plan !== 'trial') {
+    obStep++
+    obRender('forward')
+    const email = obData.email || ''
+    if (obData.plan === 'local') {
+      setTimeout(() => MNPayment.open(window.MNStripeConfig?.prices?.local, email), 300)
+    } else if (obData.plan === 'pro') {
+      setTimeout(() => MNPayment.open(window.MNStripeConfig?.prices?.pro, email), 300)
+    }
+    return
+  }
+
   obStep++
   obRender('forward')
 }
