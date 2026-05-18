@@ -8850,7 +8850,7 @@ function abrirCierreMes() {
 // ════════════════════════════════════════════════════════════════
 const OB_TOTAL = 5
 let obStep = 1
-let obData = { nombre: '', email: '', password: '', mode: 'personal', lang: 'es', theme: 'dark', startTutorial: false, loadDemo: false }
+let obData = { nombre: '', email: '', password: '', mode: 'personal', lang: 'es', theme: 'dark', plan: 'trial', startTutorial: false, loadDemo: false }
 
 // ── Left panel: ambient visuals that evolve with each step ────
 function _obLeftHTML(step) {
@@ -8864,33 +8864,46 @@ function _obLeftHTML(step) {
       <span class="ob-brand-name">MoneyNest</span>
     </div>`
 
-  if (step === 1) return `
-    <div class="ob-left-content">
+  // STEP 1: Auth — left panel shows language selector + brand tagline
+  if (step === 1) {
+    const langs = [['es','🇪🇸','Español'],['en','🇺🇸','English'],['ca','🏴','Català'],['fr','🇫🇷','Français'],['de','🇩🇪','Deutsch'],['pt','🇵🇹','Português'],['it','🇮🇹','Italiano']]
+    return `
+    <div class="ob-left-content ob-left-content--auth">
       ${brand}
-      <div class="ob-left-hero">
-        <div class="ob-globe">🌍</div>
-        <div class="ob-left-title">Tu idioma,<br>tu dinero.</div>
-        <div class="ob-left-sub">MoneyNest habla tu idioma. Elige cómo quieres ver tu vida financiera.</div>
+      <div class="ob-left-hero" style="margin-bottom:28px">
+        <div class="ob-left-title" style="font-size:2rem;line-height:1.15">Tu dinero,<br><span style="color:#00D4AA">bajo control.</span></div>
+        <div class="ob-left-sub" style="margin-top:10px">Finanzas personales inteligentes. Ingresos, gastos, inversiones y patrimonio en un solo lugar.</div>
       </div>
-      <div class="ob-left-langs-preview">
-        <div class="ob-lang-flag">🇪🇸</div><div class="ob-lang-flag">🇺🇸</div>
-        <div class="ob-lang-flag">🇫🇷</div><div class="ob-lang-flag">🇩🇪</div>
-        <div class="ob-lang-flag">🇮🇹</div><div class="ob-lang-flag">🇵🇹</div>
+      <div class="ob-left-lang-section">
+        <div style="font-size:.68rem;font-weight:700;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:.12em;margin-bottom:12px">Elige tu idioma</div>
+        <div class="ob-lang-grid-left">
+          ${langs.map(([code, flag, name]) => `
+            <div class="ob-lang-tile-left ${obData.lang === code ? 'selected' : ''}" onclick="obSelectLang('${code}')">
+              <span>${flag}</span>
+              <span>${name}</span>
+            </div>`).join('')}
+        </div>
+      </div>
+      <div class="ob-left-trust">
+        <div class="ob-trust-item"><span class="ob-stat-dot green" style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#10B981;flex-shrink:0"></span><span>Datos 100% privados</span></div>
+        <div class="ob-trust-item"><span class="ob-stat-dot" style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#6366F1;flex-shrink:0"></span><span>Sin rastreo publicitario</span></div>
+        <div class="ob-trust-item"><span class="ob-stat-dot" style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#00D4AA;flex-shrink:0"></span><span>Prueba gratuita 24h</span></div>
       </div>
     </div>`
+  }
 
   if (step === 2) return `
     <div class="ob-left-content">
       ${brand}
       <div class="ob-left-hero">
         <div class="ob-globe">👤</div>
-        <div class="ob-left-title">Hola,<br><span id="obLeftName" style="color:var(--ob-accent)">${obData.nombre || '…'}</span></div>
+        <div class="ob-left-title">Hola,<br><span id="obLeftName" style="color:#00D4AA">${obData.nombre || '…'}</span></div>
         <div class="ob-left-sub">Tu nombre aparecerá en tu dashboard y en tus informes personalizados.</div>
       </div>
       <div class="ob-left-stat-card">
-        <div class="ob-stat-row"><span class="ob-stat-dot green"></span><span class="ob-stat-lbl">Datos 100% locales</span></div>
-        <div class="ob-stat-row"><span class="ob-stat-dot blue"></span><span class="ob-stat-lbl">Sin rastreo</span></div>
-        <div class="ob-stat-row"><span class="ob-stat-dot accent"></span><span class="ob-stat-lbl">Cifrado en tu dispositivo</span></div>
+        <div class="ob-stat-row"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#10B981;flex-shrink:0"></span><span class="ob-stat-lbl">Datos 100% locales</span></div>
+        <div class="ob-stat-row"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#6366F1;flex-shrink:0"></span><span class="ob-stat-lbl">Sin rastreo</span></div>
+        <div class="ob-stat-row"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#00D4AA;flex-shrink:0"></span><span class="ob-stat-lbl">Cifrado en tu dispositivo</span></div>
       </div>
     </div>`
 
@@ -8898,7 +8911,7 @@ function _obLeftHTML(step) {
     <div class="ob-left-content">
       ${brand}
       <div class="ob-left-hero">
-        <div class="ob-globe">${obData.theme === 'light' ? '☀️' : '🌙'}</div>
+        <div class="ob-globe">${obData.theme === 'light' ? '☀️' : obData.theme === 'auto' ? '⚙️' : '🌙'}</div>
         <div class="ob-left-title">Tu apariencia,<br>en tiempo real.</div>
         <div class="ob-left-sub">Estás viendo el resultado ahora mismo. Puedes cambiarlo cuando quieras.</div>
       </div>
@@ -8914,20 +8927,29 @@ function _obLeftHTML(step) {
       </div>
     </div>`
 
-  if (step === 4) return `
+  // STEP 4: Plan selector — left shows plan benefits
+  if (step === 4) {
+    const planInfo = {
+      trial: { icon: '🕐', color: '#F59E0B', label: 'Free Trial', desc: '24 horas gratuitas' },
+      local: { icon: '💾', color: '#10B981', label: 'Local', desc: 'Pago único 5€' },
+      pro:   { icon: '⚡', color: '#6366F1', label: 'Pro', desc: '5€ + 5€/año' },
+    }
+    const p = planInfo[obData.plan] || planInfo.trial
+    return `
     <div class="ob-left-content">
       ${brand}
       <div class="ob-left-hero">
-        <div class="ob-globe">🔐</div>
-        <div class="ob-left-title">Tu cuenta,<br>solo tuya.</div>
-        <div class="ob-left-sub">Tus datos nunca salen de este dispositivo. Nosotros no los vemos.</div>
+        <div class="ob-globe">${p.icon}</div>
+        <div class="ob-left-title" style="color:#fff">Plan<br><span style="color:${p.color}">${p.label}</span></div>
+        <div class="ob-left-sub">${p.desc}</div>
       </div>
       <div class="ob-left-stat-card">
-        <div class="ob-stat-row"><span class="ob-stat-dot green"></span><span class="ob-stat-lbl">Almacenamiento local cifrado</span></div>
-        <div class="ob-stat-row"><span class="ob-stat-dot blue"></span><span class="ob-stat-lbl">Sin servidores de terceros</span></div>
-        <div class="ob-stat-row"><span class="ob-stat-dot accent"></span><span class="ob-stat-lbl">7 días de prueba Pro incluidos</span></div>
+        <div class="ob-stat-row"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#10B981;flex-shrink:0"></span><span class="ob-stat-lbl">Siempre puedes cambiar de plan</span></div>
+        <div class="ob-stat-row"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#6366F1;flex-shrink:0"></span><span class="ob-stat-lbl">Tus datos nunca se borran</span></div>
+        <div class="ob-stat-row"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#00D4AA;flex-shrink:0"></span><span class="ob-stat-lbl">Sin compromisos</span></div>
       </div>
     </div>`
+  }
 
   // step 5
   const nombre = obData.nombre || 'Usuario'
@@ -8965,25 +8987,84 @@ function _obRightHTML(step) {
     ? `<button class="ob-back-btn" onclick="obPrev()">${t('ob_atras')}</button>`
     : ''
 
-  // ── STEP 1: Language ─────────────────────────────────────────
+  // ── STEP 1: Auth (register / login / Google) ─────────────────
   if (step === 1) {
-    const langs = [['es','🇪🇸','Español'],['en','🇺🇸','English'],['ca','🏴','Català'],['fr','🇫🇷','Français'],['de','🇩🇪','Deutsch'],['pt','🇵🇹','Português'],['it','🇮🇹','Italiano']]
+    const isLogin = obData._authMode === 'login'
     return `
-      <div class="ob-step-pill"><div class="ob-step-pill-dot"></div>Paso 1 de ${OB_TOTAL}</div>
-      <div class="ob-headline">Bienvenido a<br><span class="ob-headline-accent">MoneyNest</span></div>
-      <p class="ob-lead">Antes de empezar, elige tu idioma.</p>
-      <div class="ob-lang-grid">
-        ${langs.map(([code, flag, name]) => `
-          <div class="ob-lang-tile ${obData.lang === code ? 'selected' : ''}" onclick="obSelectLang('${code}')">
-            <span class="ob-lang-tile-flag">${flag}</span>
-            <span class="ob-lang-tile-name">${name}</span>
-          </div>`).join('')}
+    <div class="ob-step-pill"><div class="ob-step-pill-dot"></div>Paso 1 de ${OB_TOTAL}</div>
+    <div class="ob-headline">${isLogin ? 'Bienvenido<br><span class="ob-headline-accent">de nuevo</span>' : 'Crea tu<br><span class="ob-headline-accent">cuenta gratis</span>'}</div>
+    <p class="ob-lead">${isLogin ? 'Inicia sesión para continuar con tus datos.' : 'Sin tarjeta. Sin compromisos. 24h de prueba incluidas.'}</p>
+
+    <button class="ob-google-btn" onclick="_obGoogleAuth()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="flex-shrink:0">
+        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+      </svg>
+      ${isLogin ? 'Entrar con Google' : 'Registrarse con Google'}
+    </button>
+
+    <div class="ob-or-divider"><span>o continúa con email</span></div>
+
+    <div class="ob-fields">
+      <div class="ob-field-wrap">
+        <label class="ob-field-label">Correo electrónico</label>
+        <div class="ob-input-wrap">
+          <span class="ob-input-icon">✉️</span>
+          <input class="ob-field-input" id="obEmail" type="email" placeholder="tu@email.com"
+            value="${obData.email}" autocomplete="email"
+            oninput="obData.email=this.value"
+            onkeydown="if(event.key==='Enter')document.getElementById('obPassword')?.focus()">
+        </div>
       </div>
-      <div class="ob-actions-row" style="margin-top:auto">
-        <button class="ob-next-btn" onclick="obNext()">
-          Continuar <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="display:inline;vertical-align:middle"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </button>
-      </div>`
+      <div class="ob-field-wrap">
+        <label class="ob-field-label">Contraseña${isLogin ? '' : ' <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text2)">(mín. 8 caracteres)</span>'}</label>
+        <div class="ob-input-wrap">
+          <span class="ob-input-icon">🔑</span>
+          <input class="ob-field-input" id="obPassword" type="password" placeholder="${isLogin ? '••••••••' : 'Mínimo 8 caracteres'}"
+            value="${obData.password}" autocomplete="${isLogin ? 'current-password' : 'new-password'}"
+            oninput="obData.password=this.value;${isLogin ? '' : '_obCheckPwStrength(this.value)'}"
+            onkeydown="if(event.key==='Enter')${isLogin ? 'obNext()' : "document.getElementById('obPassword2')?.focus()"}">
+          <button class="ob-pw-toggle" onclick="_obTogglePw()" tabindex="-1">👁</button>
+        </div>
+        ${isLogin ? '' : `
+        <div class="ob-pw-strength" id="obPwStrength" style="display:none">
+          <div class="ob-pw-bar"><div class="ob-pw-fill" id="obPwFill"></div></div>
+          <span class="ob-pw-label" id="obPwLabel"></span>
+        </div>`}
+      </div>
+      ${isLogin ? `
+      <div style="text-align:right;margin-top:-6px">
+        <button style="background:none;border:none;font-size:.75rem;color:rgba(255,255,255,0.4);cursor:pointer;font-family:inherit;padding:0" onclick="_obForgotPassword()">¿Olvidaste tu contraseña?</button>
+      </div>` : `
+      <div class="ob-field-wrap">
+        <label class="ob-field-label">Confirmar contraseña</label>
+        <div class="ob-input-wrap">
+          <span class="ob-input-icon">🔑</span>
+          <input class="ob-field-input" id="obPassword2" type="password" placeholder="Repite la contraseña"
+            value="${obData.password2 || ''}" autocomplete="new-password"
+            oninput="obData.password2=this.value"
+            onkeydown="if(event.key==='Enter')obNext()">
+          <button class="ob-pw-toggle" onclick="_obTogglePw2()" tabindex="-1">👁</button>
+        </div>
+      </div>`}
+      <div class="ob-field-error" id="obAccountError" style="display:none"></div>
+    </div>
+
+    <div class="ob-actions-row" style="margin-top:16px">
+      <button class="ob-next-btn" onclick="obNext()">
+        ${isLogin ? 'Entrar' : 'Crear cuenta'}
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="display:inline;vertical-align:middle"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+
+    <div style="text-align:center;margin-top:14px">
+      <span style="font-size:.78rem;color:rgba(255,255,255,0.35)">${isLogin ? '¿No tienes cuenta?' : '¿Ya tienes cuenta?'} </span>
+      <button style="background:none;border:none;font-size:.78rem;color:#00D4AA;font-weight:700;cursor:pointer;font-family:inherit;padding:0" onclick="_obToggleAuthMode()">
+        ${isLogin ? 'Crear cuenta →' : 'Iniciar sesión →'}
+      </button>
+    </div>`
   }
 
   // ── STEP 2: Name ─────────────────────────────────────────────
@@ -9006,12 +9087,12 @@ function _obRightHTML(step) {
       </button>
     </div>`
 
-  // ── STEP 3: Appearance ───────────────────────────────────────
+  // ── STEP 3: Appearance — 3 cards in a row ───────────────────
   if (step === 3) return `
     <div class="ob-step-pill"><div class="ob-step-pill-dot"></div>Paso 3 de ${OB_TOTAL}</div>
     <div class="ob-headline">${t('ob_s2_h1')}<br>${t('ob_s2_h2')}</div>
     <p class="ob-lead">${t('ob_s2_lead')}</p>
-    <div class="ob-theme-cards" id="obThemeCards">
+    <div class="ob-theme-cards ob-theme-cards--3col" id="obThemeCards">
       <div class="ob-theme-card ${obData.theme === 'dark' ? 'selected' : ''}" onclick="obSelectTheme('dark')">
         <div class="ob-theme-preview ob-theme-preview--dark">
           <div class="ob-tp-bar"></div><div class="ob-tp-side"></div>
@@ -9040,87 +9121,60 @@ function _obRightHTML(step) {
       </button>
     </div>`
 
-  // ── STEP 4: Auth (register / login / Google) ──────────────────
-  if (step === 4) {
-    const isLogin = obData._authMode === 'login'
-    return `
+  // ── STEP 4: Plan selector ─────────────────────────────────────
+  if (step === 4) return `
     <div class="ob-step-pill"><div class="ob-step-pill-dot"></div>Paso 4 de ${OB_TOTAL}</div>
-    <div class="ob-headline">${isLogin ? 'Bienvenido<br><span class="ob-headline-accent">de nuevo</span>' : 'Crea tu<br><span class="ob-headline-accent">cuenta gratis</span>'}</div>
-    <p class="ob-lead">${isLogin ? 'Inicia sesión para continuar con tus datos.' : 'Registrarte activa tu prueba de 24h. Sin tarjeta.'}</p>
-
-    <!-- Google OAuth -->
-    <button class="ob-google-btn" onclick="_obGoogleAuth()">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="flex-shrink:0">
-        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
-        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-      </svg>
-      ${isLogin ? 'Entrar con Google' : 'Registrarse con Google'}
-    </button>
-
-    <div class="ob-or-divider"><span>o continúa con email</span></div>
-
-    <div class="ob-fields">
-      <div class="ob-field-wrap">
-        <label class="ob-field-label">Correo electrónico</label>
-        <div class="ob-input-wrap">
-          <span class="ob-input-icon">✉️</span>
-          <input class="ob-field-input" id="obEmail" type="email" placeholder="tu@email.com"
-            value="${obData.email}" autocomplete="email"
-            oninput="obData.email=this.value"
-            onkeydown="if(event.key==='Enter')document.getElementById('obPassword')?.focus()">
+    <div class="ob-headline">Elige tu<br><span class="ob-headline-accent">plan</span></div>
+    <p class="ob-lead">Puedes cambiar en cualquier momento. Sin permanencia.</p>
+    <div class="ob-plan-cards" id="obPlanCards">
+      <div class="ob-plan-card ${obData.plan === 'trial' ? 'selected' : ''}" onclick="obSelectPlan('trial')">
+        <div class="ob-plan-header">
+          <div class="ob-plan-icon" style="background:rgba(245,158,11,0.15);color:#F59E0B">🕐</div>
+          <div class="ob-plan-badge ob-plan-badge--free">Gratis</div>
         </div>
+        <div class="ob-plan-name">Free Trial</div>
+        <div class="ob-plan-price"><span class="ob-plan-amount">0€</span><span class="ob-plan-period"> / 24h</span></div>
+        <ul class="ob-plan-feats">
+          <li>✓ Acceso completo 24 horas</li>
+          <li>✓ Todos los módulos</li>
+          <li style="color:rgba(255,255,255,0.3)">✗ Sin sincronización</li>
+        </ul>
+        <div class="ob-plan-radio"><div class="ob-plan-radio-dot"></div></div>
       </div>
-      <div class="ob-field-wrap">
-        <label class="ob-field-label">Contraseña ${isLogin ? '' : '<span style="font-weight:400;text-transform:none;letter-spacing:0">(mín. 8 caracteres)</span>'}</label>
-        <div class="ob-input-wrap">
-          <span class="ob-input-icon">🔑</span>
-          <input class="ob-field-input" id="obPassword" type="password" placeholder="${isLogin ? '••••••••' : 'Mínimo 8 caracteres'}"
-            value="${obData.password}" autocomplete="${isLogin ? 'current-password' : 'new-password'}"
-            oninput="obData.password=this.value;${isLogin ? '' : '_obCheckPwStrength(this.value)'}"
-            onkeydown="if(event.key==='Enter')${isLogin ? 'obNext()' : "document.getElementById('obPassword2')?.focus()"}">
-          <button class="ob-pw-toggle" onclick="_obTogglePw()" tabindex="-1">👁</button>
+      <div class="ob-plan-card ${obData.plan === 'local' ? 'selected' : ''}" onclick="obSelectPlan('local')">
+        <div class="ob-plan-header">
+          <div class="ob-plan-icon" style="background:rgba(16,185,129,0.15);color:#10B981">💾</div>
         </div>
-        ${isLogin ? '' : `
-        <div class="ob-pw-strength" id="obPwStrength" style="display:none">
-          <div class="ob-pw-bar"><div class="ob-pw-fill" id="obPwFill"></div></div>
-          <span class="ob-pw-label" id="obPwLabel"></span>
-        </div>`}
+        <div class="ob-plan-name">Local</div>
+        <div class="ob-plan-price"><span class="ob-plan-amount">5€</span><span class="ob-plan-period"> único</span></div>
+        <ul class="ob-plan-feats">
+          <li>✓ Acceso ilimitado</li>
+          <li>✓ Datos en tu dispositivo</li>
+          <li style="color:rgba(255,255,255,0.3)">✗ Sin sincronización</li>
+        </ul>
+        <div class="ob-plan-radio"><div class="ob-plan-radio-dot"></div></div>
       </div>
-      ${isLogin ? `
-      <div style="text-align:right;margin-top:-6px">
-        <button style="background:none;border:none;font-size:.75rem;color:var(--text2);cursor:pointer;font-family:inherit;padding:0" onclick="_obForgotPassword()">¿Olvidaste tu contraseña?</button>
-      </div>` : `
-      <div class="ob-field-wrap">
-        <label class="ob-field-label">Confirmar contraseña</label>
-        <div class="ob-input-wrap">
-          <span class="ob-input-icon">🔑</span>
-          <input class="ob-field-input" id="obPassword2" type="password" placeholder="Repite la contraseña"
-            value="${obData.password2 || ''}" autocomplete="new-password"
-            oninput="obData.password2=this.value"
-            onkeydown="if(event.key==='Enter')obNext()">
-          <button class="ob-pw-toggle" onclick="_obTogglePw2()" tabindex="-1">👁</button>
+      <div class="ob-plan-card ob-plan-card--pro ${obData.plan === 'pro' ? 'selected' : ''}" onclick="obSelectPlan('pro')">
+        <div class="ob-plan-header">
+          <div class="ob-plan-icon" style="background:rgba(99,102,241,0.15);color:#6366F1">⚡</div>
+          <div class="ob-plan-badge ob-plan-badge--pro">Popular</div>
         </div>
-      </div>`}
-      <div class="ob-field-error" id="obAccountError" style="display:none"></div>
+        <div class="ob-plan-name">Pro</div>
+        <div class="ob-plan-price"><span class="ob-plan-amount">5€</span><span class="ob-plan-period"> único + 5€/año</span></div>
+        <ul class="ob-plan-feats">
+          <li>✓ Todo lo de Local</li>
+          <li>✓ Sincronización en la nube</li>
+          <li>✓ 7 días de prueba gratis</li>
+        </ul>
+        <div class="ob-plan-radio"><div class="ob-plan-radio-dot"></div></div>
+      </div>
     </div>
-
-    <div class="ob-actions-row">
+    <div class="ob-actions-row" style="margin-top:16px">
       ${backBtn}
       <button class="ob-next-btn" onclick="obNext()">
-        ${isLogin ? 'Entrar' : 'Crear cuenta'}
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="display:inline;vertical-align:middle"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </button>
-    </div>
-
-    <div style="text-align:center;margin-top:14px">
-      <span style="font-size:.78rem;color:var(--text2)">${isLogin ? '¿No tienes cuenta?' : '¿Ya tienes cuenta?'} </span>
-      <button style="background:none;border:none;font-size:.78rem;color:#00D4AA;font-weight:700;cursor:pointer;font-family:inherit;padding:0" onclick="_obToggleAuthMode()">
-        ${isLogin ? 'Crear cuenta →' : 'Iniciar sesión →'}
+        Continuar <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="display:inline;vertical-align:middle"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
     </div>`
-  }
 
   // ── STEP 5: Start mode ───────────────────────────────────────
   const nombre = obData.nombre || 'Usuario'
@@ -9151,6 +9205,17 @@ function _obRightHTML(step) {
         🚀 ${t('ob_s3_cta')}
       </button>
     </div>`
+}
+
+function obSelectPlan(plan) {
+  obData.plan = plan
+  document.querySelectorAll('#obPlanCards .ob-plan-card').forEach(el => el.classList.remove('selected'))
+  const map = { trial: 0, local: 1, pro: 2 }
+  const els = document.querySelectorAll('#obPlanCards .ob-plan-card')
+  if (els[map[plan]]) els[map[plan]].classList.add('selected')
+  // Update left panel icon/title live
+  const leftPanel = document.getElementById('obLeftPanel')
+  if (leftPanel) leftPanel.innerHTML = _obLeftHTML(4)
 }
 
 function obSelectOpt(mode) {
@@ -9196,8 +9261,8 @@ function obRender(direction) {
     contentArea.classList.remove(exitClass)
     contentArea.classList.add(enterClass)
     requestAnimationFrame(() => requestAnimationFrame(() => contentArea.classList.remove(enterClass)))
+    if (obStep === 1) setTimeout(() => document.getElementById('obEmail')?.focus(), 80)
     if (obStep === 2) setTimeout(() => document.getElementById('obNombre')?.focus(), 80)
-    if (obStep === 4) setTimeout(() => document.getElementById('obEmail')?.focus(), 80)
     // Apply real-time theme preview on step 3
     if (obStep === 3) _obApplyThemePreview(obData.theme)
   }, 160)
@@ -9322,17 +9387,8 @@ async function _obForgotPassword() {
 
 async function obNext() {
   // ── Validaciones por paso ──────────────────────────────────
-  if (obStep === 2) {
-    const nombre = document.getElementById('obNombre')?.value?.trim() || ''
-    if (!nombre) {
-      const inp = document.getElementById('obNombre')
-      if (inp) { inp.style.borderColor = '#F43F5E'; inp.focus(); inp.addEventListener('input', () => { inp.style.borderColor = '' }, { once: true }) }
-      return
-    }
-    obData.nombre = nombre
-  }
-
-  if (obStep === 4) {
+  // Step 1: Auth validation
+  if (obStep === 1) {
     const email   = (document.getElementById('obEmail')?.value || '').trim()
     const pw      = document.getElementById('obPassword')?.value || ''
     const pw2     = document.getElementById('obPassword2')?.value || ''
@@ -9357,7 +9413,6 @@ async function obNext() {
     obData.password = pw
     if (errEl) errEl.style.display = 'none'
 
-    // Si es login, autenticar antes de avanzar
     if (isLogin) {
       const btn = document.querySelector('#obContentArea .ob-next-btn')
       if (btn) { btn.disabled = true; btn.textContent = 'Entrando…' }
@@ -9376,6 +9431,17 @@ async function obNext() {
         return
       }
     }
+  }
+
+  // Step 2: Name validation
+  if (obStep === 2) {
+    const nombre = document.getElementById('obNombre')?.value?.trim() || ''
+    if (!nombre) {
+      const inp = document.getElementById('obNombre')
+      if (inp) { inp.style.borderColor = '#F43F5E'; inp.focus(); inp.addEventListener('input', () => { inp.style.borderColor = '' }, { once: true }) }
+      return
+    }
+    obData.nombre = nombre
   }
 
   if (obStep === OB_TOTAL) { finishOnboarding(); return }
