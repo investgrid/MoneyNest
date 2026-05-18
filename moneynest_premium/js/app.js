@@ -10180,6 +10180,11 @@ function _setObSeen()   { try { localStorage.setItem(OB_FLAG_KEY,  'true') } cat
 function _setTutDone()  { try { localStorage.setItem(TUT_FLAG_KEY, 'true') } catch(e){} }
 
 function checkOnboarding() {
+  // If user already has a Supabase session, skip onboarding entirely
+  if (window.MNSupabaseAuth && window.MNSupabaseAuth.isLoggedIn()) {
+    _setObSeen()
+    return
+  }
   if (!_obFlagSeen()) {
     obStep = 1
     obData = { nombre:'', email:'', password:'', mode:'personal', lang:'es', theme:'dark', startTutorial:false, loadDemo:false }

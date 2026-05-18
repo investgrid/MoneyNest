@@ -52,13 +52,13 @@
     if (_initialized) return;
     _initialized = true;
 
-    // Restore existing session
+    // Handle OAuth callback FIRST — must exchange code before getSession()
+    await _handleOAuthCallback();
+
+    // Restore existing session (now includes freshly exchanged OAuth session)
     const { data: { session } } = await sb.auth.getSession();
     _session = session;
     if (_session) await _syncProfileToLocal(_session.user);
-
-    // Handle OAuth callback (Google/Apple return URL)
-    await _handleOAuthCallback();
 
     // Listen for all auth events
     sb.auth.onAuthStateChange(async (event, session) => {
@@ -236,19 +236,19 @@
     const action = params.get('action');
 
     if (action === 'oauth-callback') {
-      // Force PKCE code exchange explicitly — detectSessionInUrl alone is unreliable
-      // when the app reinitializes after redirect.
+      // Exchange PKCE code for session using the full current URL
       const code = params.get('code');
-      history.replaceState({}, '', location.pathname);
       if (code) {
         try {
-          const { data, error } = await sb.auth.exchangeCodeForSession(location.href.split('?')[0] + '?code=' + code);
+          const { data, error } = await sb.auth.exchangeCodeForSession(location.href);
           if (!error && data?.session) {
             _session = data.session;
             await _syncProfileToLocal(data.session.user);
           }
         } catch (_) {}
       }
+      // Clean URL after exchange
+      history.replaceState({}, '', location.pathname);
       return;
     }
 
