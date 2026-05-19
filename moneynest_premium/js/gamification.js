@@ -240,13 +240,15 @@
   }
 
   // ─── Achievements panel ──────────────────────────────────────────
+  function _gt(k, fb) { return (typeof window.t === 'function' ? window.t(k) || fb : fb); }
+
   const CAT_META = {
-    inicio:    { label: 'Primeros pasos', icon: '🚀', color: '#6366F1' },
-    constancia:{ label: 'Constancia',     icon: '🔥', color: '#F59E0B' },
-    volumen:   { label: 'Volumen',         icon: '📦', color: '#10B981' },
-    finanzas:  { label: 'Logros financieros', icon: '💰', color: '#00D4AA' },
-    pro:       { label: 'Pro',             icon: '⚡', color: '#A855F7' },
-    especial:  { label: 'Especiales',      icon: '✨', color: '#F472B6' },
+    inicio:    { label: () => _gt('logro_cat_inicio',    'Primeros pasos'),     icon: '🚀', color: '#6366F1' },
+    constancia:{ label: () => _gt('logro_cat_constancia','Constancia'),         icon: '🔥', color: '#F59E0B' },
+    volumen:   { label: () => _gt('logro_cat_volumen',   'Volumen'),            icon: '📦', color: '#10B981' },
+    finanzas:  { label: () => _gt('logro_cat_finanzas',  'Logros financieros'), icon: '💰', color: '#00D4AA' },
+    pro:       { label: () => 'Pro',                                            icon: '⚡', color: '#A855F7' },
+    especial:  { label: () => _gt('logro_cat_especial',  'Especiales'),         icon: '✨', color: '#F472B6' },
   };
 
   function renderAchievementsPanel(containerId) {
@@ -291,7 +293,7 @@
         <div style="margin-bottom:20px">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
             <span style="font-size:1rem">${meta.icon}</span>
-            <span style="font-size:.78rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:${meta.color}">${meta.label}</span>
+            <span style="font-size:.78rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:${meta.color}">${typeof meta.label === 'function' ? meta.label() : meta.label}</span>
             <span style="font-size:.68rem;color:rgba(255,255,255,.3);margin-left:auto">${doneCount}/${items.length}</span>
           </div>
           <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px">
@@ -303,7 +305,7 @@
     el.innerHTML = `
       <div style="margin-bottom:20px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <span style="font-size:.85rem;font-weight:700;color:var(--text,#fff)">${unlocked} / ${ACHIEVEMENTS.length} logros</span>
+          <span style="font-size:.85rem;font-weight:700;color:var(--text,#fff)">${unlocked} / ${ACHIEVEMENTS.length} ${_gt('logros','logros')}</span>
           <span style="font-size:.8rem;color:#00D4AA;font-weight:700">${pct}%</span>
         </div>
         <div style="height:6px;background:rgba(255,255,255,0.06);border-radius:99px;overflow:hidden">

@@ -3953,19 +3953,15 @@ function goTo(page) {
   destroyAllCharts()
   syncBottomNav(page)
 
-  // Page transition: fade+slide out → render → fade+slide in
+  render()
+  // Fade-in solo al entrar — sin exit para evitar doble render / parpadeo
   const content = document.getElementById('content')
-  if (content && !content.classList.contains('mn-page-exit')) {
-    content.classList.add('mn-page-exit')
-    setTimeout(() => {
-      content.classList.remove('mn-page-exit')
-      render()
-      content.classList.add('mn-page-enter')
-      // Remove class after animation completes
-      setTimeout(() => content.classList.remove('mn-page-enter'), 200)
-    }, 80)
-  } else {
-    render()
+  if (content) {
+    content.classList.remove('mn-page-enter')
+    // Fuerza reflow antes de añadir la clase para que la animación siempre arranque
+    void content.offsetWidth
+    content.classList.add('mn-page-enter')
+    setTimeout(() => content.classList.remove('mn-page-enter'), 220)
   }
 
   _updateSidebarLang()
@@ -4133,14 +4129,14 @@ function renderDashboard() {
         <div style="width:28px;height:28px;background:var(--green-dim);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.82rem;flex-shrink:0">📥</div>
         <div>
           <div style="font-size:.6rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.06em">${yr}</div>
-          <div style="font-size:.95rem;font-weight:800;color:var(--green)" data-animate-ytd="${eur(ingYTD)}">${eur(ingYTD)}</div>
+          <div style="font-size:.95rem;font-weight:800;color:var(--green)" data-animate-ytd-raw="${ingYTD}">${eur(ingYTD)}</div>
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:9px;padding:9px 14px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm)">
         <div style="width:28px;height:28px;background:var(--red-dim);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.82rem;flex-shrink:0">📤</div>
         <div>
           <div style="font-size:.6rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.06em">${yr}</div>
-          <div style="font-size:.95rem;font-weight:800;color:var(--red)" data-animate-ytd="${eur(gasYTD)}">${eur(gasYTD)}</div>
+          <div style="font-size:.95rem;font-weight:800;color:var(--red)" data-animate-ytd-raw="${gasYTD}">${eur(gasYTD)}</div>
         </div>
       </div>
     </div>
@@ -4157,7 +4153,7 @@ function renderDashboard() {
     <div class="patrimonio-hero" style="margin-bottom:0">
       <div class="patrimonio-label">${t('patrimonio_neto')}</div>
       <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap">
-        <div class="patrimonio-num" data-animate="${eur(pat)}">${eur(pat)}</div>
+        <div class="patrimonio-num" data-animate-raw="${pat}">${eur(pat)}</div>
         ${patDelta !== null ? `<span class="kpi-delta ${deltaClass(patDelta)}" style="font-size:.82rem">${deltaIcon(patDelta)} ${pct(Math.abs(patDelta))} vs. mes ant.</span>` : ''}
       </div>
       <div class="patrimonio-stats" style="margin-top:12px">
@@ -4192,21 +4188,21 @@ function renderDashboard() {
     <div class="kpi-card">
       <div class="kpi-icon" style="background:var(--green-dim)">💰</div>
       <div class="kpi-label">${t('ingresos_mes')}</div>
-      <div class="kpi-value" data-animate="${eur(ing)}">${eur(ing)}</div>
+      <div class="kpi-value" data-animate-raw="${ing}">${eur(ing)}</div>
       ${ingP ? `<span class="kpi-delta ${deltaClass(ing-ingP)}">${deltaIcon(ing-ingP)} ${pct(Math.abs(ingP?((ing-ingP)/ingP*100):0))} vs. ant.</span>` : '<span class="kpi-delta neu">Primer mes</span>'}
       <div class="kpi-sub" style="margin-top:5px">${S.ingresos.filter(i=>i.status!=='pending'&&(i.fecha||'').startsWith(m)).length} entradas</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-icon" style="background:var(--red-dim)">💳</div>
       <div class="kpi-label">${t('gastos_mes')}</div>
-      <div class="kpi-value" data-animate="${eur(gas)}">${eur(gas)}</div>
+      <div class="kpi-value" data-animate-raw="${gas}">${eur(gas)}</div>
       ${gasP ? `<span class="kpi-delta ${gas>gasP?'down':'up'}">${gas>gasP?'↑':'↓'} ${pct(Math.abs(gasP?((gas-gasP)/gasP*100):0))} vs. ant.</span>` : '<span class="kpi-delta neu">Primer mes</span>'}
       <div class="kpi-sub" style="margin-top:5px">${S.gastos.filter(g=>g.tipo!==TX_TYPES.GOAL_TRANSFER&&(g.fecha||'').startsWith(m)).length} salidas</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-icon" style="background:${cf>=0?'var(--accent-dim)':'var(--red-dim)'}">${cf>=0?'📊':'⚠️'}</div>
       <div class="kpi-label">${t('cash_flow')}</div>
-      <div class="kpi-value" style="color:${cf>=0?'var(--accent)':'var(--red)'}" data-animate="${eur(cf)}">${cf>=0?'+':''}${eur(cf)}</div>
+      <div class="kpi-value" style="color:${cf>=0?'var(--accent)':'var(--red)'}" data-animate-raw="${cf}">${cf>=0?'+':''}${eur(cf)}</div>
       <span class="kpi-delta ${cf>=0?'up':'down'}">${cf>=0?'Superávit':'Déficit'} · ${monthLabel(m)}</span>
       <div class="kpi-sub" style="margin-top:5px">Ahorro: <strong style="color:${calcSavingsRate(m)>=20?'var(--green)':'var(--gold)'}">${pct(Math.max(0,calcSavingsRate(m)))}</strong></div>
     </div>
@@ -4330,11 +4326,18 @@ function renderDash503020() {
 
 // ─── SUBSCRIPTION DETECTOR ──────────────────────────────────────
 function renderSubscriptionDetector() {
-  const subsKeywords = ['netflix','spotify','amazon','prime','hbo','disney','youtube','apple','google','microsoft','office','adobe','dropbox','icloud','gym','gimnasio','suscripción','subscripción','mensual','monthly']
+  const subsKeywords = ['netflix','spotify','amazon prime','hbo','disney','youtube premium','apple music','apple tv','google one','microsoft 365','office 365','adobe','dropbox','icloud','gym','gimnasio','suscripción','subscripción','monthly']
+  // Excluir gastos de categorías que claramente no son suscripciones digitales
+  const excludeCategories = ['Vivienda','Alquiler','Hipoteca','Transporte','Alimentación','Salud','Seguros']
+  const excludeKeywords   = ['alquiler','hipoteca','comunidad','seguro','luz','agua','gas','internet','telefon','móvil']
   const recurrentes = S.gastos.filter(g => {
     if (g.tipo === TX_TYPES.GOAL_TRANSFER) return false
-    if (g.recurrente) return true
     const conceptoLower = (g.concepto||'').toLowerCase()
+    const cat = (g.categoria||'')
+    // Excluir gastos de vivienda/servicios aunque sean recurrentes
+    if (excludeCategories.includes(cat)) return false
+    if (excludeKeywords.some(k => conceptoLower.includes(k))) return false
+    if (g.recurrente) return true
     return subsKeywords.some(k => conceptoLower.includes(k))
   })
   if (recurrentes.length < 2) return ''
@@ -4482,8 +4485,7 @@ function renderIngresos() {
   <div class="section-header">
     <div><div class="page-h1">💰 ${t('page_ingresos')}</div><div class="page-sub">${ingPeriodLabel} · ${S.ingresos.filter(i=>i.status!=='pending').length} cobrados · ${pendingIngs.length} pendientes</div></div>
     <div class="section-actions">
-      <button class="btn btn-secondary btn-sm" onclick="exportarIngresos()">↗ Exportar</button>
-      <button class="btn btn-primary btn-sm" onclick="openModal('ingresoModal');resetIngresoForm()">+ Nuevo ingreso</button>
+      <button class="btn btn-primary btn-sm" onclick="openModal('ingresoModal');resetIngresoForm()">+ ${t('btn_nuevo_ingreso','Nuevo ingreso')}</button>
     </div>
   </div>
 
@@ -4639,8 +4641,7 @@ function renderGastos() {
   <div class="section-header">
     <div><div class="page-h1">💳 ${t('page_gastos')}</div><div class="page-sub">${_gPeriodLabel()} · ${t('control_salidas')}</div></div>
     <div class="section-actions">
-      <button class="btn btn-secondary btn-sm" onclick="exportarGastos()">${t('btn_exportar')}</button>
-      <button class="btn btn-ghost btn-sm" onclick="window.MNCSVImport&&MNCSVImport.openModal()" title="Importar extracto bancario CSV">📂 Importar CSV</button>
+      <button class="btn btn-ghost btn-sm" onclick="window.MNCSVImport&&MNCSVImport.openModal()" title="${t('importar_csv_title','Importar extracto bancario CSV')}">📂 ${t('importar_csv','Importar CSV')}</button>
       <button class="btn btn-primary btn-sm" onclick="openModal('gastoModal');resetGastoForm()">${t('btn_nuevo_gasto')}</button>
     </div>
   </div>
@@ -4650,9 +4651,9 @@ function renderGastos() {
   <div class="kpi-grid kpi-grid-4" style="margin-bottom:16px">
     <div class="kpi-card">
       <div class="kpi-icon" style="background:var(--red-dim)">📤</div>
-      <div class="kpi-label">Total ${_gTimePeriod==='month'?'este mes':_gTimePeriod==='year'?'este año':'período'}</div>
+      <div class="kpi-label">${t('total_lbl','Total')} ${_gTimePeriod==='month'?t('este_mes','este mes'):_gTimePeriod==='year'?t('este_anio','este año'):t('periodo_lbl','período')}</div>
       <div class="kpi-value">${eur(total)}</div>
-      ${totalP?`<span class="kpi-delta ${total>totalP?'down':'up'}">${total>totalP?'↑':'↓'} ${pct(Math.abs(totalP?((total-totalP)/totalP*100):0))} vs. mes ant.</span>`:'<span class="kpi-delta neu">Primer mes</span>'}
+      ${totalP?`<span class="kpi-delta ${total>totalP?'down':'up'}">${total>totalP?'↑':'↓'} ${pct(Math.abs(totalP?((total-totalP)/totalP*100):0))} ${t('vs_mes_ant','vs. mes ant.')}</span>`:`<span class="kpi-delta neu">${t('primer_mes','Primer mes')}</span>`}
     </div>
     <div class="kpi-card">
       <div class="kpi-icon" style="background:var(--gold-dim)">${topCat?catEmoji(topCat[0]):'🏷'}</div>
@@ -4668,7 +4669,7 @@ function renderGastos() {
     </div>
     <div class="kpi-card">
       <div class="kpi-icon" style="background:var(--accent-dim)">📆</div>
-      <div class="kpi-label">Mes anterior</div>
+      <div class="kpi-label">${t('mes_anterior','Mes anterior')}</div>
       <div class="kpi-value">${eur(totalP)}</div>
     </div>
   </div>
@@ -4805,11 +4806,10 @@ function renderInversiones() {
   <div class="section-header">
     <div>
       <div class="page-h1">📈 ${t('page_inversiones')}</div>
-      <div class="page-sub">Cartera · Las ganancias en activos volátiles no se proyectan</div>
+      <div class="page-sub">${t('inv_page_sub','Cartera de inversiones')}</div>
     </div>
     <div class="section-actions">
-      <button class="btn btn-secondary btn-sm" onclick="exportarInversiones()">↗ Exportar</button>
-      <button class="btn btn-primary btn-sm" onclick="openModal('inversionModal');resetInvForm()">+ Nueva inversión</button>
+      <button class="btn btn-primary btn-sm" onclick="openModal('inversionModal');resetInvForm()">+ ${t('btn_nueva_inversion','Nueva inversión')}</button>
     </div>
   </div>
 
@@ -4818,25 +4818,25 @@ function renderInversiones() {
   <div class="kpi-grid kpi-grid-4" style="margin-bottom:16px">
     <div class="kpi-card">
       <div class="kpi-icon" style="background:var(--indigo-dim)">💎</div>
-      <div class="kpi-label">Capital invertido</div>
+      <div class="kpi-label">${t('inv_capital_invertido','Capital invertido')}</div>
       <div class="kpi-value">${eur(cartera)}</div>
-      <div class="kpi-sub">${abiertas.length} abiertas · ${cerradas.length} liquidadas</div>
+      <div class="kpi-sub">${abiertas.length} ${t('inv_abiertas','abiertas')} · ${cerradas.length} ${t('inv_liquidadas','liquidadas')}</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-icon" style="background:var(--green-dim)">📊</div>
-      <div class="kpi-label">Ganancia latente</div>
+      <div class="kpi-label">${t('inv_ganancia_latente','Ganancia latente')}</div>
       <div class="kpi-value sm" style="color:${gananciaLatente>=0?'var(--green)':'var(--red)'}">${gananciaLatente>=0?'+':''}${eur(gananciaLatente)}</div>
-      <div class="kpi-sub">Solo activos predecibles (bonos, inmuebles)</div>
+      <div class="kpi-sub">${t('inv_solo_predecibles','Solo activos predecibles')}</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-icon" style="background:${gananciaRealizada>=0?'var(--green-dim)':'var(--red-dim)'}">✅</div>
-      <div class="kpi-label">Ganancia realizada</div>
+      <div class="kpi-label">${t('inv_ganancia_realizada','Ganancia realizada')}</div>
       <div class="kpi-value sm" style="color:${gananciaRealizada>=0?'var(--green)':'var(--red)'}">${gananciaRealizada>=0?'+':''}${eur(gananciaRealizada)}</div>
-      <div class="kpi-sub">${cerradas.length} cerradas · ${pct(aciertos,0)} de aciertos</div>
+      <div class="kpi-sub">${cerradas.length} ${t('inv_cerradas','cerradas')} · ${pct(aciertos,0)} ${t('inv_aciertos','de aciertos')}</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-icon" style="background:var(--gold-dim)">🏆</div>
-      <div class="kpi-label">Mejor operación</div>
+      <div class="kpi-label">${t('inv_mejor_operacion','Mejor operación')}</div>
       <div class="kpi-value sm">${bestInv?bestInv.nombre:'—'}</div>
       <div class="kpi-sub">${bestInv?`ROI: ${pct(Number(bestInv.roiReal||0))}`:''}</div>
     </div>
@@ -4847,32 +4847,32 @@ function renderInversiones() {
     if (totalDisponible <= 0 && S.inversiones.filter(i=>!i.cerrada).length === 0) {
       return '<div style="background:var(--gold-dim);border:1px solid rgba(245,158,11,.25);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:20px;display:flex;align-items:center;gap:10px">' +
         '<span style="font-size:1.4rem">⚠️</span>' +
-        '<div><div style="font-size:.88rem;font-weight:700;color:var(--gold)">Necesitas fondos en una cuenta para invertir</div>' +
-        '<div style="font-size:.78rem;color:var(--text2);margin-top:2px">Añade dinero a tus cuentas antes de registrar una inversión.</div></div>' +
-        '<button class="btn btn-secondary btn-xs" style="margin-left:auto;white-space:nowrap" onclick="goTo(\'cuentas\')">Ir a Cuentas →</button>' +
+        `<div><div style="font-size:.88rem;font-weight:700;color:var(--gold)">${t('inv_necesitas_fondos','Necesitas fondos en una cuenta para invertir')}</div>` +
+        `<div style="font-size:.78rem;color:var(--text2);margin-top:2px">${t('inv_aniade_dinero','Añade dinero a tus cuentas antes de registrar una inversión.')}</div></div>` +
+        `<button class="btn btn-secondary btn-xs" style="margin-left:auto;white-space:nowrap" onclick="goTo('cuentas')">${t('ir_cuentas','Ir a Cuentas →')}</button>` +
         '</div>'
     }
     return ''
   })()}
   <div style="background:var(--indigo-dim);border:1px solid rgba(99,102,241,.2);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:20px;font-size:.8rem;color:var(--text2)">
-    ℹ️ <strong style="color:var(--text)">Regla de inversiones:</strong> La ganancia latente de activos volátiles (cripto, acciones, ETF) no se muestra ni suma al patrimonio. La ganancia solo se contabiliza al liquidar. Los activos predecibles (bonos, inmuebles) sí proyectan rentabilidad.
+    ℹ️ <strong style="color:var(--text)">${t('inv_regla_titulo','Regla de inversiones:')}</strong> ${t('inv_regla_desc','La ganancia latente de activos volátiles (cripto, acciones, ETF) no se muestra ni suma al patrimonio. La ganancia solo se contabiliza al liquidar. Los activos predecibles (bonos, inmuebles) sí proyectan rentabilidad.')}
   </div>
 
   <div class="search-bar" style="margin-bottom:16px">
     <div class="tabs" style="margin:0;border:none;background:transparent;padding:0">
-      <div class="tab ${_invFiltro==='todas'?'active':''}" onclick="window._invFiltro='todas';renderInversiones()">Todas (${S.inversiones.length})</div>
-      <div class="tab ${_invFiltro==='abiertas'?'active':''}" onclick="window._invFiltro='abiertas';renderInversiones()">Abiertas (${abiertas.length})</div>
-      <div class="tab ${_invFiltro==='cerradas'?'active':''}" onclick="window._invFiltro='cerradas';renderInversiones()">Liquidadas (${cerradas.length})</div>
+      <div class="tab ${_invFiltro==='todas'?'active':''}" onclick="window._invFiltro='todas';renderInversiones()">${t('inv_tab_todas','Todas')} (${S.inversiones.length})</div>
+      <div class="tab ${_invFiltro==='abiertas'?'active':''}" onclick="window._invFiltro='abiertas';renderInversiones()">${t('inv_tab_abiertas','Abiertas')} (${abiertas.length})</div>
+      <div class="tab ${_invFiltro==='cerradas'?'active':''}" onclick="window._invFiltro='cerradas';renderInversiones()">${t('inv_tab_liquidadas','Liquidadas')} (${cerradas.length})</div>
     </div>
     <select class="filter-select" style="margin-left:auto" onchange="window._invCat=this.value;renderInversiones()">
-      <option value="">Todas las categorías</option>
+      <option value="">${t('todas_categorias','Todas las categorías')}</option>
       ${allCats.map(c=>`<option value="${c}" ${_invCat===c?'selected':''}>${catEmoji(c)} ${c}</option>`).join('')}
     </select>
   </div>
 
   <div class="grid-2" style="margin-bottom:16px">
     <div class="card col-span-2">
-      <div class="card-header"><div class="card-title">📊 ROI por inversión liquidada</div><div class="card-subtitle">Rentabilidad real de posiciones cerradas</div></div>
+      <div class="card-header"><div class="card-title">📊 ${t('inv_roi_titulo','ROI por inversión liquidada')}</div><div class="card-subtitle">${t('inv_roi_sub','Rentabilidad real de posiciones cerradas')}</div></div>
       <div class="chart-container"><canvas id="chartInvROI"></canvas></div>
     </div>
   </div>
@@ -5037,10 +5037,9 @@ function renderDeudas() {
 
   document.getElementById('content').innerHTML = `
   <div class="section-header">
-    <div><div class="page-h1">${t('deudas_lbl')}</div><div class="page-sub">Seguimiento, reducción y estrategia de pago</div></div>
+    <div><div class="page-h1">${t('deudas_lbl')}</div><div class="page-sub">${t('deudas_page_sub','Seguimiento, reducción y estrategia de pago')}</div></div>
     <div class="section-actions">
-      <button class="btn btn-secondary btn-sm" onclick="exportarDeudas()">↗ Exportar</button>
-      <button class="btn btn-primary btn-sm" onclick="openModal('deudaModal');resetDeudaForm()">+ Nueva deuda</button>
+      <button class="btn btn-primary btn-sm" onclick="openModal('deudaModal');resetDeudaForm()">+ ${t('btn_nueva_deuda','Nueva deuda')}</button>
     </div>
   </div>
 
@@ -5049,33 +5048,33 @@ function renderDeudas() {
   <div class="kpi-grid kpi-grid-4" style="margin-bottom:16px">
     <div class="kpi-card">
       <div class="kpi-icon" style="background:var(--red-dim)">💸</div>
-      <div class="kpi-label">Deuda total</div>
+      <div class="kpi-label">${t('deuda_total_lbl','Deuda total')}</div>
       <div class="kpi-value">${eur(totalDeuda)}</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-icon" style="background:var(--green-dim)">✅</div>
-      <div class="kpi-label">Total pagado</div>
+      <div class="kpi-label">${t('deuda_pagado_lbl','Total pagado')}</div>
       <div class="kpi-value">${eur(totalPagado)}</div>
-      <span class="kpi-delta ${progPct>50?'up':'neu'}">${pct(progPct)} completado</span>
+      <span class="kpi-delta ${progPct>50?'up':'neu'}">${pct(progPct)} ${t('completado','completado')}</span>
     </div>
     <div class="kpi-card">
       <div class="kpi-icon" style="background:var(--gold-dim)">⏳</div>
-      <div class="kpi-label">Pendiente</div>
+      <div class="kpi-label">${t('deuda_pendiente_lbl','Pendiente')}</div>
       <div class="kpi-value" style="color:var(--red)">${eur(pendiente)}</div>
-      <div class="kpi-sub">${S.deudas.length} deudas · ${S.deudas.filter(d=>(Number(d.importeTotal)||0)-(Number(d.importePagado)||0)<=0).length} saldadas</div>
+      <div class="kpi-sub">${S.deudas.length} ${t('deudas_label','deudas')} · ${S.deudas.filter(d=>(Number(d.importeTotal)||0)-(Number(d.importePagado)||0)<=0).length} ${t('saldadas','saldadas')}</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-icon" style="background:var(--indigo-dim)">${activeStratData.icon}</div>
-      <div class="kpi-label">Estrategia activa</div>
+      <div class="kpi-label">${t('estrategia_activa','Estrategia activa')}</div>
       <div class="kpi-value sm" style="color:${activeStratData.color}">${activeStratData.name}</div>
-      <div class="kpi-sub">Libre en ${fmtMonths(activeMonths)} · ${eur(activePago)}/mes</div>
+      <div class="kpi-sub">${t('libre_en','Libre en')} ${fmtMonths(activeMonths)} · ${eur(activePago)}/${t('mes_lbl','mes')}</div>
     </div>
   </div>
 
   ${pendiente > 0 ? `
   <div class="card" style="margin-bottom:16px">
     <div class="card-header">
-      <div><div class="card-title">⚡ Estrategias de pago</div><div class="card-subtitle">Elige tu ritmo para liberarte de deudas</div></div>
+      <div><div class="card-title">⚡ ${t('estrategias_pago','Estrategias de pago')}</div><div class="card-subtitle">${t('estrategias_pago_sub','Elige tu ritmo para liberarte de deudas')}</div></div>
     </div>
     <div class="debt-strategy-grid">${stratCards}</div>
     <div style="font-size:.75rem;color:var(--text3);margin-top:4px">* Estimaciones orientativas. El cálculo incluye el interés medio de tus deudas (${pct(interesMedio)}/año).</div>
@@ -5100,11 +5099,11 @@ function renderDeudas() {
   </div>
   <div class="card" style="margin-bottom:16px">
     <div class="card-header">
-      <div class="card-title">📋 Orden de pago recomendado</div>
+      <div class="card-title">📋 ${t('orden_pago','Orden de pago recomendado')}</div>
     </div>
     <div class="tabs" style="margin-bottom:12px">
-      <div class="tab active" id="tab-snowball" onclick="switchDebtTab('snowball')">❄️ Bola de nieve</div>
-      <div class="tab" id="tab-avalanche" onclick="switchDebtTab('avalanche')">🌊 Avalancha</div>
+      <div class="tab active" id="tab-snowball" onclick="switchDebtTab('snowball')">❄️ ${t('bola_nieve','Bola de nieve')}</div>
+      <div class="tab" id="tab-avalanche" onclick="switchDebtTab('avalanche')">🌊 ${t('avalancha','Avalancha')}</div>
     </div>
     <div id="debt-snowball">
       <div style="font-size:.78rem;color:var(--text2);margin-bottom:10px;padding:7px 10px;background:var(--bg2);border-radius:6px"><strong style="color:var(--text)">Bola de nieve:</strong> empieza por la deuda más pequeña para ganar impulso psicológico.</div>
@@ -5462,10 +5461,9 @@ function renderObjetivos() {
 
   document.getElementById('content').innerHTML = `
   <div class="section-header">
-    <div><div class="page-h1">🎯 Objetivos</div><div class="page-sub">Metas financieras y predicciones</div></div>
+    <div><div class="page-h1">🎯 ${t('page_objetivos','Objetivos')}</div><div class="page-sub">${t('obj_page_sub','Metas financieras y predicciones')}</div></div>
     <div class="section-actions">
-      <button class="btn btn-secondary btn-sm" onclick="exportarObjetivos()">↗ Exportar</button>
-      <button class="btn btn-primary btn-sm" onclick="openModal('objetivoModal');resetObjForm()">+ Nuevo objetivo</button>
+      <button class="btn btn-primary btn-sm" onclick="openModal('objetivoModal');resetObjForm()">+ ${t('btn_nuevo_objetivo','Nuevo objetivo')}</button>
     </div>
   </div>
 
@@ -5474,34 +5472,34 @@ function renderObjetivos() {
   <div class="kpi-grid kpi-grid-4" style="margin-bottom:16px">
     <div class="kpi-card">
       <div class="kpi-icon" style="background:var(--accent-dim)">🎯</div>
-      <div class="kpi-label">Objetivos activos</div>
+      <div class="kpi-label">${t('obj_activos_lbl','Objetivos activos')}</div>
       <div class="kpi-value">${S.objetivos.length}</div>
-      <div class="kpi-sub">${completados} completados</div>
+      <div class="kpi-sub">${completados} ${t('completados','completados')}</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-icon" style="background:var(--green-dim)">💰</div>
-      <div class="kpi-label">Total ahorrado</div>
+      <div class="kpi-label">${t('obj_total_ahorrado','Total ahorrado')}</div>
       <div class="kpi-value sm">${eur(totalActual)}</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-icon" style="background:var(--indigo-dim)">🏆</div>
-      <div class="kpi-label">Meta total</div>
+      <div class="kpi-label">${t('obj_meta_total','Meta total')}</div>
       <div class="kpi-value sm">${eur(totalMeta)}</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-icon" style="background:var(--gold-dim)">📊</div>
-      <div class="kpi-label">Progreso global</div>
+      <div class="kpi-label">${t('obj_progreso_global','Progreso global')}</div>
       <div class="kpi-value sm" style="color:var(--accent)">${pct(totalMeta?clamp(totalActual/totalMeta*100,0,100):0)}</div>
     </div>
   </div>
 
   <div class="search-bar">
-    <input class="search-input" type="text" placeholder="🔍 Buscar objetivo..." value="${_objSearch}" oninput="_objSearch=this.value;renderObjetivos()">
+    <input class="search-input" type="text" placeholder="${t('placeholder_buscar_objetivo','🔍 Buscar objetivo...')}" value="${_objSearch}" oninput="_objSearch=this.value;renderObjetivos()">
     <select class="filter-select" onchange="_objCatFilter=this.value;renderObjetivos()">
-      <option value="">Todas las categorías</option>
+      <option value="">${t('todas_categorias','Todas las categorías')}</option>
       ${allCats.map(c=>`<option value="${c}" ${_objCatFilter===c?'selected':''}>${catEmoji(c)} ${c}</option>`).join('')}
     </select>
-    ${_objSearch||_objCatFilter?`<button class="btn btn-ghost btn-sm" onclick="_objSearch='';_objCatFilter='';renderObjetivos()">✕ Limpiar</button>`:''}
+    ${_objSearch||_objCatFilter?`<button class="btn btn-ghost btn-sm" onclick="_objSearch='';_objCatFilter='';renderObjetivos()">✕ ${t('limpiar','Limpiar')}</button>`:''}
   </div>
 
   <div class="grid-3">${cards}</div>`
@@ -5628,10 +5626,9 @@ function renderPresupuestos() {
 
   document.getElementById('content').innerHTML = `
   <div class="section-header">
-    <div><div class="page-h1">📊 Presupuestos</div><div class="page-sub">${monthLabel(m)} · Control de límites por categoría</div></div>
+    <div><div class="page-h1">📊 ${t('page_presupuestos','Presupuestos')}</div><div class="page-sub">${monthLabel(m)} · ${t('pres_page_sub','Control de límites por categoría')}</div></div>
     <div class="section-actions">
-      <button class="btn btn-secondary btn-sm" onclick="exportarPresupuestos()">↗ Exportar</button>
-      <button class="btn btn-primary btn-sm" onclick="openModal('presupuestoModal');resetPresForm()">+ Nuevo presupuesto</button>
+      <button class="btn btn-primary btn-sm" onclick="openModal('presupuestoModal');resetPresForm()">+ ${t('btn_nuevo_presupuesto','Nuevo presupuesto')}</button>
     </div>
   </div>
 
@@ -5640,22 +5637,22 @@ function renderPresupuestos() {
   <div class="kpi-grid kpi-grid-4" style="margin-bottom:16px">
     <div class="kpi-card">
       <div class="kpi-icon" style="background:var(--indigo-dim)">💰</div>
-      <div class="kpi-label">Total presupuestado</div>
+      <div class="kpi-label">${t('pres_total_presupuestado','Total presupuestado')}</div>
       <div class="kpi-value">${eur(totalLimite)}</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-icon" style="background:var(--red-dim)">💳</div>
-      <div class="kpi-label">Total gastado</div>
+      <div class="kpi-label">${t('pres_total_gastado','Total gastado')}</div>
       <div class="kpi-value">${eur(totalGastado)}</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-icon" style="background:var(--green-dim)">✅</div>
-      <div class="kpi-label">Disponible</div>
+      <div class="kpi-label">${t('pres_disponible','Disponible')}</div>
       <div class="kpi-value">${eur(Math.max(0,totalLimite-totalGastado))}</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-icon" style="background:var(--red-dim)">⚠️</div>
-      <div class="kpi-label">Categorías en rojo</div>
+      <div class="kpi-label">${t('pres_en_rojo','Categorías en rojo')}</div>
       <div class="kpi-value" style="color:${enRojo?'var(--red)':'var(--green)'}">${enRojo}</div>
     </div>
   </div>
@@ -5691,7 +5688,11 @@ function renderCuentas() {
   const cards = S.cuentas.map(c=>{
     const saldo = Number(c.saldo)||0
     const valorTotal = Number(c.valorTotal)||saldo
-    const comprometido = Math.max(0, valorTotal - saldo)
+    // Capital invertido: suma de inversiones abiertas originadas en esta cuenta
+    const invertidoCuenta = S.inversiones
+      .filter(i => !i.cerrada && i.cuentaId === c.id)
+      .reduce((a, i) => a + (Number(i.importe) || 0), 0)
+    const comprometido = invertidoCuenta > 0 ? invertidoCuenta : Math.max(0, valorTotal - saldo)
     const gastosCuenta = S.gastos.filter(g=>g.cuentaId===c.id&&g.tipo!==TX_TYPES.GOAL_TRANSFER).length
     const ingresosCuenta = S.ingresos.filter(i=>i.cuentaId===c.id).length
     const invCuenta = S.inversiones.filter(i=>i.cuentaId===c.id&&!i.cerrada).length
@@ -5711,8 +5712,8 @@ function renderCuentas() {
           <div style="font-size:.88rem;font-weight:700;color:var(--text)">${eur(valorTotal)}</div>
         </div>
         <div style="background:var(--bg2);border-radius:6px;padding:7px 9px">
-          <div style="font-size:.62rem;color:var(--text3);font-weight:700;text-transform:uppercase">Comprometido</div>
-          <div style="font-size:.88rem;font-weight:700;color:var(--gold)">${eur(comprometido)}</div>
+          <div style="font-size:.62rem;color:var(--text3);font-weight:700;text-transform:uppercase">${t('invertido','Invertido')}</div>
+          <div style="font-size:.88rem;font-weight:700;color:${comprometido>0?'var(--indigo)':'var(--text3)'}">${eur(comprometido)}</div>
         </div>
         <div style="background:var(--bg2);border-radius:6px;padding:7px 9px">
           <div style="font-size:.62rem;color:var(--green);font-weight:700;text-transform:uppercase">📥 Total entradas</div>
@@ -5738,7 +5739,7 @@ function renderCuentas() {
 
   document.getElementById("content").innerHTML = `
   <div class="section-header">
-    <div><div class="page-h1">🏦 Cuentas</div><div class="page-sub">Dinero disponible y valor total por cuenta</div></div>
+    <div><div class="page-h1">🏦 ${t('page_cuentas','Cuentas')}</div><div class="page-sub">${t('cuentas_page_sub','Dinero disponible y valor total por cuenta')}</div></div>
     <div class="section-actions">
       <button class="btn btn-ghost btn-sm" onclick="openModal('transModal');poblarTransModal()">⇄ Transferir</button>
       <button class="btn btn-primary btn-sm" onclick="openModal('cuentaModal');resetCuentaForm()">+ Nueva cuenta</button>
@@ -5747,21 +5748,21 @@ function renderCuentas() {
   <div class="kpi-grid kpi-grid-3" style="margin-bottom:16px">
     <div class="kpi-card">
       <div class="kpi-icon" style="background:var(--accent-dim)">💰</div>
-      <div class="kpi-label">Dinero disponible total</div>
+      <div class="kpi-label">${t('cuentas_disponible_total','Dinero disponible total')}</div>
       <div class="kpi-value">${eur(totalSaldo)}</div>
-      <div class="kpi-sub">Listo para usar · ${S.cuentas.length} cuentas</div>
+      <div class="kpi-sub">${t('cuentas_listo_usar','Listo para usar')} · ${S.cuentas.length} ${t('cuentas_lbl','cuentas')}</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-icon" style="background:var(--indigo-dim)">🏦</div>
-      <div class="kpi-label">Valor total cuentas</div>
+      <div class="kpi-label">${t('cuentas_valor_total','Valor total cuentas')}</div>
       <div class="kpi-value">${eur(totalValor)}</div>
-      <div class="kpi-sub">Incluyendo activos comprometidos</div>
+      <div class="kpi-sub">${t('cuentas_incluye_activos','Incluye activos e inversiones')}</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-icon" style="background:var(--gold-dim)">🔒</div>
-      <div class="kpi-label">Comprometido / Invertido</div>
+      <div class="kpi-label">${t('cuentas_invertido_lbl','Invertido')}</div>
       <div class="kpi-value sm" style="color:var(--gold)">${eur(totalValor-totalSaldo)}</div>
-      <div class="kpi-sub">En inversiones u otros activos</div>
+      <div class="kpi-sub">${t('cuentas_en_inversiones','En inversiones u otros activos')}</div>
     </div>
   </div>
   <div class="grid-3">${cards}</div>`
@@ -9715,8 +9716,9 @@ function _obUpdateLeftLive() { /* handled per-step in obRender */ }
 function obSelectLang(l) {
   obData.lang = l
   _currentLang = l
-  document.querySelectorAll('.ob-lang-tile').forEach(el => el.classList.remove('selected'))
-  const sel = document.querySelector(`.ob-lang-tile[onclick*="'${l}'"]`)
+  // Seleccionar el tile correcto — soporta tanto .ob-lang-tile como .ob-lang-tile-left
+  document.querySelectorAll('.ob-lang-tile, .ob-lang-tile-left').forEach(el => el.classList.remove('selected'))
+  const sel = document.querySelector(`.ob-lang-tile[onclick*="'${l}'"], .ob-lang-tile-left[onclick*="'${l}'"]`)
   if (sel) sel.classList.add('selected')
   // Re-render right panel text in new language (smooth)
   const contentArea = document.getElementById('obContentArea')
@@ -10951,31 +10953,31 @@ function toggleFAQ(id) {
 
 function renderFAQ() {
   const faqs = [
-    { group: '🚀 Primeros pasos', color: 'var(--accent)', items: [
-      { q: '¿Cómo añado un ingreso?', a: 'Ve a la sección <strong>Ingresos</strong> desde la barra lateral. Haz clic en <strong>+ Nuevo ingreso</strong>. Rellena el importe, categoría, fecha y descripción opcional. Pulsa <strong>Guardar</strong>.' },
-      { q: '¿Cómo añado un gasto?', a: 'Ve a la sección <strong>Gastos</strong>. Pulsa <strong>+ Nuevo gasto</strong>. Introduce el importe, elige la categoría (con emoji), la fecha y una descripción. Guarda y aparecerá en la lista y en el dashboard automáticamente.' },
-      { q: '¿Cómo creo categorías personalizadas?', a: 'En <strong>Configuración → Categorías</strong> encontrarás las listas de ingresos y gastos. Escribe el nombre en el campo de texto y pulsa <strong>Añadir</strong>. El emoji se asigna automáticamente según el nombre.' },
+    { group: '🚀 ' + t('faq_g_inicio','Primeros pasos'), color: 'var(--accent)', items: [
+      { q: t('faq_q1','¿Cómo añado un ingreso?'), a: t('faq_a1','Ve a la sección <strong>Ingresos</strong> desde la barra lateral. Haz clic en <strong>+ Nuevo ingreso</strong>. Rellena el importe, categoría, fecha y descripción opcional. Pulsa <strong>Guardar</strong>.') },
+      { q: t('faq_q2','¿Cómo añado un gasto?'), a: t('faq_a2','Ve a la sección <strong>Gastos</strong>. Pulsa <strong>+ Nuevo gasto</strong>. Introduce el importe, elige la categoría, la fecha y una descripción. Guarda y aparecerá en el dashboard automáticamente.') },
+      { q: t('faq_q3','¿Cómo creo categorías personalizadas?'), a: t('faq_a3','En <strong>Configuración → Categorías</strong> encontrarás las listas de ingresos y gastos. Escribe el nombre en el campo de texto y pulsa <strong>Añadir</strong>.') },
     ]},
-    { group: '📚 Conceptos financieros', color: 'var(--indigo)', items: [
-      { q: '¿Qué es el patrimonio neto?', a: 'El patrimonio neto es la diferencia entre todos tus activos (cuentas, inversiones, inmuebles…) y tus pasivos (deudas). Refleja tu riqueza real en un momento dado. MoneyNest lo calcula automáticamente en la sección <strong>Patrimonio</strong>.' },
-      { q: '¿Cómo funciona el análisis?', a: 'El <strong>Análisis</strong> cruza tus datos de ingresos, gastos, inversiones y deudas para generar insights personalizados: tasa de ahorro, categorías con mayor gasto, evolución mensual, proyecciones y regla 50/30/20.' },
-      { q: '¿Cómo interpreto los gráficos?', a: 'Los gráficos de líneas muestran evolución temporal. Los de dona muestran distribución por categorías. Los KPI con <span style="color:var(--green)">▲</span> verde indican mejora respecto al período anterior; en <span style="color:var(--red)">▼</span> rojo indican empeoramiento.' },
+    { group: '📚 ' + t('faq_g_conceptos','Conceptos financieros'), color: 'var(--indigo)', items: [
+      { q: t('faq_q4','¿Qué es el patrimonio neto?'), a: t('faq_a4','El patrimonio neto es la diferencia entre todos tus activos (cuentas, inversiones, inmuebles…) y tus pasivos (deudas). MoneyNest lo calcula automáticamente en la sección <strong>Patrimonio</strong>.') },
+      { q: t('faq_q5','¿Cómo funciona el análisis?'), a: t('faq_a5','El <strong>Análisis</strong> cruza tus datos de ingresos, gastos, inversiones y deudas para generar insights personalizados: tasa de ahorro, categorías con mayor gasto, evolución mensual y regla 50/30/20.') },
+      { q: t('faq_q6','¿Cómo interpreto los gráficos?'), a: t('faq_a6','Los gráficos de líneas muestran evolución temporal. Los de dona muestran distribución por categorías. Los KPI en verde indican mejora y en rojo empeoramiento respecto al período anterior.') },
     ]},
-    { group: '💳 Deudas', color: 'var(--red)', items: [
-      { q: '¿Qué es una estrategia de pago?', a: 'Es un plan para liquidar tus deudas de forma ordenada. MoneyNest ofrece tres ritmos: <strong>Conservador</strong> 🐢 (pagos bajos), <strong>Moderado</strong> ⚖️ (equilibrado) y <strong>Agresivo</strong> 🚀 (máxima velocidad de liquidación).' },
-      { q: '¿Cuál es la diferencia entre Bola de nieve y Avalancha?', a: '<strong>❄️ Bola de nieve:</strong> pagas primero la deuda más pequeña para ganar motivación psicológica.<br><strong>🌊 Avalancha:</strong> pagas primero la de mayor interés, ahorrando más dinero a largo plazo. Ambas son válidas; elige la que mejor se adapte a ti.' },
-      { q: '¿Cómo se calcula el tiempo para quedar libre de deudas?', a: 'MoneyNest usa la fórmula financiera estándar de amortización: considera el saldo pendiente total, el interés medio anual de tus deudas y el pago mensual estimado según la estrategia. El resultado es orientativo.' },
+    { group: '💳 ' + t('faq_g_deudas','Deudas'), color: 'var(--red)', items: [
+      { q: t('faq_q7','¿Qué es una estrategia de pago?'), a: t('faq_a7','Es un plan para liquidar tus deudas de forma ordenada. MoneyNest ofrece tres ritmos: <strong>Conservador</strong> 🐢, <strong>Moderado</strong> ⚖️ y <strong>Agresivo</strong> 🚀.') },
+      { q: t('faq_q8','¿Cuál es la diferencia entre Bola de nieve y Avalancha?'), a: t('faq_a8','<strong>❄️ Bola de nieve:</strong> pagas primero la deuda más pequeña.<br><strong>🌊 Avalancha:</strong> pagas primero la de mayor interés, ahorrando más dinero a largo plazo.') },
+      { q: t('faq_q9','¿Cómo se calcula el tiempo para quedar libre de deudas?'), a: t('faq_a9','MoneyNest usa la fórmula financiera estándar de amortización considerando el saldo pendiente total, el interés medio anual y el pago mensual estimado.') },
     ]},
-    { group: '📦 Datos y dispositivos', color: 'var(--gold)', items: [
-      { q: '¿Cómo exporto mis datos?', a: 'Ve a <strong>Configuración → Importar / Exportar datos</strong>. Puedes exportar un informe completo en PDF o Excel, o descargar una copia de seguridad en JSON con todos tus datos.' },
-      { q: '¿Cómo importo una copia de seguridad?', a: 'En <strong>Configuración → Importar / Exportar datos</strong>, pulsa <strong>Importar copia de seguridad</strong> y selecciona tu archivo .json. Todos los datos se restaurarán. <em>⚠️ Esto sobreescribe los datos actuales.</em>' },
-      { q: '¿Cómo traslado MoneyNest a otro dispositivo?', a: '<strong>Paso 1:</strong> Exporta desde <em>Configuración → Copia de seguridad (JSON)</em>.<br><strong>Paso 2:</strong> En el nuevo dispositivo, abre MoneyNest.<br><strong>Paso 3:</strong> Ve a <em>Configuración → Importar</em>.<br><strong>Paso 4:</strong> Selecciona el archivo .json. ¡Listo!' },
-      { q: '¿Qué pasa si reseteo la app?', a: 'El reset elimina <strong>todos los datos permanentemente</strong>: ingresos, gastos, inversiones, deudas, objetivos y configuración. Solo hazlo si estás seguro. Exporta siempre una copia de seguridad antes.' },
+    { group: '📦 ' + t('faq_g_datos','Datos y dispositivos'), color: 'var(--gold)', items: [
+      { q: t('faq_q10','¿Cómo exporto mis datos?'), a: t('faq_a10','Ve a <strong>Configuración → Importar / Exportar datos</strong>. Puedes exportar en PDF, Excel o descargar una copia de seguridad JSON.') },
+      { q: t('faq_q11','¿Cómo importo una copia de seguridad?'), a: t('faq_a11','En <strong>Configuración → Importar / Exportar datos</strong>, pulsa <strong>Importar copia de seguridad</strong> y selecciona tu archivo .json. <em>⚠️ Esto sobreescribe los datos actuales.</em>') },
+      { q: t('faq_q12','¿Cómo traslado MoneyNest a otro dispositivo?'), a: t('faq_a12','<strong>1.</strong> Exporta desde Configuración → Copia de seguridad (JSON).<br><strong>2.</strong> En el nuevo dispositivo abre MoneyNest.<br><strong>3.</strong> Ve a Configuración → Importar y selecciona el archivo .json.') },
+      { q: t('faq_q13','¿Qué pasa si reseteo la app?'), a: t('faq_a13','El reset elimina <strong>todos los datos permanentemente</strong>. Exporta siempre una copia de seguridad antes.') },
     ]},
-    { group: '⚙️ Uso de la app', color: 'var(--green)', items: [
-      { q: '¿Cómo cambio el idioma?', a: 'Ve a <strong>Configuración → Idioma</strong> y haz clic en el idioma que quieres. El cambio es inmediato. Idiomas disponibles: 🇪🇸 Español, 🇺🇸 English, 🇮🇹 Italiano, 🇫🇷 Français, 🇩🇪 Deutsch, 🇵🇹 Português.' },
-      { q: '¿Por qué no aparecen mis datos?', a: 'Los datos se guardan en el navegador (localStorage). Asegúrate de usar el mismo navegador y dispositivo. Si limpiaste el caché, los datos pueden haberse perdido. Usa siempre la exportación JSON como respaldo regular.' },
-      { q: '¿Cómo reseteo la app correctamente?', a: '<strong>Paso 1:</strong> Exporta tu copia de seguridad.<br><strong>Paso 2:</strong> Ve a Configuración → <em>Zona de peligro</em>.<br><strong>Paso 3:</strong> Haz clic en <em>Resetear todo</em>.<br><strong>Paso 4:</strong> Confirma. La app vuelve al estado inicial.' },
+    { group: '⚙️ ' + t('faq_g_uso','Uso de la app'), color: 'var(--green)', items: [
+      { q: t('faq_q14','¿Cómo cambio el idioma?'), a: t('faq_a14','Ve a <strong>Configuración → Idioma</strong> y haz clic en el idioma que quieres. El cambio es inmediato.') },
+      { q: t('faq_q15','¿Por qué no aparecen mis datos?'), a: t('faq_a15','Los datos se guardan en el navegador (localStorage). Usa siempre la exportación JSON como respaldo regular.') },
+      { q: t('faq_q16','¿Cómo reseteo la app correctamente?'), a: t('faq_a16','<strong>1.</strong> Exporta tu copia de seguridad.<br><strong>2.</strong> Ve a Configuración → Zona de peligro.<br><strong>3.</strong> Haz clic en Resetear todo y confirma.') },
     ]},
   ]
 
@@ -11013,16 +11015,16 @@ function renderFAQ() {
       </div>
       <div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0">
         <button onclick="votarSugerencia(${s.id})" style="background:var(--accent-dim);border:1px solid rgba(0,212,170,.2);color:var(--accent);border-radius:8px;padding:4px 10px;font-size:.78rem;font-weight:700;cursor:pointer;min-width:52px">👍 ${s.votos||0}</button>
-        <button onclick="borrarSugerencia(${s.id})" style="background:transparent;border:none;color:var(--text3);font-size:.72rem;cursor:pointer" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--text3)'">✕ Eliminar</button>
+        <button onclick="borrarSugerencia(${s.id})" style="background:transparent;border:none;color:var(--text3);font-size:.72rem;cursor:pointer" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--text3)'">✕ ${t('btn_eliminar','Eliminar')}</button>
       </div>
-    </div>`).join('') || `<div class="empty"><div class="empty-icon">💬</div><div class="empty-title">Aún no hay sugerencias</div><div class="empty-sub">¡Sé el primero en proponer una mejora para MoneyNest!</div></div>`
+    </div>`).join('') || `<div class="empty"><div class="empty-icon">💬</div><div class="empty-title">${t('sug_vacio_titulo','Aún no hay sugerencias')}</div><div class="empty-sub">${t('sug_vacio_sub','¡Sé el primero en proponer una mejora!')}</div></div>`
 
   document.getElementById('content').innerHTML = `
   <div style="max-width:720px;margin:0 auto">
     <div class="section-header">
       <div>
-        <div class="page-h1">❓ FAQ & Sugerencias</div>
-        <div class="page-sub">Guías paso a paso, respuestas frecuentes y envío de sugerencias</div>
+        <div class="page-h1">❓ ${t('faq_titulo','FAQ & Sugerencias')}</div>
+        <div class="page-sub">${t('faq_sub','Guías paso a paso, respuestas frecuentes y envío de sugerencias')}</div>
       </div>
     </div>
 
@@ -11031,14 +11033,14 @@ function renderFAQ() {
     <div style="margin-top:56px">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
         <div style="flex:1;height:1px;background:var(--border)"></div>
-        <div style="font-size:1.05rem;font-weight:800;color:var(--text);letter-spacing:-.02em">💡 Sugerencias</div>
+        <div style="font-size:1.05rem;font-weight:800;color:var(--text);letter-spacing:-.02em">💡 ${t('sugerencias_titulo','Sugerencias')}</div>
         <div style="flex:1;height:1px;background:var(--border)"></div>
       </div>
 
       <div class="card" style="margin-bottom:16px">
-        <div class="card-title" style="margin-bottom:16px">✍️ Nueva sugerencia</div>
+        <div class="card-title" style="margin-bottom:16px">✍️ ${t('sug_nueva_titulo','Nueva sugerencia')}</div>
         <div class="form-group">
-          <label>Tipo</label>
+          <label>${t('sug_tipo_label','Tipo')}</label>
           <div style="display:flex;gap:10px;margin-bottom:4px">
             <label style="display:flex;align-items:center;gap:7px;padding:9px 14px;border-radius:var(--radius-sm);border:1.5px solid var(--border2);background:var(--bg2);cursor:pointer;flex:1;font-size:.85rem;font-weight:600;color:var(--text2);transition:all .15s" id="sug-tipo-label-sug">
               <input type="radio" name="sug-tipo" value="Sugerencia" id="sug-tipo-sug" checked style="accent-color:var(--accent)" onchange="document.getElementById('sug-tipo-label-sug').style.borderColor='var(--accent)';document.getElementById('sug-tipo-label-sug').style.color='var(--accent)';document.getElementById('sug-tipo-label-preg').style.borderColor='var(--border2)';document.getElementById('sug-tipo-label-preg').style.color='var(--text2)'">
@@ -11051,26 +11053,26 @@ function renderFAQ() {
           </div>
         </div>
         <div class="form-group">
-          <label>Categoría</label>
+          <label>${t('sug_categoria_label','Categoría')}</label>
           <select id="sug-cat">${sugCats.map(c=>`<option value="${c}">${c}</option>`).join('')}</select>
         </div>
         <div class="form-group">
-          <label>Mensaje</label>
+          <label>${t('sug_mensaje_label','Mensaje')}</label>
           <textarea id="sug-input" placeholder="${t('sug_placeholder')}" style="min-height:100px;-webkit-user-select:text;user-select:text"></textarea>
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:4px">
           <button class="btn btn-primary" onclick="saveSugerencia()">${t('sug_guardar')}</button>
-          <button class="btn btn-secondary" onclick="enviarSugerenciaEmail()">📧 Enviar por email</button>
+          <button class="btn btn-secondary" onclick="enviarSugerenciaEmail()">📧 ${t('sug_enviar_email','Enviar por email')}</button>
         </div>
         <div style="margin-top:12px;padding:10px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-          <span style="font-size:.72rem;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.05em">Contacto directo:</span>
+          <span style="font-size:.72rem;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.05em">${t('contacto_directo','Contacto directo')}:</span>
           <a href="mailto:invest.grid.main@gmail.com" style="font-size:.85rem;font-weight:700;color:var(--accent);text-decoration:none;user-select:text">invest.grid.main@gmail.com</a>
         </div>
       </div>
 
       <div class="card">
         <div class="card-header" style="margin-bottom:12px">
-          <div class="card-title">📋 Sugerencias enviadas</div>
+          <div class="card-title">📋 ${t('sug_enviadas','Sugerencias enviadas')}</div>
           <span class="badge badge-accent">${(window._sugerencias||[]).length}</span>
         </div>
         ${sugList}
@@ -11181,9 +11183,9 @@ function renderSugerencias() {
       </div>
       <div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0">
         <button onclick="votarSugerencia(${s.id})" style="background:var(--accent-dim);border:1px solid rgba(0,212,170,.2);color:var(--accent);border-radius:8px;padding:4px 10px;font-size:.78rem;font-weight:700;cursor:pointer;min-width:52px">👍 ${s.votos||0}</button>
-        <button onclick="borrarSugerencia(${s.id})" style="background:transparent;border:none;color:var(--text3);font-size:.72rem;cursor:pointer" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--text3)'">✕ Eliminar</button>
+        <button onclick="borrarSugerencia(${s.id})" style="background:transparent;border:none;color:var(--text3);font-size:.72rem;cursor:pointer" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--text3)'">✕ ${t('btn_eliminar','Eliminar')}</button>
       </div>
-    </div>`).join('') || `<div class="empty"><div class="empty-icon">💬</div><div class="empty-title">Aún no hay sugerencias</div><div class="empty-sub">¡Sé el primero en proponer una mejora para MoneyNest!</div></div>`
+    </div>`).join('') || `<div class="empty"><div class="empty-icon">💬</div><div class="empty-title">${t('sug_vacio_titulo','Aún no hay sugerencias')}</div><div class="empty-sub">${t('sug_vacio_sub','¡Sé el primero en proponer una mejora!')}</div></div>`
 
   document.getElementById('content').innerHTML = `
   <div class="section-header">
@@ -11523,9 +11525,9 @@ function renderPatrimonio() {
         </div>
       </div>
       ${!isSold?`<div style="display:flex;gap:6px;margin-top:10px;align-items:center">
-        <button class="btn-edit" onclick="editarAsset('${a.id}')" style="font-size:.72rem">✏ Editar</button>
-        <button class="btn btn-ghost btn-sm" style="font-size:.72rem;padding:3px 10px" onclick="quickUpdateAssetValue('${a.id}')">💰 Actualizar valor</button>
-        <button class="btn btn-ghost btn-sm" style="font-size:.72rem;padding:3px 10px" onclick="marcarAssetVendido('${a.id}')">🔴 Vender</button>
+        <button class="btn-edit" onclick="editarAsset('${a.id}')" style="font-size:.72rem">✏ ${t('btn_editar','Editar')}</button>
+        <button class="btn btn-ghost btn-sm" style="font-size:.72rem;padding:3px 10px" onclick="quickUpdateAssetValue('${a.id}')">💰 ${t('actualizar_valor','Actualizar valor')}</button>
+        <button class="btn btn-ghost btn-sm" style="font-size:.72rem;padding:3px 10px" onclick="marcarAssetVendido('${a.id}')">🔴 ${t('vender','Vender')}</button>
         <button class="btn-del" onclick="borrarAsset('${a.id}')" style="font-size:.72rem;margin-left:auto">🗑</button>
       </div>`:`<div style="margin-top:6px"><button class="btn-del" onclick="borrarAsset('${a.id}')" style="font-size:.72rem">🗑 Eliminar</button></div>`}
     </div>`
@@ -11538,34 +11540,34 @@ function renderPatrimonio() {
   document.getElementById('content').innerHTML = `
   <div class="section-header" style="margin-bottom:16px">
     <div>
-      <div class="page-h1">🏛 Patrimonio Neto</div>
-      <div class="page-sub">Vista completa de tu riqueza financiera</div>
+      <div class="page-h1">🏛 ${t('patrimonio_neto','Patrimonio Neto')}</div>
+      <div class="page-sub">${t('pat_page_sub','Vista completa de tu riqueza financiera')}</div>
     </div>
   </div>
 
   <!-- NET WORTH HERO -->
   <div class="pat-hero">
-    <div class="pat-nw-label">Patrimonio Neto Total</div>
+    <div class="pat-nw-label">${t('patrimonio_neto','Patrimonio Neto Total')}</div>
     <div class="pat-nw-row">
       <div class="pat-nw-value">${eur(pat)}</div>
-      ${patDelta!==null?`<span class="kpi-delta ${deltaClass(patDelta)}" style="font-size:.88rem">${deltaIcon(patDelta)} ${pct(Math.abs(patDelta))} vs. mes ant.</span>`:'<span class="kpi-delta neu">Primer registro</span>'}
+      ${patDelta!==null?`<span class="kpi-delta ${deltaClass(patDelta)}" style="font-size:.88rem">${deltaIcon(patDelta)} ${pct(Math.abs(patDelta))} ${t('vs_mes_ant','vs. mes ant.')}</span>`:`<span class="kpi-delta neu">${t('primer_registro','Primer registro')}</span>`}
     </div>
     <div class="pat-breakdown">
       <div class="pat-bd-item">
-        <div class="pat-bd-label">💰 Liquidez</div>
+        <div class="pat-bd-label">💰 ${t('liquidez','Liquidez')}</div>
         <div class="pat-bd-value" style="color:var(--accent)">${eur(dis)}</div>
       </div>
       <div class="pat-bd-item">
-        <div class="pat-bd-label">📈 Inversiones</div>
+        <div class="pat-bd-label">📈 ${t('nav_inversiones','Inversiones')}</div>
         <div class="pat-bd-value" style="color:var(--indigo)">${eur(cartera)}</div>
       </div>
       <div class="pat-bd-item">
-        <div class="pat-bd-label">🏠 Activos físicos</div>
+        <div class="pat-bd-label">🏠 ${t('activos_fisicos','Activos físicos')}</div>
         <div class="pat-bd-value" style="color:var(--gold)">${eur(assetsVal)}</div>
       </div>
       <div class="pat-bd-item">
         <div class="pat-bd-label">${t('deudas_lbl')}</div>
-        <div class="pat-bd-value" style="color:${deuda>0?'var(--red)':'var(--green)'}">${deuda>0?'−'+eur(deuda):'Sin deudas ✅'}</div>
+        <div class="pat-bd-value" style="color:${deuda>0?'var(--red)':'var(--green)'}">${deuda>0?'−'+eur(deuda):t('sin_deudas','Sin deudas ✅')}</div>
       </div>
     </div>
   </div>
@@ -11581,9 +11583,9 @@ function renderPatrimonio() {
         <div class="card-header">
           <div>
             <div class="card-title">${t('cuentas_lbl')}</div>
-            <div class="card-subtitle">Total liquidez: ${eur(dis)}</div>
+            <div class="card-subtitle">${t('total_liquidez','Total liquidez')}: ${eur(dis)}</div>
           </div>
-          <button class="btn btn-ghost btn-sm" onclick="goTo('cuentas')" style="font-size:.75rem">Gestionar →</button>
+          <button class="btn btn-ghost btn-sm" onclick="goTo('cuentas')" style="font-size:.75rem">${t('gestionar','Gestionar')} →</button>
         </div>
         ${cuentasHtml||(window.mnEmptyStates ? window.mnEmptyStates.cuentas() : '<div class="empty"><div class="empty-icon">🏦</div><div class="empty-title">Sin cuentas</div></div>')}
       </div>
@@ -11592,26 +11594,26 @@ function renderPatrimonio() {
       <div class="card">
         <div class="card-header">
           <div>
-            <div class="card-title">📈 Activos Financieros</div>
-            <div class="card-subtitle">Cartera de inversión</div>
+            <div class="card-title">📈 ${t('activos_financieros','Activos Financieros')}</div>
+            <div class="card-subtitle">${t('cartera_inversion','Cartera de inversión')}</div>
           </div>
-          <span class="pat-inv-link" onclick="goTo('inversiones')">Ver detalle →</span>
+          <span class="pat-inv-link" onclick="goTo('inversiones')">${t('ver_detalle','Ver detalle')} →</span>
         </div>
         <div class="kpi-grid kpi-grid-3" style="margin-bottom:0">
           <div class="kpi-card">
-            <div class="kpi-label">Capital</div>
+            <div class="kpi-label">${t('inv_capital_invertido','Capital')}</div>
             <div class="kpi-value sm">${eur(totalInv)}</div>
-            <div class="kpi-sub">${invAbiertas.length} activa${invAbiertas.length!==1?'s':''}</div>
+            <div class="kpi-sub">${invAbiertas.length} ${t('inv_activas','activas')}</div>
           </div>
           <div class="kpi-card">
-            <div class="kpi-label">Ganancia latente</div>
+            <div class="kpi-label">${t('inv_ganancia_latente','Ganancia latente')}</div>
             <div class="kpi-value sm" style="color:${totalRet>=0?'var(--green)':'var(--red)'}">${totalRet>=0?'+':''}${eur(totalRet)}</div>
-            <div class="kpi-sub">No realizada</div>
+            <div class="kpi-sub">${t('no_realizada','No realizada')}</div>
           </div>
           <div class="kpi-card">
-            <div class="kpi-label">Rendimiento</div>
+            <div class="kpi-label">${t('rendimiento','Rendimiento')}</div>
             <div class="kpi-value sm" style="color:${roiPct>=0?'var(--green)':'var(--red)'}">${roiPct>=0?'+':''}${pct(roiPct)}</div>
-            <div class="kpi-sub">Realizado: ${eur(totalRealiz)}</div>
+            <div class="kpi-sub">${t('realizado','Realizado')}: ${eur(totalRealiz)}</div>
           </div>
         </div>
       </div>
@@ -11619,8 +11621,8 @@ function renderPatrimonio() {
       <!-- Wealth evolution chart -->
       <div class="card">
         <div class="card-header">
-          <div class="card-title">📊 Evolución del patrimonio</div>
-          <div class="card-subtitle">Últimos 12 meses</div>
+          <div class="card-title">📊 ${t('evolucion_patrimonio','Evolución del patrimonio')}</div>
+          <div class="card-subtitle">${t('ultimos_12_meses','Últimos 12 meses')}</div>
         </div>
         ${S.patrimonio_hist.length>=2
           ?`<div class="chart-container"><canvas id="chartPatrimonioPage"></canvas></div>`
@@ -11632,10 +11634,10 @@ function renderPatrimonio() {
     <div class="card" style="display:flex;flex-direction:column">
       <div class="card-header" style="flex-shrink:0">
         <div>
-          <div class="card-title">🏠 Activos Físicos</div>
-          <div class="card-subtitle">${activeAssets.length} activo${activeAssets.length!==1?'s':''} · ${eur(assetsVal)}</div>
+          <div class="card-title">🏠 ${t('activos_fisicos','Activos Físicos')}</div>
+          <div class="card-subtitle">${activeAssets.length} ${t('activos','activos')} · ${eur(assetsVal)}</div>
         </div>
-        <button class="btn btn-primary btn-sm" onclick="openModal('assetModal');resetAssetForm()">+ Añadir</button>
+        <button class="btn btn-primary btn-sm" onclick="openModal('assetModal');resetAssetForm()">+ ${t('btn_nuevo_activo','Añadir activo')}</button>
       </div>
       <div style="flex:1;overflow-y:auto">
         ${assetsListHtml}
@@ -11964,23 +11966,25 @@ function render() {
         if (scoreEl && ringEl) {
           const target      = parseInt(scoreEl.getAttribute('data-score') || '0') || 0
           const arcLen      = parseFloat(ringEl.getAttribute('stroke-dasharray')) || 100
-          const finalOffset = parseFloat(ringEl.getAttribute('data-final-offset') || ringEl.style.strokeDashoffset) || arcLen
+          const finalOffset = parseFloat(ringEl.getAttribute('data-final-offset') || String(arcLen)) || 0
           if (target > 0) {
             let start = null
             scoreEl.textContent = '0'
-            ringEl.style.strokeDashoffset = arcLen
-            const duration = 1000
+            ringEl.style.strokeDashoffset = String(arcLen)
+            const duration = 900
             requestAnimationFrame(function anim(ts) {
               if (!start) start = ts
               const p = Math.min((ts - start) / duration, 1)
               const ease = 1 - Math.pow(2, -10 * p)
-              scoreEl.textContent = Math.round(target * ease)
-              ringEl.style.strokeDashoffset = arcLen - (arcLen - finalOffset) * ease
+              scoreEl.textContent = String(Math.round(target * ease))
+              ringEl.style.strokeDashoffset = String(arcLen - (arcLen - finalOffset) * ease)
               if (p < 1) requestAnimationFrame(anim)
-              else { scoreEl.textContent = target; ringEl.style.strokeDashoffset = finalOffset }
+              else { scoreEl.textContent = String(target); ringEl.style.strokeDashoffset = String(finalOffset) }
             })
           }
         }
+        // Animate EOM value
+        if (window.MNKPIAnimator) window.MNKPIAnimator.runDashboardAnimations()
       })
     }
   }
@@ -12099,63 +12103,52 @@ function renderHealthScore() {
   const score   = calcHealthScore()
   const factors = calcHealthFactors()
   const { label, color } = healthScoreLabel(score)
-  const eom    = calcEOMBalance()
+  const eom = calcEOMBalance()
 
-  // Arco semicircular — más visual que círculo completo
-  const R = 32
-  const cx = 40, cy = 42
-  const startAngle = Math.PI          // 180° — empieza izquierda
-  const endAngle   = 2 * Math.PI      // 360° — termina derecha
-  const totalArc   = endAngle - startAngle  // π radianes
-  const arcLen     = R * totalArc           // longitud arco
-
-  // Track completo
-  const tx1 = cx + R * Math.cos(startAngle), ty1 = cy + R * Math.sin(startAngle)
-  const tx2 = cx + R * Math.cos(endAngle),   ty2 = cy + R * Math.sin(endAngle)
-
-  // Fill — proporción del score
-  const fillRatio = score > 0 ? score / 100 : 0
-  const fillEnd   = startAngle + totalArc * fillRatio
-  const fx2 = cx + R * Math.cos(fillEnd), fy2 = cy + R * Math.sin(fillEnd)
-  const largeFill = fillRatio > 0.5 ? 1 : 0
-
-  // Tick marks each 25 pts
-  const ticks = [0, 25, 50, 75, 100].map(v => {
-    const a = startAngle + (v / 100) * totalArc
-    const inner = R - 5, outer = R + 1
-    return `<line x1="${cx + inner*Math.cos(a)}" y1="${cy + inner*Math.sin(a)}" x2="${cx + outer*Math.cos(a)}" y2="${cy + outer*Math.sin(a)}" stroke="var(--border2)" stroke-width="1.5" stroke-linecap="round"/>`
-  }).join('')
+  // Círculo simple — radio 20, circunferencia ≈ 125.66
+  const R = 20
+  const C = 2 * Math.PI * R   // ≈ 125.66
+  const filled = score > 0 ? (score / 100) * C : 0
+  const dashOffset = C - filled  // parte vacía al final
 
   const factorDots = factors.map(f => `
     <div class="hsc-factor">
-      <div class="hsc-factor-dot" style="background:${f.ok ? 'var(--green)' : 'rgba(244,63,94,.8)'}"></div>
+      <div class="hsc-factor-dot" style="background:${f.ok ? 'var(--green)' : 'var(--red)'}"></div>
       <span>${f.label}</span>
     </div>`).join('')
 
   return `<div class="health-score-compact">
     <div class="hsc-ring-wrap">
-      <svg width="80" height="52" viewBox="0 0 80 52" style="overflow:visible">
-        <!-- track -->
-        <path d="M ${tx1} ${ty1} A ${R} ${R} 0 1 1 ${tx2} ${ty2}"
-          fill="none" stroke="var(--border)" stroke-width="6" stroke-linecap="round"/>
-        ${ticks}
-        <!-- fill -->
-        ${fillRatio > 0 ? `<path d="M ${tx1} ${ty1} A ${R} ${R} 0 ${largeFill} 1 ${fx2} ${fy2}"
-          fill="none" stroke="${color}" stroke-width="6" stroke-linecap="round"
+      <svg width="50" height="50" viewBox="0 0 50 50">
+        <!-- Track -->
+        <circle cx="25" cy="25" r="${R}"
+          fill="none"
+          stroke="var(--border2)"
+          stroke-width="4"/>
+        <!-- Fill — empieza arriba (rotate -90deg) -->
+        <circle cx="25" cy="25" r="${R}"
+          fill="none"
+          stroke="${color}"
+          stroke-width="4"
+          stroke-linecap="round"
+          stroke-dasharray="${C.toFixed(2)}"
+          stroke-dashoffset="${C.toFixed(2)}"
           id="healthRingFill"
-          style="stroke-dasharray:${arcLen};stroke-dashoffset:${arcLen};transition:stroke-dashoffset 1s cubic-bezier(0.4,0,0.2,1)"
-          data-final-offset="${arcLen * (1 - fillRatio)}"/>` : ''}
+          data-final-offset="${dashOffset.toFixed(2)}"
+          transform="rotate(-90 25 25)"/>
       </svg>
-      <div class="hsc-num" id="healthScoreNum" data-score="${score}" style="bottom:-2px">${score > 0 ? 0 : '—'}</div>
+      <div class="hsc-num" id="healthScoreNum" data-score="${score}">
+        ${score > 0 ? '0' : '—'}
+      </div>
     </div>
     <div class="hsc-info">
       <div class="hsc-title">${t('salud_financiera')}</div>
-      <div class="hsc-label" style="color:${color};font-weight:800">${label}</div>
+      <div class="hsc-label" style="color:${color}">${label}</div>
       <div class="hsc-factors">${factorDots}</div>
     </div>
     <div class="hsc-eom">
       <div class="hsc-eom-label">${t('fin_de_mes')}</div>
-      <div class="hsc-eom-val" data-animate="${eur(eom)}" style="color:${eom>=0?'var(--accent)':'var(--red)'}">${eom>=0?'+':''}${eur(eom)}</div>
+      <div class="hsc-eom-val" data-animate-raw="${eom}" style="color:${eom>=0?'var(--accent)':'var(--red)'}">${eom>=0?'+':''}${eur(eom)}</div>
       <div class="hsc-eom-sub">${eom>=0?t('estimado'):t('posible_deficit')}</div>
     </div>
   </div>`
