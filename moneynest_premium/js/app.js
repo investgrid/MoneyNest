@@ -2,33 +2,33 @@
 const VERSION = '1.1'
 
 // ─── LOGO SVGs ────────────────────────────────────────────────
-// Logo icon como SVG inline (sin dependencia de archivos PNG con fondo blanco)
-const _LOGO_ICON_SVG = `<svg width="34" height="34" viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0">
-  <rect width="34" height="34" rx="9" fill="#00D4AA" opacity="0.15"/>
-  <rect width="34" height="34" rx="9" fill="url(#lg_grad)" opacity="0.8"/>
+const LOGO_DARK = `<svg viewBox='0 0 200 44' xmlns='http://www.w3.org/2000/svg' style='width:160px;height:44px;flex-shrink:0'>
   <defs>
-    <linearGradient id="lg_grad" x1="0" y1="0" x2="34" y2="34" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#00D4AA" stop-opacity="0.25"/>
-      <stop offset="1" stop-color="#6366F1" stop-opacity="0.15"/>
+    <linearGradient id='mnSbGradD' x1='0%' y1='0%' x2='100%' y2='100%'>
+      <stop offset='0%' stop-color='#00D4AA'/>
+      <stop offset='100%' stop-color='#00A882'/>
     </linearGradient>
   </defs>
-  <path d="M8 22 L12 13 L17 18 L22 10 L26 14" stroke="#00D4AA" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="26" cy="14" r="2.5" fill="#00D4AA"/>
+  <path d='M8 30 Q22 36 36 30' stroke='rgba(255,255,255,0.8)' stroke-width='3' fill='none' stroke-linecap='round'/>
+  <path d='M11 26 Q22 31 33 26' stroke='rgba(255,255,255,0.5)' stroke-width='2' fill='none' stroke-linecap='round'/>
+  <polyline points='10,26 17,18 24,22 34,10' stroke='url(#mnSbGradD)' stroke-width='3.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/>
+  <polyline points='29,9 34,10 33,15' stroke='url(#mnSbGradD)' stroke-width='3.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/>
+  <text x='46' y='28' font-family='Inter,system-ui,sans-serif' font-size='20' font-weight='800' letter-spacing='-0.5' fill='white'>Money<tspan fill='#00D4AA'>Nest</tspan></text>
 </svg>`
 
-const LOGO_DARK  = `<span style='display:flex;align-items:center;gap:9px;height:44px'>
-  ${_LOGO_ICON_SVG}
-  <span style='font-family:Inter,system-ui,sans-serif;font-size:19px;font-weight:800;letter-spacing:-0.5px;line-height:1;white-space:nowrap'>
-    <span style='color:#ffffff'>Money</span><span style='color:#00D4AA'>Nest</span>
-  </span>
-</span>`
-
-const LOGO_LIGHT = `<span style='display:flex;align-items:center;gap:9px;height:44px'>
-  ${_LOGO_ICON_SVG}
-  <span style='font-family:Inter,system-ui,sans-serif;font-size:19px;font-weight:800;letter-spacing:-0.5px;line-height:1;white-space:nowrap'>
-    <span style='color:#0F172A'>Money</span><span style='color:#009E82'>Nest</span>
-  </span>
-</span>`
+const LOGO_LIGHT = `<svg viewBox='0 0 200 44' xmlns='http://www.w3.org/2000/svg' style='width:160px;height:44px;flex-shrink:0'>
+  <defs>
+    <linearGradient id='mnSbGradL' x1='0%' y1='0%' x2='100%' y2='100%'>
+      <stop offset='0%' stop-color='#009E82'/>
+      <stop offset='100%' stop-color='#007A66'/>
+    </linearGradient>
+  </defs>
+  <path d='M8 30 Q22 36 36 30' stroke='#0F172A' stroke-width='3' fill='none' stroke-linecap='round'/>
+  <path d='M11 26 Q22 31 33 26' stroke='#334155' stroke-width='2' fill='none' stroke-linecap='round' opacity='0.6'/>
+  <polyline points='10,26 17,18 24,22 34,10' stroke='url(#mnSbGradL)' stroke-width='3.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/>
+  <polyline points='29,9 34,10 33,15' stroke='url(#mnSbGradL)' stroke-width='3.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/>
+  <text x='46' y='28' font-family='Inter,system-ui,sans-serif' font-size='20' font-weight='800' letter-spacing='-0.5' fill='#0F172A'>Money<tspan fill='#009E82'>Nest</tspan></text>
+</svg>`
 
 function getCurrentLogo() {
   return document.documentElement.getAttribute('data-theme') === 'light' ? LOGO_LIGHT : LOGO_DARK
