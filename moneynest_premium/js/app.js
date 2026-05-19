@@ -10732,7 +10732,13 @@ function demoScenarioPreview(val) { /* future: live preview */ }
 function activateDemoWithConfig() {
   loadDemoData('standard', null)
   save()
-  render()
+  // Mostrar todos los datos del demo (no solo el mes actual)
+  if (typeof window._gTimePeriod !== 'undefined') window._gTimePeriod = 'all'
+  if (typeof window._ingMesFilter !== 'undefined') window._ingMesFilter = ''
+  if (typeof window._gasMesFilter !== 'undefined') window._gasMesFilter = ''
+  // Ir al dashboard para que el usuario vea todo
+  if (typeof goTo === 'function') goTo('dashboard')
+  else render()
   _renderDemoFab()
   toast(t('toast_modo_demo','✅ Modo demo activado — explora sin límites'))
 }

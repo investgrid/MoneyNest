@@ -307,28 +307,102 @@
     setTimeout(() => el.remove(), 260);
   }
 
-  // ── 2. Desktop — botón en topbar + modal premium ──────────────────
-  function _injectDesktopButton() {
-    if (isInstalled() || !deferredPrompt) return;
-    if (document.getElementById('mnDesktopInstallBtn')) return;
-    const topbarRight = document.querySelector('.topbar-right');
-    if (!topbarRight) return;
-    const btn = document.createElement('button');
-    btn.id = 'mnDesktopInstallBtn';
-    btn.innerHTML = `<span style="font-size:.85rem">⬇</span> ${_t('install_app_title', 'Instalar app')}`;
-    btn.addEventListener('click', _showDesktopModal);
-    topbarRight.insertBefore(btn, topbarRight.firstChild);
+  // ── 2. Modal de confirmación previo (desde Configuración) ────────────
+  // Pregunta simple "¿Instalar?" → si sí → modal de instalación real
+  function showInstallConfirmModal() {
+    if (document.getElementById('mnInstallConfirmOverlay')) return;
+    _injectStyles();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'mnInstallConfirmOverlay';
+    overlay.style.cssText = `
+      position:fixed;inset:0;z-index:9850;
+      background:rgba(0,0,0,.65);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+      display:flex;align-items:center;justify-content:center;padding:24px;
+      animation:mnFadeIn .22s ease forwards;
+    `;
+    overlay.innerHTML = `
+      <div style="
+        background:#0D1424;border:1px solid rgba(255,255,255,.08);border-radius:20px;
+        width:min(340px,100%);padding:28px 24px 22px;
+        box-shadow:0 32px 80px rgba(0,0,0,.7);
+        animation:mnScaleIn .28s cubic-bezier(0.22,1,0.36,1) forwards;
+        text-align:center;font-family:inherit;position:relative;overflow:hidden;
+      ">
+        <div style="position:absolute;top:0;left:0;right:0;height:2px;
+          background:linear-gradient(90deg,transparent,#00D4AA,transparent)"></div>
+        <div style="font-size:2rem;margin-bottom:10px">📲</div>
+        <div style="font-size:1.05rem;font-weight:800;color:#fff;letter-spacing:-.02em;margin-bottom:8px">
+          ${_t('install_confirm_title','¿Instalar MoneyNest?')}
+        </div>
+        <div style="font-size:.8rem;color:rgba(255,255,255,.45);line-height:1.6;margin-bottom:22px">
+          ${_t('install_confirm_desc','Accede más rápido, funciona sin conexión y sin abrir el navegador.')}
+        </div>
+        <button id="mnConfirmInstallYes" style="
+          width:100%;padding:12px;border-radius:11px;border:none;
+          background:linear-gradient(135deg,#00D4AA,#059669);
+          color:#042b20;font-size:.9rem;font-weight:900;cursor:pointer;
+          font-family:inherit;margin-bottom:8px;letter-spacing:-.01em;
+          box-shadow:0 4px 16px rgba(0,212,170,.3);transition:opacity .15s;
+        " onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">
+          ${_t('install_confirm_yes','Instalar →')}
+        </button>
+        <button id="mnConfirmInstallNo" style="
+          background:none;border:none;color:rgba(255,255,255,.3);
+          font-size:.78rem;cursor:pointer;font-family:inherit;
+          transition:color .15s;width:100%;padding:6px;
+        " onmouseover="this.style.color='rgba(255,255,255,.55)'" onmouseout="this.style.color='rgba(255,255,255,.3)'">
+          ${_t('install_cancel','Ahora no')}
+        </button>
+      </div>
+    `;
+
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+    document.body.appendChild(overlay);
+
+    document.getElementById('mnConfirmInstallYes').addEventListener('click', () => {
+      overlay.remove();
+      _showInstallModal();
+    });
+    document.getElementById('mnConfirmInstallNo').addEventListener('click', () => overlay.remove());
   }
 
-  function _showDesktopModal() {
-    if (document.getElementById('mnDesktopModalOverlay')) return;
+  // ── Modal de instalación real (con prompt nativo o instrucciones) ──
+  async function _showInstallModal() {
     _injectStyles();
+
+    // Si el prompt nativo está disponible, dispararlo directamente
+    if (deferredPrompt) {
+      try {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        deferredPrompt = null;
+        if (outcome === 'accepted') {
+          localStorage.setItem(INSTALLED_KEY, 'true');
+          if (typeof renderConfiguracion === 'function' && typeof currentPage !== 'undefined' && currentPage === 'configuracion') {
+            setTimeout(renderConfiguracion, 300);
+          }
+        }
+        return;
+      } catch(e) {
+        // Si falla el prompt nativo, caemos al modal de instrucciones
+      }
+    }
+
+    // Sin prompt nativo — mostrar modal con instrucciones
+    if (document.getElementById('mnDesktopModalOverlay')) return;
+
+    const isIosDevice = isIOS();
+    const shareIcon = `<svg width="12" height="15" viewBox="0 0 13 16" fill="none" style="display:inline;vertical-align:middle;margin:0 2px;position:relative;top:-1px">
+      <path d="M6.5 1v9M3.5 3.5L6.5 1l3 2.5" stroke="#00D4AA" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="1" y="6" width="11" height="9" rx="2" stroke="rgba(255,255,255,0.4)" stroke-width="1.3" fill="none"/>
+    </svg>`;
 
     const overlay = document.createElement('div');
     overlay.id = 'mnDesktopModalOverlay';
     overlay.innerHTML = `
       <div id="mnDesktopModal" role="dialog" aria-modal="true">
-        <button class="mn-dm-close-btn" id="mnDmCloseX" aria-label="Cerrar">✕</button>
+        <button class="mn-dm-close-btn" id="mnDmCloseX" aria-label="${_t('cerrar','Cerrar')}">✕</button>
 
         <div class="mn-dm-icon-wrap">
           <div class="mn-dm-icon">
@@ -337,28 +411,50 @@
         </div>
 
         <div class="mn-dm-name">MoneyNest</div>
-        <div class="mn-dm-tagline">${_t('install_tagline', 'Tu gestor financiero personal')} · ${location.hostname || 'moneynest.app'}</div>
+        <div class="mn-dm-tagline">${_t('install_tagline','Tu gestor financiero personal')} · ${(location.hostname || 'moneynest.app').replace(/^moneynest-[a-z0-9]+-/,'').replace('.vercel.app','') || 'moneynest.app'}</div>
 
         <div class="mn-dm-features">
           <div class="mn-dm-feat">
             <div class="mn-dm-feat-icon">⚡</div>
-            <div class="mn-dm-feat-label">${_t('install_feat1', 'Acceso\ninstantáneo')}</div>
+            <div class="mn-dm-feat-label">${_t('install_feat1','Acceso rápido')}</div>
           </div>
           <div class="mn-dm-feat">
             <div class="mn-dm-feat-icon">📶</div>
-            <div class="mn-dm-feat-label">${_t('install_feat2', 'Funciona\noffline')}</div>
+            <div class="mn-dm-feat-label">${_t('install_feat2','Funciona offline')}</div>
           </div>
           <div class="mn-dm-feat">
             <div class="mn-dm-feat-icon">🔒</div>
-            <div class="mn-dm-feat-label">${_t('install_feat3', 'Datos\nprivados')}</div>
+            <div class="mn-dm-feat-label">${_t('install_feat3','100% privado')}</div>
           </div>
         </div>
 
-        <button class="mn-dm-btn-install" id="mnDmInstallBtn">
-          ⬇ ${_t('install_btn', 'Instalar MoneyNest')}
-        </button>
+        ${isIosDevice ? `
+          <div style="text-align:left;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:14px 16px;margin-bottom:14px">
+            <div style="font-size:.7rem;font-weight:700;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">${_t('install_how','Cómo instalar')}</div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <div style="display:flex;align-items:center;gap:8px;font-size:.78rem;color:rgba(255,255,255,.65)">
+                <span style="width:20px;height:20px;border-radius:50%;background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.2);color:#00D4AA;font-size:.65rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">1</span>
+                ${_t('install_ios_step1','Toca')} <strong style="color:#fff;margin:0 3px">${_t('install_ios_share','Compartir')}</strong> ${shareIcon} ${_t('install_ios_step1b','en Safari')}
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;font-size:.78rem;color:rgba(255,255,255,.65)">
+                <span style="width:20px;height:20px;border-radius:50%;background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.2);color:#00D4AA;font-size:.65rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">2</span>
+                ${_t('install_ios_step2','Pulsa')} <strong style="color:#fff;margin:0 3px">${_t('install_ios_add','Añadir a pantalla de inicio')}</strong>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;font-size:.78rem;color:rgba(255,255,255,.65)">
+                <span style="width:20px;height:20px;border-radius:50%;background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.2);color:#00D4AA;font-size:.65rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">3</span>
+                ${_t('install_ios_step3','Confirma tocando')} <strong style="color:#fff;margin:0 3px">${_t('install_ios_confirm','Añadir')}</strong>
+              </div>
+            </div>
+          </div>
+          <button class="mn-dm-btn-install" id="mnDmInstallBtn">${_t('install_understood','Entendido 👍')}</button>
+        ` : `
+          <div style="padding:12px 14px;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);border-radius:10px;margin-bottom:14px;font-size:.78rem;color:rgba(255,255,255,.55);line-height:1.55">
+            ${_t('install_manual_hint','Para instalar: en tu navegador busca el menú ⋮ o ⋯ y selecciona "Instalar aplicación" o "Añadir a pantalla de inicio".')}
+          </div>
+          <button class="mn-dm-btn-install" id="mnDmInstallBtn">${_t('install_understood','Entendido 👍')}</button>
+        `}
         <br>
-        <button class="mn-dm-btn-cancel" id="mnDmCancelBtn">${_t('install_cancel', 'Ahora no')}</button>
+        <button class="mn-dm-btn-cancel" id="mnDmCancelBtn">${_t('install_cancel','Cerrar')}</button>
       </div>
     `;
 
@@ -367,24 +463,36 @@
 
     document.getElementById('mnDmCloseX').addEventListener('click', _closeDesktopModal);
     document.getElementById('mnDmCancelBtn').addEventListener('click', _closeDesktopModal);
-    document.getElementById('mnDmInstallBtn').addEventListener('click', async () => {
-      if (!deferredPrompt) { _closeDesktopModal(); return; }
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      deferredPrompt = null;
-      _closeDesktopModal();
-      if (outcome === 'accepted') {
-        localStorage.setItem(INSTALLED_KEY, 'true');
-        document.getElementById('mnDesktopInstallBtn')?.remove();
-      }
-    });
+    document.getElementById('mnDmInstallBtn').addEventListener('click', _closeDesktopModal);
   }
+
+  function _showDesktopModal() { _showInstallModal(); }
 
   function _closeDesktopModal() {
     const el = document.getElementById('mnDesktopModalOverlay');
     if (!el) return;
     el.style.animation = 'mnFadeOut .2s ease forwards';
     setTimeout(() => el.remove(), 210);
+  }
+
+  // ── Helper público: llama al prompt nativo si disponible ──────────
+  async function triggerInstallNow() {
+    if (deferredPrompt) {
+      try {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        deferredPrompt = null;
+        if (outcome === 'accepted') {
+          localStorage.setItem(INSTALLED_KEY, 'true');
+          if (typeof renderConfiguracion === 'function' && typeof currentPage !== 'undefined' && currentPage === 'configuracion') {
+            setTimeout(renderConfiguracion, 300);
+          }
+        }
+        return;
+      } catch(e) {}
+    }
+    // Sin prompt — mostrar modal con instrucciones
+    _showInstallModal();
   }
 
   // ── 3. iOS Safari — banner inferior ──────────────────────────────
@@ -547,29 +655,14 @@
   }
 
   // ── Botón de instalación para la sección Configuración ──────────────
+  // Muestra botón simple que abre el modal de confirmación primero
   function renderInstallCard() {
     if (isInstalled()) {
       return `
-        <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(0,212,170,.06);border:1px solid rgba(0,212,170,.2);border-radius:10px">
+        <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;
+          background:rgba(0,212,170,.06);border:1px solid rgba(0,212,170,.2);border-radius:10px">
           <span style="font-size:1.2rem">✅</span>
-          <div style="font-size:.82rem;color:var(--text2)">${_t('install_already_done', 'App instalada — acceso rápido desde tu pantalla de inicio')}</div>
-        </div>`;
-    }
-
-    const isIosDevice = isIOS();
-    const shareIcon = `<svg width="11" height="13" viewBox="0 0 13 16" fill="none" style="display:inline;vertical-align:middle">
-      <path d="M6.5 1v9M3.5 3.5L6.5 1l3 2.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-      <rect x="1" y="6" width="11" height="9" rx="2" stroke="currentColor" stroke-width="1.3" fill="none"/>
-    </svg>`;
-
-    if (isIosDevice) {
-      return `
-        <div style="font-size:.78rem;color:var(--text2);line-height:1.6;margin-bottom:10px">
-          1. ${_t('install_ios_step1','Toca')} <strong style="color:var(--text)">${_t('install_ios_share','Compartir')}</strong> ${shareIcon}
-          &nbsp;·&nbsp;
-          2. <strong style="color:var(--text)">${_t('install_ios_add','Añadir a pantalla de inicio')}</strong>
-          &nbsp;·&nbsp;
-          3. <strong style="color:var(--text)">${_t('install_ios_confirm','Añadir')}</strong>
+          <div style="font-size:.82rem;color:var(--text2)">${_t('install_already_done','App instalada — acceso rápido desde tu pantalla de inicio')}</div>
         </div>`;
     }
 
@@ -581,23 +674,13 @@
         box-shadow:0 4px 16px rgba(0,212,170,.28);letter-spacing:-.01em;
         transition:opacity .15s"
         onmouseover="this.style.opacity='.9'" onmouseout="this.style.opacity='1'">
-        ⬇ ${_t('install_btn', 'Instalar MoneyNest')}
+        📲 ${_t('install_cfg_btn','Instalar MoneyNest en este dispositivo')}
       </button>`;
   }
 
-  async function triggerInstall() {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      deferredPrompt = null;
-      if (outcome === 'accepted') {
-        localStorage.setItem(INSTALLED_KEY, 'true');
-        if (typeof renderConfiguracion === 'function') renderConfiguracion();
-      }
-    } else {
-      // Prompt no disponible — mostrar modal con instrucciones
-      _showDesktopModal();
-    }
+  function triggerInstall() {
+    // Mostrar modal de confirmación primero (¿Quieres instalar? → Sí / Ahora no)
+    showInstallConfirmModal();
   }
 
   // ── PWA events ────────────────────────────────────────────────────
@@ -632,8 +715,10 @@
     isStandalone,
     isInstalled,
     showModal: _showDesktopModal,
+    showConfirmModal: showInstallConfirmModal,
     showOnboardingModal: showOnboardingInstallModal,
     renderInstallCard,
     triggerInstall,
+    triggerInstallNow,
   };
 })();
