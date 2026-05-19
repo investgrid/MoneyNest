@@ -6062,6 +6062,17 @@ function renderConfiguracion() {
         </div>
       </div>
 
+      <!-- Instalar app -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">📲 ${t('install_cfg_titulo','Instalar app')}</div>
+            <div class="card-subtitle">${t('install_cfg_sub','Acceso rápido · offline · sin navegador')}</div>
+          </div>
+        </div>
+        ${window.MNInstall ? window.MNInstall.renderInstallCard() : ''}
+      </div>
+
       <!-- Demo Mode -->
       <div class="card">
         <div class="card-header">
@@ -10778,6 +10789,13 @@ function finishOnboarding() {
     _setTutDone()
     toast(`${t('hola')} ${S.usuario.nombre || 'Usuario'}! 🎉`)
   }
+
+  // Modal de instalación PWA — aparece 15 segundos después de terminar el onboarding
+  setTimeout(() => {
+    if (window.MNInstall && typeof window.MNInstall.showOnboardingModal === 'function') {
+      window.MNInstall.showOnboardingModal()
+    }
+  }, 15000)
 }
 
 async function _obRegisterSupabase() {

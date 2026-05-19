@@ -504,6 +504,13 @@
       sug_enviar_email: 'Enviar por email', sug_enviadas: 'Sugerencias enviadas',
       contacto_directo: 'Contacto directo',
       sug_vacio_titulo: 'Aún no hay sugerencias', sug_vacio_sub: '¡Sé el primero en proponer una mejora!',
+      // Instalar app
+      install_cfg_titulo: 'Instalar app', install_cfg_sub: 'Acceso rápido · sin conexión · sin navegador',
+      install_onb_title: '¡Instala MoneyNest!',
+      install_onb_desc: 'Accede más rápido, funciona sin conexión y sin abrir el navegador.',
+      install_understood: 'Entendido 👍',
+      install_later: 'Ahora no — puedo instalarlo desde Configuración',
+      install_already_done: 'App instalada — acceso rápido desde tu pantalla de inicio',
       // Análisis
       desglose_categorias: 'Desglose por categoría',
       fondo_emergencia: 'Fondo de emergencia', fondo_cobertura_rec: 'Recomendado: 6 meses',
@@ -937,6 +944,13 @@
       sug_enviar_email: 'Send by email', sug_enviadas: 'Submitted suggestions',
       contacto_directo: 'Direct contact',
       sug_vacio_titulo: 'No suggestions yet', sug_vacio_sub: 'Be the first to suggest an improvement!',
+      // Install PWA
+      install_cfg_titulo: 'Install app', install_cfg_sub: 'Quick access · offline · no browser',
+      install_onb_title: 'Install MoneyNest!',
+      install_onb_desc: 'Access faster, works offline and without opening a browser.',
+      install_understood: 'Got it 👍',
+      install_later: "Not now — I can install it from Settings",
+      install_already_done: 'App installed — quick access from your home screen',
       // Analysis
       desglose_categorias: 'Category breakdown',
       fondo_emergencia: 'Emergency fund', fondo_cobertura_rec: 'Recommended: 6 months',
