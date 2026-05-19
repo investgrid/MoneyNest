@@ -95,9 +95,6 @@
       throw Object.assign(new Error('Demasiados intentos. Espera unos minutos.'), { code: 'rate_limited' });
     }
 
-    // Step 1: create the account.
-    // emailRedirectTo set to empty string so Supabase does NOT send its own
-    // confirmation email — we send the numeric OTP ourselves in step 2.
     const { data, error } = await sb.auth.signUp({
       email,
       password,
@@ -111,25 +108,11 @@
       if (error.message?.includes('already registered') || error.status === 422) {
         throw Object.assign(new Error('Este email ya está registrado.'), { code: 'email_exists' });
       }
-      // User already exists but unconfirmed — treat as existing
       if (error.message?.includes('User already registered')) {
         throw Object.assign(new Error('Este email ya está registrado.'), { code: 'email_exists' });
       }
       throw error;
     }
-
-    // Step 2: send 6-digit OTP code for email verification.
-    // emailRedirectTo must be undefined/omitted so Supabase sends a numeric
-    // code instead of a magic link. Magic links only appear when a redirect
-    // URL is present in the request.
-    await sb.auth.signInWithOtp({
-      email,
-      options: {
-        shouldCreateUser:  false, // user already created above
-        emailRedirectTo:   undefined,
-        data: { display_name: displayName || null },
-      },
-    });
 
     if (data.user) {
       await _ensureProfile(data.user.id, email, displayName);
@@ -137,30 +120,6 @@
 
     _rl.reset(`signup:${email}`);
     return data;
-  }
-
-  // ── OTP: verify email with 6-digit code ─────────────────────────
-  async function verifyEmailOtp(email, token) {
-    if (!_rl.check(`otp:${email}`, 5, 15 * 60 * 1000)) {
-      throw Object.assign(new Error('Demasiados intentos. Espera unos minutos.'), { code: 'rate_limited' });
-    }
-    const { data, error } = await sb.auth.verifyOtp({ email, token, type: 'email' });
-    if (error) throw error;
-    if (data.user) await _syncProfileToLocal(data.user);
-    return data;
-  }
-
-  // ── OTP: resend verification email ──────────────────────────────
-  async function resendVerificationEmail(email) {
-    if (!_rl.check(`resend:${email}`, 3, 5 * 60 * 1000)) {
-      throw Object.assign(new Error('Espera unos minutos antes de reenviar.'), { code: 'rate_limited' });
-    }
-    // emailRedirectTo omitted → Supabase sends numeric OTP, not a magic link
-    const { error } = await sb.auth.signInWithOtp({
-      email,
-      options: { shouldCreateUser: false, emailRedirectTo: undefined },
-    });
-    if (error) throw error;
   }
 
   async function signIn(email, password) {
@@ -420,9 +379,6 @@
     // Password
     resetPassword,
     updatePassword,
-    // OTP
-    verifyEmailOtp,
-    resendVerificationEmail,
     // Profile
     getProfile,
     updateProfile,
