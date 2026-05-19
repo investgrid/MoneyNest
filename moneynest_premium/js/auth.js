@@ -17,11 +17,30 @@
  * ════════════════════════════════════════════════════════════════
  */
 
-// auth.js usa las constantes globales declaradas en app.js:
-// USER_KEY, TRIAL_DAYS, PLANS, DEFAULT_USER
 const MN_USER_KEY        = 'mn_user';
 const TRIAL_DURATION_MS  = 24 * 60 * 60 * 1000;
+const TRIAL_DAYS         = 1;   // 24h = 1 day (legacy compat)
 const PRO_TRIAL_DAYS     = 7;
+
+const PLANS = Object.freeze({
+  TRIAL:        'trial',
+  LOCKED_LOCAL: 'locked_local',
+  LOCAL:        'local',
+  PRO:          'pro',
+});
+
+const DEFAULT_USER = Object.freeze({
+  id:              null,
+  plan:            'trial',
+  trialEndsAt:     null,
+  createdAt:       null,
+  upgradedAt:      null,
+  email:           null,
+  supabaseId:      null,
+  cloudEnabled:    false,
+  proTrialUsed:    false,
+  proTrialEndsAt:  null,
+});
 
 
 // ════════════════════════════════════════════════════════════════
