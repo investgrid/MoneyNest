@@ -3304,6 +3304,12 @@ ize:.92rem;font-weight:700;color:var(--text);margin-bottom:5px;line-height:1.3}
 @keyframes mnFadeIn{from{opacity:0}to{opacity:1}}
 @keyframes mnSpin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 
+/* ─── TABLE SORT + SELECTION ────────────────────────────────────── */
+.table-wrap table th[onclick] { user-select: none; }
+.table-wrap table th[onclick]:hover { color: var(--accent); background: var(--accent-dim); }
+tr.row-selected td { background: rgba(99,102,241,0.06) !important; }
+tr.row-selected { border-left: 2px solid var(--indigo); }
+
 /* ─── PAGE TRANSITIONS ──────────────────────────────────────────── */
 @keyframes mnPageEnter {
   from { opacity: 0; transform: translateY(8px); }

@@ -3716,10 +3716,22 @@ let aportarTipo = 'nuevo'
 // ─── STORAGE ───────────────────────────────────────────────────
 function save() {
   try { localStorage.setItem(SK, JSON.stringify(S)) } catch(e) {}
-  // Keep browser title in sync with available balance
   try { updateDocTitle() } catch(e) {}
-  // Notify mission tracker and other listeners
   try { document.dispatchEvent(new CustomEvent('mn:saved')) } catch(e) {}
+  // Confetti: primer mes con cashflow positivo
+  try {
+    const _cfKey = 'mn_cf_celebrated'
+    if (!localStorage.getItem(_cfKey) && typeof calcCashFlow === 'function' && typeof currentMonth === 'function') {
+      const cf = calcCashFlow(currentMonth())
+      if (cf > 0 && S.gastos.length >= 3 && S.ingresos.length >= 1) {
+        localStorage.setItem(_cfKey, '1')
+        setTimeout(() => {
+          if (window.MNConfetti) window.MNConfetti.fire('cashflow')
+          document.dispatchEvent(new CustomEvent('mn:cashflow:positivo'))
+        }, 800)
+      }
+    }
+  } catch(e) {}
 }
 function load() {
   S = defaultState() // always start from clean default
@@ -4153,7 +4165,7 @@ function renderDashboard() {
     <div class="patrimonio-hero" style="margin-bottom:0">
       <div class="patrimonio-label">${t('patrimonio_neto')}</div>
       <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap">
-        <div class="patrimonio-num" data-animate-raw="${pat}">${eur(pat)}</div>
+        <div class="patrimonio-num" data-animate-raw="${pat}" data-sparkline="patrimonio">${eur(pat)}</div>
         ${patDelta !== null ? `<span class="kpi-delta ${deltaClass(patDelta)}" style="font-size:.82rem">${deltaIcon(patDelta)} ${pct(Math.abs(patDelta))} vs. mes ant.</span>` : ''}
       </div>
       <div class="patrimonio-stats" style="margin-top:12px">
@@ -4185,21 +4197,21 @@ function renderDashboard() {
 
   <!-- ── KPI STRIP ─────────────────────────────────────────────── -->
   <div class="kpi-grid kpi-grid-3" style="margin-bottom:14px">
-    <div class="kpi-card">
+    <div class="kpi-card" data-sparkline="ingresos">
       <div class="kpi-icon" style="background:var(--green-dim)">💰</div>
       <div class="kpi-label">${t('ingresos_mes')}</div>
       <div class="kpi-value" data-animate-raw="${ing}">${eur(ing)}</div>
       ${ingP ? `<span class="kpi-delta ${deltaClass(ing-ingP)}">${deltaIcon(ing-ingP)} ${pct(Math.abs(ingP?((ing-ingP)/ingP*100):0))} vs. ant.</span>` : '<span class="kpi-delta neu">Primer mes</span>'}
       <div class="kpi-sub" style="margin-top:5px">${S.ingresos.filter(i=>i.status!=='pending'&&(i.fecha||'').startsWith(m)).length} entradas</div>
     </div>
-    <div class="kpi-card">
+    <div class="kpi-card" data-sparkline="gastos">
       <div class="kpi-icon" style="background:var(--red-dim)">💳</div>
       <div class="kpi-label">${t('gastos_mes')}</div>
       <div class="kpi-value" data-animate-raw="${gas}">${eur(gas)}</div>
       ${gasP ? `<span class="kpi-delta ${gas>gasP?'down':'up'}">${gas>gasP?'↑':'↓'} ${pct(Math.abs(gasP?((gas-gasP)/gasP*100):0))} vs. ant.</span>` : '<span class="kpi-delta neu">Primer mes</span>'}
       <div class="kpi-sub" style="margin-top:5px">${S.gastos.filter(g=>g.tipo!==TX_TYPES.GOAL_TRANSFER&&(g.fecha||'').startsWith(m)).length} salidas</div>
     </div>
-    <div class="kpi-card">
+    <div class="kpi-card" data-sparkline="cashflow">
       <div class="kpi-icon" style="background:${cf>=0?'var(--accent-dim)':'var(--red-dim)'}">${cf>=0?'📊':'⚠️'}</div>
       <div class="kpi-label">${t('cash_flow')}</div>
       <div class="kpi-value" style="color:${cf>=0?'var(--accent)':'var(--red)'}" data-animate-raw="${cf}">${cf>=0?'+':''}${eur(cf)}</div>
@@ -4400,6 +4412,34 @@ function renderPresupuestosResumen() {
 
 // ─── INGRESOS ──────────────────────────────────────────────────
 let _ingSearch = '', _ingCatFilter = '', _ingMesFilter = ''
+let _ingSort = { col: 'fecha', dir: 'desc' }
+let _ingSelected = new Set()
+
+function _ingSetSort(col) {
+  if (_ingSort.col === col) _ingSort.dir = _ingSort.dir === 'asc' ? 'desc' : 'asc'
+  else { _ingSort.col = col; _ingSort.dir = col === 'fecha' ? 'desc' : 'asc' }
+  renderIngresos()
+}
+function _ingToggleSelect(id) {
+  if (_ingSelected.has(id)) _ingSelected.delete(id); else _ingSelected.add(id)
+  const bar = document.getElementById('_ingBulkBar')
+  if (bar) bar.style.display = _ingSelected.size ? 'flex' : 'none'
+  const countEl = document.getElementById('_ingBulkCount')
+  if (countEl) countEl.textContent = _ingSelected.size
+}
+function _ingBulkDelete() {
+  if (!_ingSelected.size) return
+  confirmar(
+    `¿Eliminar ${_ingSelected.size} ingreso${_ingSelected.size>1?'s':''}?`,
+    t('confirm_eliminar_ingreso_titulo','Eliminar'),
+    t('btn_eliminar','Eliminar'),
+    () => {
+      S.ingresos = S.ingresos.filter(i => !_ingSelected.has(i.id))
+      _ingSelected.clear()
+      save(); render()
+    }
+  )
+}
 
 function renderIngresos() {
   const m = currentMonth()
@@ -4438,7 +4478,17 @@ function renderIngresos() {
       if (_ingCatFilter && i.categoria !== _ingCatFilter) return false
       return true
     })
-    .sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''))
+    .sort((a,b) => {
+      const col = _ingSort.col, dir = _ingSort.dir === 'asc' ? 1 : -1
+      if (col === 'importe') return dir * ((Number(a.importe)||0) - (Number(b.importe)||0))
+      if (col === 'categoria') return dir * (a.categoria||'').localeCompare(b.categoria||'')
+      return dir * (b.fecha||'').localeCompare(a.fecha||'') * -1
+    })
+
+  const _ingSortIcon = (col) => {
+    if (_ingSort.col !== col) return '<span style="opacity:.3;font-size:.65rem">⇅</span>'
+    return `<span style="font-size:.65rem;color:var(--accent)">${_ingSort.dir==='asc'?'↑':'↓'}</span>`
+  }
 
   const pendingRows = pendingIngs.map(i=>`
     <tr style="background:rgba(245,158,11,0.05)">
@@ -4456,7 +4506,8 @@ function renderIngresos() {
     </tr>`).join('')
 
   const rows = receivedIngs.map(i=>`
-    <tr>
+    <tr class="${_ingSelected.has(i.id)?'row-selected':''}">
+      <td style="width:28px"><input type="checkbox" ${_ingSelected.has(i.id)?'checked':''} onchange="_ingToggleSelect('${i.id}')" style="cursor:pointer"></td>
       <td class="td-main">${i.concepto||'—'}</td>
       <td class="td-amount td-pos">+${eur(i.importe)}</td>
       <td><span class="cat-with-emoji"><span class="cat-emoji">${catEmoji(i.categoria)}</span><span class="tag">${i.categoria||'—'}</span></span></td>
@@ -4561,11 +4612,24 @@ function renderIngresos() {
     <span style="margin-left:auto;font-size:.78rem;color:var(--text2)">${receivedIngs.length} cobrado${receivedIngs.length!==1?'s':''}</span>
   </div>
 
+  <!-- Bulk action bar -->
+  <div id="_ingBulkBar" style="display:none;align-items:center;gap:10px;padding:8px 14px;background:var(--indigo-dim);border:1px solid rgba(99,102,241,.3);border-radius:var(--radius-sm);margin-bottom:8px">
+    <span style="font-size:.82rem;font-weight:700;color:var(--indigo)"><span id="_ingBulkCount">0</span> seleccionados</span>
+    <button class="btn btn-primary btn-sm" style="background:var(--red);box-shadow:none" onclick="_ingBulkDelete()">🗑 ${t('btn_eliminar','Eliminar')}</button>
+    <button class="btn btn-ghost btn-sm" onclick="_ingSelected.clear();renderIngresos()">✕ ${t('limpiar','Cancelar')}</button>
+  </div>
   <div class="card">
     <div class="card-header"><div class="card-title">✅ ${t('ingresos_cobrados')}</div></div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>${t('concepto')}</th><th>${t('importe')}</th><th>${t('categoria')}</th><th>${t('fecha')}</th><th>${t('cuenta_lbl')}</th><th></th><th>${t('acciones')}</th></tr></thead>
+        <thead><tr>
+          <th style="width:28px"><input type="checkbox" onchange="if(this.checked){receivedIngs.forEach(i=>_ingSelected.add(i.id))}else{_ingSelected.clear()};renderIngresos()" style="cursor:pointer"></th>
+          <th style="cursor:pointer" onclick="_ingSetSort('concepto')">${t('concepto')} ${_ingSortIcon('concepto')}</th>
+          <th style="cursor:pointer" onclick="_ingSetSort('importe')">${t('importe')} ${_ingSortIcon('importe')}</th>
+          <th style="cursor:pointer" onclick="_ingSetSort('categoria')">${t('categoria')} ${_ingSortIcon('categoria')}</th>
+          <th style="cursor:pointer" onclick="_ingSetSort('fecha')">${t('fecha')} ${_ingSortIcon('fecha')}</th>
+          <th>${t('cuenta_lbl')}</th><th></th><th>${t('acciones')}</th>
+        </tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </div>
@@ -4591,6 +4655,34 @@ function exportarIngresos() {
 }
 // ─── GASTOS ────────────────────────────────────────────────────
 let _gasSearch = '', _gasCatFilter = '', _gasMesFilter = ''
+let _gasSort = { col: 'fecha', dir: 'desc' }
+let _gasSelected = new Set()
+
+function _gasSetSort(col) {
+  if (_gasSort.col === col) _gasSort.dir = _gasSort.dir === 'asc' ? 'desc' : 'asc'
+  else { _gasSort.col = col; _gasSort.dir = col === 'fecha' ? 'desc' : 'asc' }
+  renderGastos()
+}
+function _gasToggleSelect(id) {
+  if (_gasSelected.has(id)) _gasSelected.delete(id); else _gasSelected.add(id)
+  const bar = document.getElementById('_gasBulkBar')
+  if (bar) bar.style.display = _gasSelected.size ? 'flex' : 'none'
+  const countEl = document.getElementById('_gasBulkCount')
+  if (countEl) countEl.textContent = _gasSelected.size
+}
+function _gasBulkDelete() {
+  if (!_gasSelected.size) return
+  confirmar(
+    `¿Eliminar ${_gasSelected.size} gasto${_gasSelected.size>1?'s':''}?`,
+    t('confirm_eliminar_gasto_titulo','Eliminar'),
+    t('btn_eliminar','Eliminar'),
+    () => {
+      S.gastos = S.gastos.filter(g => !_gasSelected.has(g.id))
+      _gasSelected.clear()
+      save(); render()
+    }
+  )
+}
 
 function renderGastos() {
   const m = currentMonth()
@@ -4621,10 +4713,21 @@ function renderGastos() {
       if (_gasCatFilter && g.categoria !== _gasCatFilter) return false
       return true
     })
-    .sort((a,b)=>b.fecha?.localeCompare(a.fecha||'')||0)
+    .sort((a, b) => {
+      const col = _gasSort.col, dir = _gasSort.dir === 'asc' ? 1 : -1
+      if (col === 'importe') return dir * ((Number(a.importe)||0) - (Number(b.importe)||0))
+      if (col === 'categoria') return dir * (a.categoria||'').localeCompare(b.categoria||'')
+      return dir * ((b.fecha||'').localeCompare(a.fecha||'') * -1)
+    })
+
+  const _gasSortIcon = (col) => {
+    if (_gasSort.col !== col) return '<span style="opacity:.3;font-size:.65rem">⇅</span>'
+    return `<span style="font-size:.65rem;color:var(--accent)">${_gasSort.dir==='asc'?'↑':'↓'}</span>`
+  }
 
   const rows = todos.map(g=>`
-    <tr>
+    <tr class="${_gasSelected.has(g.id)?'row-selected':''}">
+      <td style="width:28px"><input type="checkbox" ${_gasSelected.has(g.id)?'checked':''} onchange="_gasToggleSelect('${g.id}')" style="cursor:pointer"></td>
       <td class="td-main">${g.concepto||'—'}</td>
       <td class="td-amount td-neg">−${eur(g.importe)}</td>
       <td><span class="cat-with-emoji"><span class="cat-emoji">${catEmoji(g.categoria)}</span><span class="tag">${g.categoria||'—'}</span></span></td>
@@ -4698,11 +4801,24 @@ function renderGastos() {
     <span style="margin-left:auto;font-size:.78rem;color:var(--text2)">${todos.length} resultado${todos.length!==1?'s':''}</span>
   </div>
 
+  <!-- Bulk action bar -->
+  <div id="_gasBulkBar" style="display:none;align-items:center;gap:10px;padding:8px 14px;background:var(--indigo-dim);border:1px solid rgba(99,102,241,.3);border-radius:var(--radius-sm);margin-bottom:8px">
+    <span style="font-size:.82rem;font-weight:700;color:var(--indigo)"><span id="_gasBulkCount">0</span> seleccionados</span>
+    <button class="btn btn-primary btn-sm" style="background:var(--red);box-shadow:none" onclick="_gasBulkDelete()">🗑 ${t('btn_eliminar','Eliminar')}</button>
+    <button class="btn btn-ghost btn-sm" onclick="_gasSelected.clear();renderGastos()">✕ ${t('limpiar','Cancelar')}</button>
+  </div>
   <div class="card">
     <div class="card-header"><div class="card-title">${t('todos_gastos')}</div></div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>${t('concepto')}</th><th>${t('importe')}</th><th>${t('categoria')}</th><th>${t('fecha')}</th><th>${t('cuenta_lbl')}</th><th></th><th>${t('acciones')}</th></tr></thead>
+        <thead><tr>
+          <th style="width:28px"><input type="checkbox" onchange="if(this.checked){todos.forEach(g=>_gasSelected.add(g.id))}else{_gasSelected.clear()};renderGastos()" style="cursor:pointer"></th>
+          <th style="cursor:pointer" onclick="_gasSetSort('concepto')">${t('concepto')} ${_gasSortIcon('concepto')}</th>
+          <th style="cursor:pointer" onclick="_gasSetSort('importe')">${t('importe')} ${_gasSortIcon('importe')}</th>
+          <th style="cursor:pointer" onclick="_gasSetSort('categoria')">${t('categoria')} ${_gasSortIcon('categoria')}</th>
+          <th style="cursor:pointer" onclick="_gasSetSort('fecha')">${t('fecha')} ${_gasSortIcon('fecha')}</th>
+          <th>${t('cuenta_lbl')}</th><th></th><th>${t('acciones')}</th>
+        </tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </div>
@@ -5658,6 +5774,9 @@ function renderPresupuestos() {
   </div>
 
   <div class="card">${items}</div>`
+
+  // Animate budget alert cards
+  if (window.MNPremiumFeatures) setTimeout(window.MNPremiumFeatures.enhanceBudgetCards, 80)
 }
 
 function exportarPresupuestos() {
@@ -7071,6 +7190,14 @@ function registrarPago() {
   S.deudas[idx].importePagado = Math.min(Number(S.deudas[idx].importeTotal), (Number(S.deudas[idx].importePagado)||0)+importe)
   if (!S.deudas[idx].pagos) S.deudas[idx].pagos = []
   S.deudas[idx].pagos.push({fecha:document.getElementById('pagoFecha').value||todayISO(),importe})
+  // Confetti when debt is fully paid
+  const deudaSaldada = S.deudas[idx].importePagado >= Number(S.deudas[idx].importeTotal)
+  if (deudaSaldada) {
+    setTimeout(() => {
+      if (window.MNConfetti) window.MNConfetti.fire('debt')
+      document.dispatchEvent(new CustomEvent('mn:deuda:saldada', { detail: { deuda: S.deudas[idx] } }))
+    }, 300)
+  }
   save(); closeModal('pagoModal'); render(); toast(eur(importe) + ' – ' + t('toast_pago_registrado'))
 }
 
@@ -7233,6 +7360,16 @@ function confirmarAportar() {
 
   // Increase goal progress regardless of source
   S.objetivos[idx].actual = (Number(S.objetivos[idx].actual)||0) + importe
+
+  // Confetti when goal is completed (100%)
+  const obj2 = S.objetivos[idx]
+  const isNowComplete = (Number(obj2.actual)||0) >= (Number(obj2.objetivo)||1)
+  if (isNowComplete) {
+    setTimeout(() => {
+      if (window.MNConfetti) window.MNConfetti.fire('goal')
+      document.dispatchEvent(new CustomEvent('mn:objetivo:completado', { detail: { obj: obj2 } }))
+    }, 300)
+  }
 
   save(); closeModal('aportarModal'); render(); toast(eur(importe) + ' ' + t('toast_aportado_ok'))
 }
@@ -8578,34 +8715,37 @@ function renderAnalisis() {
   </div>
 
   ${_gFilterBar('renderAnalisis()')}
+  ${window.MNCompare ? window.MNCompare.renderSelector() : ''}
 
-  <!-- KPIs rápidos -->
+  <!-- KPIs rápidos con deltas comparación -->
   <div class="kpi-grid kpi-grid-4" style="margin-bottom:20px">
-    <div class="kpi-card">
+    <div class="kpi-card" data-sparkline="cashflow">
       <div class="kpi-icon" style="background:var(--gold-dim)">🔥</div>
-      <div class="kpi-label">Burn Rate</div>
-      <div class="kpi-value sm" style="color:${burnMonths>=6?'var(--green)':burnMonths>=3?'var(--gold)':'var(--red)'}">${burnMonths} meses</div>
-      <div class="kpi-sub">Con ${eur(calcDineroDisponible())} disponible</div>
+      <div class="kpi-label">${t('burn_rate','Burn Rate')}</div>
+      <div class="kpi-value sm" style="color:${burnMonths>=6?'var(--green)':burnMonths>=3?'var(--gold)':'var(--red)'}">${burnMonths} ${t('meses','meses')}</div>
+      <div class="kpi-sub">${eur(calcDineroDisponible())} ${t('topbar_disponible','disponible')}</div>
     </div>
-    <div class="kpi-card">
+    <div class="kpi-card" data-sparkline="ingresos">
       <div class="kpi-icon" style="background:var(--green-dim)">💰</div>
-      <div class="kpi-label">Tasa de ahorro</div>
+      <div class="kpi-label">${t('tasa_ahorro','Tasa de ahorro')}</div>
       <div class="kpi-value sm" style="color:${tasaAhorro>=20?'var(--green)':tasaAhorro>=10?'var(--gold)':'var(--red)'}">${pct(tasaAhorro)}</div>
       <div style="display:flex;align-items:center;flex-wrap:wrap;margin-top:4px">
-        <span class="kpi-sub" style="margin:0">${tasaAhorro>=20?'Excelente ✅':tasaAhorro>=10?'Mejorable ⚡':'Bajo ⚠️'}</span>${momBadge(momTasa, false)}
+        <span class="kpi-sub" style="margin:0">${tasaAhorro>=20?t('rating_excelente','Excelente ✅'):tasaAhorro>=10?t('rating_mejorable','Mejorable ⚡'):t('rating_bajo','Bajo ⚠️')}</span>
+        ${momBadge(momTasa, false)}
+        ${window.MNCompare&&window._analisisCompareMonth?window.MNCompare.delta(tasaAhorro,calcSavingsRate(window._analisisCompareMonth)):''}
       </div>
     </div>
     <div class="kpi-card">
       <div class="kpi-icon" style="background:var(--indigo-dim)">📈</div>
-      <div class="kpi-label">Cartera inversiones</div>
+      <div class="kpi-label">${t('cartera_inversion','Cartera inversiones')}</div>
       <div class="kpi-value sm">${eur(totalInv)}</div>
-      <div class="kpi-sub">Latente: <span style="color:${gananciaLatente>=0?'var(--green)':'var(--red)'}">${gananciaLatente>=0?'+':''}${eur(gananciaLatente)}</span></div>
+      <div class="kpi-sub">${t('inv_ganancia_latente','Latente')}: <span style="color:${gananciaLatente>=0?'var(--green)':'var(--red)'}">${gananciaLatente>=0?'+':''}${eur(gananciaLatente)}</span></div>
     </div>
     <div class="kpi-card">
       <div class="kpi-icon" style="background:var(--accent-dim)">🏆</div>
-      <div class="kpi-label">Ganancias realizadas</div>
+      <div class="kpi-label">${t('inv_ganancia_realizada','Ganancias realizadas')}</div>
       <div class="kpi-value sm" style="color:${gananciaRealizada>=0?'var(--green)':'var(--red)'}">${gananciaRealizada>=0?'+':''}${eur(gananciaRealizada)}</div>
-      <div class="kpi-sub">ROI medio: ${roiMedio?pct(roiMedio):'—'}</div>
+      <div class="kpi-sub">ROI: ${roiMedio?pct(roiMedio):'—'}</div>
     </div>
   </div>
 
@@ -8613,13 +8753,13 @@ function renderAnalisis() {
   <div class="grid-2" style="margin-bottom:16px">
     <div class="card">
       <div class="card-header">
-        <div><div class="card-title">📊 Cashflow mensual</div><div class="card-subtitle">Últimos 12 meses · verde = superávit</div></div>
+        <div><div class="card-title">📊 ${t('analisis_cashflow_titulo','Cashflow mensual')}</div><div class="card-subtitle">${t('ultimos_12_meses','Últimos 12 meses')}</div></div>
       </div>
       <div class="chart-container" style="height:160px"><canvas id="chartCashflowBars"></canvas></div>
     </div>
     <div class="card">
       <div class="card-header">
-        <div><div class="card-title">🗓 Gastos por día de semana</div><div class="card-subtitle">Patrón de los últimos 3 meses</div></div>
+        <div><div class="card-title">🗓 ${t('analisis_heatmap_titulo','Gastos por día de semana')}</div><div class="card-subtitle">${t('analisis_heatmap_sub','Patrón de los últimos 3 meses')}</div></div>
       </div>
       ${_renderDayOfWeekHeatmap()}
     </div>
@@ -8628,11 +8768,11 @@ function renderAnalisis() {
   <!-- Evolución patrimonio + Gasto por categoría -->
   <div class="grid-2" style="margin-bottom:16px">
     <div class="card">
-      <div class="card-header"><div class="card-title">📈 Evolución patrimonio neto</div><div class="card-subtitle">Últimos 6 meses</div></div>
+      <div class="card-header"><div class="card-title">📈 ${t('evolucion_patrimonio','Evolución patrimonio neto')}</div><div class="card-subtitle">${t('ultimos_6_meses','Últimos 6 meses')}</div></div>
       <div class="chart-container"><canvas id="chartAnalisisPatrimonio"></canvas></div>
     </div>
     <div class="card">
-      <div class="card-header"><div class="card-title">🍩 Ingresos vs Gastos</div><div class="card-subtitle">Tendencia mensual</div></div>
+      <div class="card-header"><div class="card-title">🍩 ${t('analisis_ing_vs_gas','Ingresos vs Gastos')}</div><div class="card-subtitle">${t('tendencia_mensual','Tendencia mensual')}</div></div>
       <div class="chart-container"><canvas id="chartAnalisisTendencia"></canvas></div>
     </div>
   </div>
@@ -8902,22 +9042,86 @@ function renderAnalisis() {
     }
 
     const patCtx = document.getElementById('chartAnalisisPatrimonio')
-    if(patCtx){
+    if (patCtx) {
       destroyChart('analisisPat')
       const meses = getMonths(6)
-      charts['analisisPat'] = new Chart(patCtx,{type:'line',data:{labels:meses.map(monthLabel),datasets:[{label:'Patrimonio',data:meses.map(mo=>{const h=S.patrimonio_hist.find(x=>x.mes===mo);return h?h.valor:null}),borderColor:'#00D4AA',backgroundColor:'rgba(0,212,170,0.08)',fill:true,tension:.4,pointRadius:3,borderWidth:2}]},options:{...chartDefaults(),plugins:{...chartDefaults().plugins,legend:{display:false}},scales:{x:{grid:{color:gridColor()},ticks:{color:labelColor(),font:{size:10}}},y:{grid:{color:gridColor()},ticks:{color:labelColor(),font:{size:10},callback:v=>eur(v)}}}}})
+      const patVals = meses.map(mo => { const h = S.patrimonio_hist.find(x => x.mes === mo); return h ? h.valor : null })
+      charts['analisisPat'] = new Chart(patCtx, {
+        type: 'line',
+        data: {
+          labels: meses.map(monthLabel),
+          datasets: [{
+            label: t('patrimonio_neto','Patrimonio'),
+            data: patVals,
+            borderColor: '#00D4AA',
+            backgroundColor: c => {
+              try {
+                const h2 = c.chart.chartArea?.bottom || 200
+                const g = c.chart.ctx.createLinearGradient(0, 0, 0, h2)
+                g.addColorStop(0, 'rgba(0,212,170,0.2)'); g.addColorStop(1, 'rgba(0,212,170,0)')
+                return g
+              } catch { return 'rgba(0,212,170,0.1)' }
+            },
+            fill: true, tension: 0.42,
+            pointRadius: 4, pointHoverRadius: 6,
+            pointBackgroundColor: '#00D4AA',
+            pointBorderColor: S.theme === 'light' ? '#fff' : '#0A0E17',
+            pointBorderWidth: 2,
+            borderWidth: 2.5, spanGaps: true,
+          }]
+        },
+        options: { ...chartDefaults(),
+          plugins: { ...chartDefaults().plugins,
+            tooltip: { ...chartDefaults().plugins.tooltip, callbacks: { label: c => ' ' + eur(c.raw) } }
+          },
+          scales: {
+            x: { grid: { color: 'transparent' }, ticks: { color: labelColor(), font: { size: 10 } }, border: { color: 'transparent' } },
+            y: { grid: { color: gridColor() }, border: { color: 'transparent' },
+              ticks: { color: labelColor(), font: { size: 10 }, callback: v => eur(v) }
+            }
+          }
+        }
+      })
     }
-    // Tendencia ingvsgasto
+    // Tendencia ingvsgasto — barras agrupadas con colores premium
     const tendCtx = document.getElementById('chartAnalisisTendencia')
-    if(tendCtx){
+    if (tendCtx) {
       destroyChart('analisisTend')
       const meses = getMonths(6)
       const mesesIngData = meses.map(calcIngresosMes)
       const mesesGasData = meses.map(calcGastosMes)
-      const allVals = [...mesesIngData, ...mesesGasData].filter(v=>v>0)
-      const nonZero = meses.filter((_,i)=>mesesIngData[i]>0||mesesGasData[i]>0).length
+      const allVals = [...mesesIngData, ...mesesGasData].filter(v => v > 0)
+      const nonZero = meses.filter((_, i) => mesesIngData[i] > 0 || mesesGasData[i] > 0).length
       const tendBarPct = nonZero <= 1 ? 0.2 : nonZero <= 3 ? 0.5 : 0.75
-      charts['analisisTend'] = new Chart(tendCtx,{type:'bar',data:{labels:meses.map(monthLabel),datasets:[{label:'Ingresos',data:mesesIngData,backgroundColor:'rgba(16,185,129,.75)',borderRadius:5,categoryPercentage:tendBarPct,barPercentage:0.85},{label:'Gastos',data:mesesGasData,backgroundColor:'rgba(244,63,94,.75)',borderRadius:5,categoryPercentage:tendBarPct,barPercentage:0.85}]},options:{...chartDefaults(),plugins:{...chartDefaults().plugins,legend:{display:true,labels:{color:labelColor(),boxWidth:10,font:{size:10}}}},scales:{x:{grid:{color:'transparent'},ticks:{color:labelColor(),font:{size:10}}},y:{grid:{color:gridColor()},ticks:{color:labelColor(),font:{size:10},callback:v=>eur(v)},suggestedMin:0,suggestedMax:allVals.length?Math.max(...allVals)*1.2:100}}}})
+      charts['analisisTend'] = new Chart(tendCtx, {
+        type: 'bar',
+        data: {
+          labels: meses.map(monthLabel),
+          datasets: [
+            { label: t('nav_ingresos','Ingresos'), data: mesesIngData,
+              backgroundColor: 'rgba(16,185,129,0.8)', borderRadius: 5,
+              borderColor: '#10B981', borderWidth: 1,
+              categoryPercentage: tendBarPct, barPercentage: 0.85 },
+            { label: t('nav_gastos','Gastos'), data: mesesGasData,
+              backgroundColor: 'rgba(244,63,94,0.75)', borderRadius: 5,
+              borderColor: '#F43F5E', borderWidth: 1,
+              categoryPercentage: tendBarPct, barPercentage: 0.85 }
+          ]
+        },
+        options: { ...chartDefaults(),
+          plugins: { ...chartDefaults().plugins,
+            legend: { display: true, labels: { color: labelColor(), boxWidth: 8, boxHeight: 8, padding: 14, font: { size: 11, weight: '600' } } },
+            tooltip: { ...chartDefaults().plugins.tooltip, callbacks: { title: i => i[0].label, label: c => ' ' + c.dataset.label + ': ' + eur(c.raw) } }
+          },
+          scales: {
+            x: { grid: { color: 'transparent' }, ticks: { color: labelColor(), font: { size: 10 } }, border: { color: 'transparent' } },
+            y: { grid: { color: gridColor() }, border: { color: 'transparent' },
+              ticks: { color: labelColor(), font: { size: 10 }, callback: v => eur(v) },
+              suggestedMin: 0, suggestedMax: allVals.length ? Math.max(...allVals) * 1.2 : 100
+            }
+          }
+        }
+      })
     }
     // Financial Planner chart
     const planCtx = document.getElementById('chartFinancialPlanner')
@@ -11985,6 +12189,10 @@ function render() {
         }
         // Animate EOM value
         if (window.MNKPIAnimator) window.MNKPIAnimator.runDashboardAnimations()
+        // Sparklines
+        if (window.MNPremiumFeatures) {
+          requestAnimationFrame(() => window.MNPremiumFeatures.renderSparklines())
+        }
       })
     }
   }
@@ -12308,7 +12516,6 @@ let _qaType = 'gasto'
 let _qaCat  = ''
 
 function openQuickAdd() {
-  // Guests cannot add movements
   if (isGuest()) { _showGuestGateModal(); return }
   _qaType = 'gasto'
   _qaCat  = ''
@@ -12316,7 +12523,11 @@ function openQuickAdd() {
   document.getElementById('quickConcepto').value = ''
   setQuickType('gasto')
   document.getElementById('quickAddModal').classList.add('open')
-  setTimeout(() => document.getElementById('quickAmount').focus(), 200)
+  setTimeout(() => {
+    document.getElementById('quickAmount').focus()
+    document.dispatchEvent(new CustomEvent('mn:quickadd:open'))
+    if (window.MNPremiumFeatures) window.MNPremiumFeatures.initQuickAddPredictor()
+  }, 120)
 }
 
 function closeQuickAdd() {

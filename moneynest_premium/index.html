@@ -1407,6 +1407,9 @@
     // 2b. Inicializa el sistema de billing premium
     if (window.MNBillingUI) MNBillingUI.init();
 
+    // 2d. Inicializa premium features (sparklines, swipe, confetti, predictor, budget alerts)
+    if (window.MNPremiumFeatures) MNPremiumFeatures.init();
+
     // 2c. Inicializa el Payment Element (comprueba retorno 3DS)
     if (window.MNPayment) MNPayment.init();
 
@@ -1439,6 +1442,7 @@
 </script>
 <script src="js/kpi-animator.js"></script>
 <script src="js/premium-empty-states.js"></script>
+<script src="js/premium-features.js"></script>
 <script src="js/premium-ux.js"></script>
 <script src="js/install-prompt.js"></script>
 </body>

@@ -504,6 +504,15 @@
       sug_enviar_email: 'Enviar por email', sug_enviadas: 'Sugerencias enviadas',
       contacto_directo: 'Contacto directo',
       sug_vacio_titulo: 'Aún no hay sugerencias', sug_vacio_sub: '¡Sé el primero en proponer una mejora!',
+      // Análisis mejorado
+      analisis_cashflow_titulo: 'Cashflow mensual', analisis_heatmap_titulo: 'Gastos por día de semana',
+      analisis_heatmap_sub: 'Patrón de los últimos 3 meses', analisis_ing_vs_gas: 'Ingresos vs Gastos',
+      tendencia_mensual: 'Tendencia mensual',
+      // Comparar meses
+      comparar_con: 'Comparar con', ninguno: '— Sin comparar',
+      // Quick-add
+      burn_rate: 'Burn Rate', tasa_ahorro: 'Tasa de ahorro', con_disponible: 'Con',
+      medio_lbl: 'medio',
       cliente_nuevo: 'Nuevo Cliente',
       cliente_editar: 'Editar Cliente',
     },
@@ -866,6 +875,14 @@
       sug_enviar_email: 'Send by email', sug_enviadas: 'Submitted suggestions',
       contacto_directo: 'Direct contact',
       sug_vacio_titulo: 'No suggestions yet', sug_vacio_sub: 'Be the first to suggest an improvement!',
+      // Analysis
+      analisis_cashflow_titulo: 'Monthly cashflow', analisis_heatmap_titulo: 'Spending by day of week',
+      analisis_heatmap_sub: 'Pattern over the last 3 months', analisis_ing_vs_gas: 'Income vs Expenses',
+      tendencia_mensual: 'Monthly trend',
+      // Compare months
+      comparar_con: 'Compare with', ninguno: '— No comparison',
+      // KPIs
+      burn_rate: 'Burn Rate', tasa_ahorro: 'Savings rate', con_disponible: 'With', medio_lbl: 'average',
       // Data Manager
       dm_exportado_moneynest: '✅ .moneynest file exported successfully',
       dm_error_exportar: '❌ Export error',

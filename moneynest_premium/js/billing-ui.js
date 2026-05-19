@@ -597,11 +597,11 @@ function _renderPro(content) {
       <!-- CTA principal de gestión -->
       <div class="mn-sub-manage-cta">
         <button class="mn-sub-manage-btn"
-          onclick="alert('${t('billing_sub_manage_soon')}')">
+          onclick="MNBillingUI.openStripePortal()">
           ${t('billing_sub_manage_btn')}
         </button>
         <button class="mn-sub-invoices-btn"
-          onclick="alert('${t('billing_sub_invoices_soon')}')">
+          onclick="MNBillingUI.openStripePortal()">
           ${t('billing_sub_invoices_btn')}
         </button>
       </div>
@@ -1089,6 +1089,51 @@ function initBillingUI() {
 //  EXPORTS
 // ════════════════════════════════════════════════════════════════
 
+// ════════════════════════════════════════════════════════════════
+//  STRIPE CUSTOMER PORTAL
+// ════════════════════════════════════════════════════════════════
+
+async function openStripePortal() {
+  // Requires the user to have a Supabase session and a Stripe customer ID.
+  // Calls the create-portal Edge Function, which returns a redirect URL.
+  const PORTAL_ENDPOINT = 'https://jwddciqqhmfkbqhdrfre.supabase.co/functions/v1/create-portal';
+
+  // Show loading state
+  if (typeof window.toast === 'function') toast('⏳ Abriendo portal de facturación…');
+
+  try {
+    const session = window.MNSupabaseAuth?.getSession?.();
+    const token   = session?.access_token;
+
+    const res = await fetch(PORTAL_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({
+        return_url: window.location.href,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || !data.url) {
+      throw new Error(data.error || 'No se pudo abrir el portal');
+    }
+
+    // Open in same tab (portal redirects back to return_url)
+    window.location.href = data.url;
+
+  } catch (err) {
+    console.warn('[MNBillingUI] Portal error:', err);
+    // Graceful fallback: show message instead of crashing
+    if (typeof window.toast === 'function') {
+      toast('⚠ ' + (err.message || 'Error al abrir el portal. Contacta con soporte.'), 'error');
+    }
+  }
+}
+
 window.MNBillingUI = {
   init:              initBillingUI,
   renderBillingPage,
@@ -1105,6 +1150,8 @@ window.MNBillingUI = {
   showCancelConfirm,
   hideCancelConfirm,
   confirmCancelPro,
+  // Portal
+  openStripePortal,
   // Export gating
   _exportBlocked,
   _applyExportGating,
