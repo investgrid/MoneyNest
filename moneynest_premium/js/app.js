@@ -5151,9 +5151,38 @@ function renderDeudas() {
     </div>`
   }).join('') || (window.mnEmptyStates ? window.mnEmptyStates.deudas(!!(_deudaSearch||_deudaCatFilter)) : `<div class="empty" style="grid-column:1/-1"><div class="empty-icon">📉</div><div class="empty-title">${_deudaSearch||_deudaCatFilter?'Sin resultados':'Sin deudas registradas'}</div></div>`)
 
+  // Calcular fecha exacta de libertad financiera para estrategia activa
+  const _fechaLibertad = (months) => {
+    if (!months || months <= 0) return null
+    const d = new Date()
+    d.setMonth(d.getMonth() + months)
+    return d.toLocaleDateString(_currentLang === 'en' ? 'en-US' : 'es-ES', { month: 'long', year: 'numeric' })
+  }
+
+  // Construir lista de orden de pago
+  const _makeOrderList = (arr) => `<div class="mn-debt-order">
+    ${arr.map((d, i) => {
+      const pend = (Number(d.importeTotal)||0) - (Number(d.importePagado)||0)
+      return `<div class="mn-debt-order-item">
+        <div class="mn-debt-order-num">${i+1}</div>
+        <div style="flex:1;min-width:0">
+          <div class="mn-debt-order-name">${d.nombre||'—'}</div>
+          <div class="mn-debt-order-meta">
+            ${t('deuda_pendiente_lbl','Pendiente')}: <strong style="color:var(--text)">${eur(pend)}</strong>
+            ${d.interes ? ` · <span style="color:var(--gold)">${pct(d.interes)} ${t('interes_anual','anual')}</span>` : ''}
+          </div>
+        </div>
+      </div>`
+    }).join('')}
+  </div>`
+
   document.getElementById('content').innerHTML = `
-  <div class="section-header">
-    <div><div class="page-h1">${t('deudas_lbl')}</div><div class="page-sub">${t('deudas_page_sub','Seguimiento, reducción y estrategia de pago')}</div></div>
+  <!-- ── HEADER ────────────────────────────────────────────────── -->
+  <div class="section-header mn-section">
+    <div>
+      <div class="page-h1">${t('deudas_lbl','Deudas')}</div>
+      <div class="page-sub">${t('deudas_page_sub','Seguimiento, reducción y estrategia de pago')}</div>
+    </div>
     <div class="section-actions">
       <button class="btn btn-primary btn-sm" onclick="openModal('deudaModal');resetDeudaForm()">+ ${t('btn_nueva_deuda','Nueva deuda')}</button>
     </div>
@@ -5161,7 +5190,8 @@ function renderDeudas() {
 
   ${_gFilterBar('renderDeudas()')}
 
-  <div class="kpi-grid kpi-grid-4" style="margin-bottom:16px">
+  <!-- ── KPIs ──────────────────────────────────────────────────── -->
+  <div class="kpi-grid kpi-grid-4 mn-section">
     <div class="kpi-card">
       <div class="kpi-icon" style="background:var(--red-dim)">💸</div>
       <div class="kpi-label">${t('deuda_total_lbl','Deuda total')}</div>
@@ -5169,9 +5199,9 @@ function renderDeudas() {
     </div>
     <div class="kpi-card">
       <div class="kpi-icon" style="background:var(--green-dim)">✅</div>
-      <div class="kpi-label">${t('deuda_pagado_lbl','Total pagado')}</div>
+      <div class="kpi-label">${t('deuda_pagado_lbl','Pagado')}</div>
       <div class="kpi-value">${eur(totalPagado)}</div>
-      <span class="kpi-delta ${progPct>50?'up':'neu'}">${pct(progPct)} ${t('completado','completado')}</span>
+      <span class="kpi-delta ${progPct>50?'up':'neu'}">${pct(progPct)}</span>
     </div>
     <div class="kpi-card">
       <div class="kpi-icon" style="background:var(--gold-dim)">⏳</div>
@@ -5179,88 +5209,107 @@ function renderDeudas() {
       <div class="kpi-value" style="color:var(--red)">${eur(pendiente)}</div>
       <div class="kpi-sub">${S.deudas.length} ${t('deudas_label','deudas')} · ${S.deudas.filter(d=>(Number(d.importeTotal)||0)-(Number(d.importePagado)||0)<=0).length} ${t('saldadas','saldadas')}</div>
     </div>
-    <div class="kpi-card" style="cursor:pointer" onclick="document.getElementById('stratPickerInline')?.scrollIntoView({behavior:'smooth'})">
-      <div class="kpi-icon" style="background:${activeStratData.color}22">${activeStratData.icon}</div>
-      <div class="kpi-label">${t('estrategia_activa','Estrategia activa')}</div>
-      <div class="kpi-value sm" style="color:${activeStratData.color}">${activeStratData.name}</div>
-      <div class="kpi-sub">
-        💳 ${eur(activePago)}/${t('mes_lbl','mes')}<br>
-        🏁 ${(() => {
-          if (!activeMonths || activeMonths <= 0) return t('sin_deudas','Sin deudas')
-          const d = new Date(); d.setMonth(d.getMonth() + activeMonths)
-          return d.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })
-        })()}
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:var(--accent-dim)">🏁</div>
+      <div class="kpi-label">${t('libertad_financiera','Libertad financiera')}</div>
+      <div class="kpi-value sm" style="color:var(--accent)">
+        ${_fechaLibertad(activeMonths) || (pendiente<=0 ? `✅ ${t('sin_deudas','Sin deudas')}` : '—')}
       </div>
+      <div class="kpi-sub">${activeStratData.icon} ${activeStratData.name} · ${eur(activePago)}/${t('mes_lbl','mes')}</div>
     </div>
   </div>
 
+  <!-- ── ESTRATEGIAS DE PAGO ───────────────────────────────────── -->
   ${pendiente > 0 ? `
-  <div class="card" style="margin-bottom:16px">
+  <div class="card mn-section">
     <div class="card-header">
-      <div><div class="card-title">⚡ ${t('estrategias_pago','Estrategias de pago')}</div><div class="card-subtitle">${t('estrategias_pago_sub','Elige tu ritmo para liberarte de deudas')}</div></div>
+      <div><div class="card-title">⚡ ${t('estrategias_pago','Estrategias de pago')}</div><div class="card-subtitle">${t('estrategias_pago_sub','Selecciona tu ritmo')}${interesMedio>0?` · ${t('interes_medio','Interés medio')}: ${pct(interesMedio)}/año`:''}</div></div>
     </div>
-    <div class="debt-strategy-grid">${stratCards}</div>
-    <div style="font-size:.75rem;color:var(--text3);margin-top:4px">* Estimaciones orientativas. El cálculo incluye el interés medio de tus deudas (${pct(interesMedio)}/año).</div>
+    <div class="mn-strat-grid" id="stratPickerInline">
+      ${strats.map(s => {
+        const {monthlyPayment: sPago, months: sMeses} = calcDebtStrategy(pendiente, interesMedio, s.mul)
+        const isActive = s.key === activeStrat
+        const fechaS = _fechaLibertad(sMeses)
+        return `<div class="mn-strat-card ${isActive ? 'active' : ''}" onclick="window._deudaStrat='${s.key}';renderDeudas()">
+          <div class="mn-strat-card-icon">${s.icon}</div>
+          <div class="mn-strat-card-name">${s.name}</div>
+          <div class="mn-strat-card-pay">${eur(sPago)}/${t('mes_lbl','mes')}</div>
+          <div class="mn-strat-card-months">${fmtMonths(sMeses)}</div>
+          <div class="mn-strat-card-date">${fechaS || '—'}</div>
+          ${isActive ? `<div style="margin-top:6px;font-size:.65rem;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.08em">✓ ${t('estrategia_activa','Activa')}</div>` : ''}
+        </div>`
+      }).join('')}
+    </div>
+    <!-- Libertad financiera card -->
+    <div class="mn-freedom-card" style="margin-top:16px">
+      <div style="font-size:.72rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">🏁 ${t('libertad_financiera','Fecha de libertad financiera')}</div>
+      <div class="mn-freedom-date">${_fechaLibertad(activeMonths) || '—'}</div>
+      <div class="mn-freedom-sub">${activeStratData.icon} ${activeStratData.name} · ${eur(activePago)}/${t('mes_lbl','mes')} · ${fmtMonths(activeMonths)}</div>
+    </div>
+    <!-- Calculadora personalizada -->
     <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
-      <div style="font-size:.82rem;font-weight:700;color:var(--text);margin-bottom:12px">🏁 Planificación de Libertad Financiera</div>
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px">
-        <span style="font-size:.82rem;color:var(--text2)">Quiero ser libre en</span>
+      <div style="font-size:.82rem;font-weight:700;color:var(--text);margin-bottom:10px">🧮 ${t('calc_personalizada','Calculadora personalizada')}</div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+        <span style="font-size:.82rem;color:var(--text2)">${t('quiero_libre_en','Quiero ser libre en')}</span>
         <input type="number" id="libertadN" min="1" max="600" placeholder="12"
-          style="width:68px;padding:7px 10px;background:var(--card);border:1.5px solid var(--border2);border-radius:8px;color:var(--text);font-size:.95rem;font-weight:700;text-align:center"
+          style="width:64px;padding:7px 10px;background:var(--bg2);border:1.5px solid var(--border2);border-radius:8px;color:var(--text);font-size:.92rem;font-weight:700;text-align:center"
           onkeydown="if(event.key==='Enter')calcLibertad3Cards()">
-        <select id="libertadUnit" style="padding:7px 12px;background:var(--card);border:1.5px solid var(--border2);border-radius:8px;color:var(--text);font-size:.83rem;font-weight:600;cursor:pointer">
-          <option value="meses">meses</option>
-          <option value="anos">años</option>
+        <select id="libertadUnit" style="padding:7px 12px;background:var(--bg2);border:1.5px solid var(--border2);border-radius:8px;color:var(--text);font-size:.82rem;font-weight:600;cursor:pointer">
+          <option value="meses">${t('meses','meses')}</option>
+          <option value="anos">${t('anios','años')}</option>
         </select>
         <button onclick="calcLibertad3Cards()"
-          style="padding:7px 18px;background:linear-gradient(135deg,var(--accent),#00b894);border:none;border-radius:8px;color:#fff;font-size:.83rem;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(0,212,170,.25)">
-          🎯 Calcular cuota
+          style="padding:7px 16px;background:linear-gradient(135deg,var(--accent),#00b894);border:none;border-radius:8px;color:#fff;font-size:.82rem;font-weight:700;cursor:pointer;font-family:inherit">
+          🎯 ${t('calcular_cuota','Calcular cuota')}
         </button>
       </div>
       <div id="libertad3Cards"></div>
     </div>
   </div>
-  <div class="card" style="margin-bottom:16px">
-    <div class="card-header">
-      <div class="card-title">📋 ${t('orden_pago','Orden de pago recomendado')}</div>
+
+  <!-- ── PROYECCIÓN + ORDEN DE PAGO ───────────────────────────── -->
+  <div class="grid-2 mn-section">
+    <div class="card">
+      <div class="card-header">
+        <div><div class="card-title">📉 ${t('proyeccion_deuda','Proyección de deuda')}</div><div class="card-subtitle">${t('proyeccion_deuda_sub','Evolución del saldo total')}</div></div>
+      </div>
+      <div class="chart-container" style="height:180px"><canvas id="chartDeudaProyeccion"></canvas></div>
     </div>
-    <div class="tabs" style="margin-bottom:12px">
-      <div class="tab active" id="tab-snowball" onclick="switchDebtTab('snowball')">❄️ ${t('bola_nieve','Bola de nieve')}</div>
-      <div class="tab" id="tab-avalanche" onclick="switchDebtTab('avalanche')">🌊 ${t('avalancha','Avalancha')}</div>
-    </div>
-    <div id="debt-snowball">
-      <div style="font-size:.78rem;color:var(--text2);margin-bottom:10px;padding:7px 10px;background:var(--bg2);border-radius:6px"><strong style="color:var(--text)">Bola de nieve:</strong> empieza por la deuda más pequeña para ganar impulso psicológico.</div>
-      ${debtSnowball().map((d,i)=>{const pend=(Number(d.importeTotal)||0)-(Number(d.importePagado)||0);return`<div class="debt-order-item"><div class="debt-order-num">${i+1}</div><div class="debt-order-info"><div class="debt-order-name">${d.nombre}</div><div class="debt-order-meta">Pendiente: <strong style="color:var(--text)">${eur(pend)}</strong> · ${d.interes?'<span style="color:var(--gold)">'+pct(d.interes)+' int.</span>':'Sin interés'}</div></div></div>`}).join('')}
-    </div>
-    <div id="debt-avalanche" style="display:none">
-      <div style="font-size:.78rem;color:var(--text2);margin-bottom:10px;padding:7px 10px;background:var(--bg2);border-radius:6px"><strong style="color:var(--text)">Avalancha:</strong> empieza por la de mayor interés — ahorras más dinero a largo plazo.</div>
-      ${debtAvalanche().map((d,i)=>{const pend=(Number(d.importeTotal)||0)-(Number(d.importePagado)||0);return`<div class="debt-order-item"><div class="debt-order-num">${i+1}</div><div class="debt-order-info"><div class="debt-order-name">${d.nombre}</div><div class="debt-order-meta">Pendiente: <strong style="color:var(--text)">${eur(pend)}</strong> · ${d.interes?'<span style="color:var(--gold)">'+pct(d.interes)+' int.</span>':'Sin interés'}</div></div></div>`}).join('')}
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">📋 ${t('orden_pago','Orden de pago recomendado')}</div>
+      </div>
+      <div class="tabs" style="margin-bottom:12px">
+        <div class="tab active" id="tab-snowball" onclick="switchDebtTab('snowball')">❄️ ${t('bola_nieve','Bola de nieve')}</div>
+        <div class="tab" id="tab-avalanche" onclick="switchDebtTab('avalanche')">🌊 ${t('avalancha','Avalancha')}</div>
+      </div>
+      <div id="debt-snowball">
+        <div style="font-size:.75rem;color:var(--text2);margin-bottom:10px;padding:8px 10px;background:var(--bg2);border-radius:8px;border-left:3px solid var(--indigo)">
+          <strong style="color:var(--text)">❄️ ${t('bola_nieve','Bola de nieve')}:</strong> ${t('bola_nieve_desc','Empieza por la deuda más pequeña para ganar impulso psicológico.')}
+        </div>
+        ${_makeOrderList(debtSnowball())}
+      </div>
+      <div id="debt-avalanche" style="display:none">
+        <div style="font-size:.75rem;color:var(--text2);margin-bottom:10px;padding:8px 10px;background:var(--bg2);border-radius:8px;border-left:3px solid var(--accent)">
+          <strong style="color:var(--text)">🌊 ${t('avalancha','Avalancha')}:</strong> ${t('avalancha_desc','Empieza por la de mayor interés — ahorras más dinero a largo plazo.')}
+        </div>
+        ${_makeOrderList(debtAvalanche())}
+      </div>
     </div>
   </div>` : ''}
 
-
-
-  ${pendiente > 0 ? `
-  <div class="card" style="margin-bottom:16px">
-    <div class="card-header">
-      <div><div class="card-title">📉 Proyección de deuda</div>
-      <div class="card-subtitle">Cuándo llegas a cero al ritmo actual de pagos</div></div>
-    </div>
-    <div class="chart-container" style="height:180px"><canvas id="chartDeudaProyeccion"></canvas></div>
-  </div>` : ''}
-
-  <div class="search-bar">
-    <input class="search-input" type="text" placeholder="🔍 Buscar deuda..." value="${_deudaSearch}" oninput="_deudaSearch=this.value;renderDeudas()">
+  <!-- ── BUSCADOR + TARJETAS ───────────────────────────────────── -->
+  <div class="search-bar mn-section">
+    <input class="search-input" type="text" placeholder="${t('placeholder_buscar_deuda','🔍 Buscar deuda...')}" value="${_deudaSearch}" oninput="_deudaSearch=this.value;renderDeudas()">
     <select class="filter-select" onchange="_deudaCatFilter=this.value;renderDeudas()">
-      <option value="">Todas las categorías</option>
+      <option value="">${t('todas_categorias','Todas las categorías')}</option>
       ${allCats.map(c=>`<option value="${c}" ${_deudaCatFilter===c?'selected':''}>${catEmoji(c)} ${c}</option>`).join('')}
     </select>
-    ${_deudaSearch||_deudaCatFilter?`<button class="btn btn-ghost btn-sm" onclick="_deudaSearch='';_deudaCatFilter='';renderDeudas()">✕ Limpiar</button>`:''}
+    ${_deudaSearch||_deudaCatFilter?`<button class="btn btn-ghost btn-sm" onclick="_deudaSearch='';_deudaCatFilter='';renderDeudas()">✕ ${t('limpiar','Limpiar')}</button>`:''}
   </div>
 
-  <div class="grid-3">${cards}</div>`
+  <div class="grid-3 mn-section">${cards}</div>`
 
-  // Render projection chart after DOM is set
   if (pendiente > 0) {
     setTimeout(() => renderChartDeudaProyeccion(pendiente, activePago), 60)
   }
@@ -8745,329 +8794,261 @@ function renderAnalisis() {
     return `<span style="font-size:.72rem;font-weight:700;color:${color};margin-left:6px">${arrow} ${Math.abs(n)}% vs mes ant.</span>`
   }
 
+  // ── Insights personalizados ──
+  const insightTips = (() => {
+    const mo3 = getMonths(3)
+    const tips = []
+    const avgInc = mo3.reduce((a,mo)=>a+calcIngresosMes(mo),0)/3
+    const avgGas = mo3.reduce((a,mo)=>a+calcGastosMes(mo),0)/3
+    if (avgInc>0 && avgGas/avgInc>0.9) tips.push({cls:'alert',icon:'⚠️',txt:`${t('insight_gastos_alto','Tus gastos representan el')} <strong>${((avgGas/avgInc)*100).toFixed(0)}%</strong> ${t('insight_gastos_alto2','de tus ingresos medios. Intenta bajar de 80%.')}`})
+    else if (avgInc>0 && avgGas/avgInc<0.6) tips.push({cls:'ok',icon:'🌟',txt:`${t('insight_gastos_excelente','Excelente: gastas solo el')} <strong>${((avgGas/avgInc)*100).toFixed(0)}%</strong> ${t('insight_gastos_excelente2','de tus ingresos. Considera aumentar inversiones.')}`})
+    const recGas = S.gastos.filter(g=>g.recurrente&&g.tipo!==TX_TYPES.GOAL_TRANSFER)
+    if (recGas.length>0) {
+      const totalRec = recGas.reduce((a,g)=>a+(Number(g.importe)||0),0)
+      tips.push({cls:'info',icon:'🔄',txt:`${t('insight_recurrentes','Tienes')} <strong>${recGas.length} ${t('insight_recurrentes2','gastos recurrentes')}</strong> ${t('por','por')} <strong>${eur(totalRec)}/mes</strong>. ${t('insight_recurrentes3','Revísalos periódicamente.')}`})
+    }
+    const cmByCat = gastosMesByCat(currentMonth())
+    const cmEntries = Object.entries(cmByCat).sort((a,b)=>b[1]-a[1])
+    const cmTotal = cmEntries.reduce((a,[,v])=>a+v,0)
+    if (cmEntries.length && cmTotal>0 && cmEntries[0][1]/cmTotal>0.4) tips.push({cls:'warn',icon:'🏷',txt:`<strong>${cmEntries[0][0]}</strong> ${t('insight_top_cat','representa el')} <strong>${((cmEntries[0][1]/cmTotal)*100).toFixed(0)}%</strong> ${t('insight_top_cat2','de tus gastos. ¿Hay margen de mejora?')}`})
+    if (S.inversiones.filter(i=>!i.cerrada).length===0 && avgInc>500) tips.push({cls:'info',icon:'📈',txt:t('insight_sin_inversiones','No tienes inversiones activas. Con ingresos regulares, considera un fondo indexado.')})
+    if (!tips.length) tips.push({cls:'ok',icon:'✅',txt:t('insight_finanzas_ok','¡Tus finanzas se ven equilibradas! Sigue registrando para obtener más insights personalizados.')})
+    return tips
+  })()
+
+  // ── Proyección patrimonial ──
+  const mo3P = getMonths(3)
+  const avgInc3 = mo3P.reduce((a,mo)=>a+calcIngresosMes(mo),0)/3
+  const avgGas3 = mo3P.reduce((a,mo)=>a+calcGastosMes(mo),0)/3
+  const cfPlanner = avgInc3 - avgGas3
+  const saldoIni = S.cuentas.reduce((a,c)=>a+(Number(c.saldo)||0),0)
+  const buildSeries = mul => { let v=saldoIni; return Array.from({length:12},()=>{ v+=cfPlanner*mul; return Math.round(v) }) }
+  const serCons=buildSeries(0.8), serMod=buildSeries(1.0), serOpt=buildSeries(1.2)
+  const planScenarios = [
+    {label:t('escenario_conservador','Conservador'),icon:'🐢',val:serCons[11],dif:serCons[11]-saldoIni,color:'#F87171',bg:'rgba(248,113,113,0.08)',border:'rgba(248,113,113,0.2)'},
+    {label:t('escenario_moderado','Moderado'),icon:'⚖️',val:serMod[11],dif:serMod[11]-saldoIni,color:'#00D4AA',bg:'rgba(0,212,170,0.08)',border:'rgba(0,212,170,0.2)'},
+    {label:t('escenario_optimista','Optimista'),icon:'🚀',val:serOpt[11],dif:serOpt[11]-saldoIni,color:'#10B981',bg:'rgba(16,185,129,0.08)',border:'rgba(16,185,129,0.2)'},
+  ]
+
   document.getElementById('content').innerHTML = `
-  <div class="section-header" style="align-items:center">
+  <!-- ── HEADER ────────────────────────────────────────────────── -->
+  <div class="section-header mn-section">
     <div>
-      <div class="page-h1">📊 ${t('page_analisis')}</div>
+      <div class="page-h1">📊 ${t('page_analisis','Análisis')}</div>
       <div class="page-sub">${_gPeriodLabel()}</div>
     </div>
-    <div class="section-actions" style="align-items:center">
-      ${window.MNCompare ? `
-        <div style="display:flex;align-items:center;gap:6px">
-          <span style="font-size:.72rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.06em">${t('comparar_con','vs.')}</span>
-          <select onchange="window._analisisCompareMonth=this.value;renderAnalisis?.()"
-            style="font-size:.78rem;padding:5px 10px;border-radius:8px;border:1px solid var(--border2);background:var(--bg2);color:var(--text);cursor:pointer;font-family:inherit">
-            <option value="">${t('ninguno','—')}</option>
-            ${(typeof getMonths==='function'?getMonths(12):[]).filter(m2=>m2!==currentMonth()).map(m2=>`
-              <option value="${m2}" ${window._analisisCompareMonth===m2?'selected':''}>${monthLabel(m2)}</option>`).join('')}
-          </select>
-        </div>` : ''}
-      <button class="btn btn-secondary btn-sm" onclick="abrirCierreMes()">📋 ${t('btn_monthly_cerrar','Cierre mes')}</button>
+    <div class="section-actions">
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:.72rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.06em">${t('comparar_con','vs.')}</span>
+        <select onchange="window._analisisCompareMonth=this.value;renderAnalisis?.()"
+          style="font-size:.78rem;padding:5px 10px;border-radius:8px;border:1px solid var(--border2);background:var(--bg2);color:var(--text);cursor:pointer;font-family:inherit">
+          <option value="">${t('ninguno','—')}</option>
+          ${(typeof getMonths==='function'?getMonths(12):[]).filter(m2=>m2!==currentMonth()).map(m2=>`
+            <option value="${m2}" ${window._analisisCompareMonth===m2?'selected':''}>${monthLabel(m2)}</option>`).join('')}
+        </select>
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="abrirCierreMes()">📋 ${t('btn_monthly_cerrar','Cierre')}</button>
     </div>
   </div>
 
   ${_gFilterBar('renderAnalisis()')}
 
-  <!-- KPIs rápidos con deltas comparación -->
-  <div class="kpi-grid kpi-grid-4" style="margin-bottom:20px">
-    <div class="kpi-card" data-sparkline-off="cashflow">
+  <!-- ── KPIs ──────────────────────────────────────────────────── -->
+  <div class="kpi-grid kpi-grid-4 mn-section">
+    <div class="kpi-card">
       <div class="kpi-icon" style="background:var(--gold-dim)">🔥</div>
       <div class="kpi-label">${t('burn_rate','Burn Rate')}</div>
-      <div class="kpi-value sm" style="color:${burnMonths>=6?'var(--green)':burnMonths>=3?'var(--gold)':'var(--red)'}">${burnMonths} ${t('meses','meses')}</div>
-      <div class="kpi-sub">${eur(calcDineroDisponible())} ${t('topbar_disponible','disponible')}</div>
+      <div class="kpi-value" style="color:${burnMonths>=6?'var(--green)':burnMonths>=3?'var(--gold)':'var(--red)'}">${burnMonths}m</div>
+      <div class="kpi-sub">${eur(calcDineroDisponible())} ${t('topbar_disponible','disp.')}</div>
     </div>
-    <div class="kpi-card" data-sparkline-off="ingresos">
+    <div class="kpi-card">
       <div class="kpi-icon" style="background:var(--green-dim)">💰</div>
       <div class="kpi-label">${t('tasa_ahorro','Tasa de ahorro')}</div>
-      <div class="kpi-value sm" style="color:${tasaAhorro>=20?'var(--green)':tasaAhorro>=10?'var(--gold)':'var(--red)'}">${pct(tasaAhorro)}</div>
-      <div style="display:flex;align-items:center;flex-wrap:wrap;margin-top:4px">
-        <span class="kpi-sub" style="margin:0">${tasaAhorro>=20?t('rating_excelente','Excelente ✅'):tasaAhorro>=10?t('rating_mejorable','Mejorable ⚡'):t('rating_bajo','Bajo ⚠️')}</span>
-        ${momBadge(momTasa, false)}
-        ${window.MNCompare&&window._analisisCompareMonth?window.MNCompare.delta(tasaAhorro,calcSavingsRate(window._analisisCompareMonth)):''}
-      </div>
+      <div class="kpi-value" style="color:${tasaAhorro>=20?'var(--green)':tasaAhorro>=10?'var(--gold)':'var(--red)'}">${pct(tasaAhorro)}</div>
+      <div class="kpi-sub">${tasaAhorro>=20?t('rating_excelente','Excelente'):tasaAhorro>=10?t('rating_mejorable','Mejorable'):t('rating_bajo','Bajo')}${momBadge(momTasa,false)}</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-icon" style="background:var(--indigo-dim)">📈</div>
-      <div class="kpi-label">${t('cartera_inversion','Cartera inversiones')}</div>
+      <div class="kpi-label">${t('cartera_inversion','Cartera')}</div>
       <div class="kpi-value sm">${eur(totalInv)}</div>
-      <div class="kpi-sub">${t('inv_ganancia_latente','Latente')}: <span style="color:${gananciaLatente>=0?'var(--green)':'var(--red)'}">${gananciaLatente>=0?'+':''}${eur(gananciaLatente)}</span></div>
+      <div class="kpi-sub" style="color:${gananciaLatente>=0?'var(--green)':'var(--red)'}">${gananciaLatente>=0?'+':''}${eur(gananciaLatente)} ${t('inv_ganancia_latente','latente')}</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-icon" style="background:var(--accent-dim)">🏆</div>
-      <div class="kpi-label">${t('inv_ganancia_realizada','Ganancias realizadas')}</div>
+      <div class="kpi-label">${t('inv_ganancia_realizada','Realizado')}</div>
       <div class="kpi-value sm" style="color:${gananciaRealizada>=0?'var(--green)':'var(--red)'}">${gananciaRealizada>=0?'+':''}${eur(gananciaRealizada)}</div>
-      <div class="kpi-sub">ROI: ${roiMedio?pct(roiMedio):'—'}</div>
+      <div class="kpi-sub">ROI ${roiMedio?pct(roiMedio):'—'}</div>
     </div>
   </div>
 
-  <!-- Cashflow 12 meses (barras) + Heatmap gastos -->
-  <div class="grid-2" style="margin-bottom:16px">
+  <!-- ── GRÁFICOS — CASHFLOW + PATRIMONIO ─────────────────────── -->
+  <div class="grid-2 mn-section">
     <div class="card">
       <div class="card-header">
         <div><div class="card-title">📊 ${t('analisis_cashflow_titulo','Cashflow mensual')}</div><div class="card-subtitle">${t('ultimos_12_meses','Últimos 12 meses')}</div></div>
       </div>
-      <div class="chart-container" style="height:160px"><canvas id="chartCashflowBars"></canvas></div>
+      <div class="chart-container" style="height:170px"><canvas id="chartCashflowBars"></canvas></div>
     </div>
     <div class="card">
       <div class="card-header">
-        <div><div class="card-title">🗓 ${t('analisis_heatmap_titulo','Gastos por día de semana')}</div><div class="card-subtitle">${t('analisis_heatmap_sub','Patrón de los últimos 3 meses')}</div></div>
+        <div><div class="card-title">📈 ${t('evolucion_patrimonio','Patrimonio neto')}</div><div class="card-subtitle">${t('ultimos_6_meses','Últimos 6 meses')}</div></div>
+      </div>
+      <div class="chart-container" style="height:170px"><canvas id="chartAnalisisPatrimonio"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ── GRÁFICO INGvsGAS + HEATMAP ───────────────────────────── -->
+  <div class="grid-2 mn-section">
+    <div class="card">
+      <div class="card-header"><div class="card-title">🍩 ${t('analisis_ing_vs_gas','Ingresos vs Gastos')}</div><div class="card-subtitle">${t('tendencia_mensual','Tendencia 6 meses')}</div></div>
+      <div class="chart-container" style="height:170px"><canvas id="chartAnalisisTendencia"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <div><div class="card-title">🗓 ${t('analisis_heatmap_titulo','Gastos por día')}</div><div class="card-subtitle">${t('analisis_heatmap_sub','Últimos 3 meses')}</div></div>
       </div>
       ${_renderDayOfWeekHeatmap()}
     </div>
   </div>
 
-  <!-- Evolución patrimonio + Gasto por categoría -->
-  <div class="grid-2" style="margin-bottom:16px">
+  <!-- ── DESGLOSE CATEGORÍAS + FONDO EMERGENCIA ───────────────── -->
+  <div class="grid-2 mn-section">
     <div class="card">
-      <div class="card-header"><div class="card-title">📈 ${t('evolucion_patrimonio','Evolución patrimonio neto')}</div><div class="card-subtitle">${t('ultimos_6_meses','Últimos 6 meses')}</div></div>
-      <div class="chart-container"><canvas id="chartAnalisisPatrimonio"></canvas></div>
+      <div class="card-header"><div class="card-title">🏷 ${t('desglose_categorias','Desglose por categoría')}</div><div class="card-subtitle">${monthLabel(m)}</div></div>
+      ${catBreakdown || `<div style="padding:12px 0;color:var(--text2);font-size:.85rem">${t('sin_gastos_mes','Sin gastos este mes.')}</div>`}
     </div>
     <div class="card">
-      <div class="card-header"><div class="card-title">🍩 ${t('analisis_ing_vs_gas','Ingresos vs Gastos')}</div><div class="card-subtitle">${t('tendencia_mensual','Tendencia mensual')}</div></div>
-      <div class="chart-container"><canvas id="chartAnalisisTendencia"></canvas></div>
-    </div>
-  </div>
-
-  <!-- Desglose categorías + Fondo emergencia -->
-  <div class="grid-2" style="margin-bottom:16px">
-    <div class="card">
-      <div class="card-header"><div class="card-title">🏷 Desglose por categoría</div><div class="card-subtitle">${monthLabel(m)}</div></div>
-      ${catBreakdown}
-    </div>
-    <div class="card">
-      <div class="card-header"><div class="card-title">🛡 Fondo de emergencia</div><div class="card-subtitle">Cobertura recomendada: 6 meses</div></div>
-      <div class="kpi-grid kpi-grid-2">
+      <div class="card-header"><div class="card-title">🛡 ${t('fondo_emergencia','Fondo de emergencia')}</div><div class="card-subtitle">${t('fondo_cobertura_rec','Cobertura recomendada: 6 meses')}</div></div>
+      <div class="kpi-grid kpi-grid-2" style="margin-bottom:12px">
         <div class="kpi-card">
-          <div class="kpi-label">Objetivo (6 meses)</div>
+          <div class="kpi-label">${t('fondo_objetivo','Objetivo')}</div>
           <div class="kpi-value sm">${eur(ef)}</div>
-          <div class="kpi-sub">Basado en gasto medio</div>
+          <div class="kpi-sub">${t('fondo_basado_gasto','Gasto medio × 6')}</div>
         </div>
         <div class="kpi-card">
-          <div class="kpi-label">Cobertura actual</div>
+          <div class="kpi-label">${t('fondo_cobertura','Cobertura')}</div>
           <div class="kpi-value sm" style="color:${efCov>=100?'var(--green)':efCov>=50?'var(--gold)':'var(--red)'}">${pct(efCov)}</div>
-          <div class="kpi-sub">${eur(calcDineroDisponible())} disponibles</div>
+          <div class="kpi-sub">${eur(calcDineroDisponible())}</div>
         </div>
       </div>
-      <div style="margin-top:10px">
-        <div class="progress-info">
-          <span class="progress-label">Progreso</span>
-          <span class="progress-pct">${pct(efCov)}</span>
-        </div>
-        <div class="progress-wrap"><div class="progress-bar ${efCov>=100?'progress-ok':efCov>=50?'progress-warn':'progress-danger'}" style="width:${clamp(efCov,0,100)}%"></div></div>
-        ${efCov<100?`<div style="margin-top:8px;font-size:.78rem;color:var(--text2)">Te faltan <strong style="color:var(--text)">${eur(ef-calcDineroDisponible())}</strong> para completarlo.</div>`:'<div style="margin-top:8px;font-size:.78rem;color:var(--green)">✅ ¡Fondo completo!</div>'}
+      <div class="progress-info"><span class="progress-label">${t('progreso','Progreso')}</span><span class="progress-pct">${pct(efCov)}</span></div>
+      <div class="progress-wrap"><div class="progress-bar ${efCov>=100?'progress-ok':efCov>=50?'progress-warn':'progress-danger'}" style="width:${clamp(efCov,0,100)}%"></div></div>
+      <div style="margin-top:8px;font-size:.78rem;color:var(--text2)">
+        ${efCov<100
+          ? `${t('faltan','Faltan')} <strong style="color:var(--text)">${eur(Math.max(0,ef-calcDineroDisponible()))}</strong> ${t('para_completarlo','para completarlo.')}`
+          : `<span style="color:var(--green)">✅ ${t('fondo_completo','¡Fondo completo!')}</span>`}
       </div>
     </div>
   </div>
 
-  <!-- 50/30/20 + Anomalías -->
-  <div class="grid-2" style="margin-bottom:20px">
+  <!-- ── REGLA 50/30/20 + ANOMALÍAS ───────────────────────────── -->
+  <div class="grid-2 mn-section">
     <div class="card">
-      <div class="card-header"><div class="card-title">⚖️ Regla 50/30/20</div><div class="card-subtitle">Distribución del gasto mensual</div></div>
+      <div class="card-header"><div class="card-title">⚖️ ${t('regla_503020','Regla 50/30/20')}</div><div class="card-subtitle">${t('distribucion_gasto','Distribución del gasto mensual')}</div></div>
       <div class="rule-bar-wrap">
         <div class="rule-bar-header">
-          <span class="rule-bar-label"><span style="color:var(--indigo)">■</span> Necesidades</span>
+          <span class="rule-bar-label"><span style="color:var(--indigo)">■</span> ${t('necesidades','Necesidades')}</span>
           <span class="rule-bar-vals">${eur(d50.necesidad)} · <strong>${pct(d50.pctNec)}</strong> <span style="color:var(--text3)">(≤50%)</span></span>
         </div>
         <div class="progress-wrap"><div class="progress-bar" style="width:${clamp(d50.pctNec,0,100)}%;background:var(--indigo)"></div></div>
       </div>
       <div class="rule-bar-wrap">
         <div class="rule-bar-header">
-          <span class="rule-bar-label"><span style="color:var(--gold)">■</span> Deseos</span>
+          <span class="rule-bar-label"><span style="color:var(--gold)">■</span> ${t('deseos','Deseos')}</span>
           <span class="rule-bar-vals">${eur(d50.deseo)} · <strong>${pct(d50.pctDes)}</strong> <span style="color:var(--text3)">(≤30%)</span></span>
         </div>
         <div class="progress-wrap"><div class="progress-bar" style="width:${clamp(d50.pctDes,0,100)}%;background:var(--gold)"></div></div>
       </div>
       <div class="rule-bar-wrap">
         <div class="rule-bar-header">
-          <span class="rule-bar-label"><span style="color:var(--green)">■</span> Ahorro</span>
+          <span class="rule-bar-label"><span style="color:var(--green)">■</span> ${t('ahorro_lbl','Ahorro')}</span>
           <span class="rule-bar-vals">${eur(d50.ahorro)} · <strong>${pct(d50.pctAh)}</strong> <span style="color:var(--text3)">(≥20%)</span></span>
         </div>
         <div class="progress-wrap"><div class="progress-bar" style="width:${clamp(d50.pctAh,0,100)}%;background:var(--green)"></div></div>
       </div>
-      <div style="margin-top:8px;font-size:.75rem;color:var(--text3)">💡 Los gastos sin categorizar cuentan como "Deseos".</div>
+      <div style="margin-top:8px;font-size:.72rem;color:var(--text3)">💡 ${t('regla_nota','Los gastos sin categorizar cuentan como "Deseos".')}</div>
     </div>
     <div class="card">
-      <div class="card-header"><div class="card-title">🔍 Anomalías detectadas</div><div class="card-subtitle">${monthLabel(m)}</div></div>
-      ${anomHtml}
+      <div class="card-header"><div class="card-title">🔍 ${t('anomalias_titulo','Anomalías detectadas')}</div><div class="card-subtitle">${monthLabel(m)}</div></div>
+      ${rev.anomalies.length
+        ? rev.anomalies.map(a=>`<div class="mn-insight mn-insight--${a.type==='danger'?'alert':'warn'}"><span class="mn-insight-icon">${a.type==='danger'?'🚨':'⚠️'}</span><div class="mn-insight-body">${a.msg}</div></div>`).join('')
+        : `<div class="mn-insight mn-insight--ok"><span class="mn-insight-icon">✅</span><div class="mn-insight-body"><strong>${t('sin_anomalias','¡Sin anomalías!')}</strong> ${t('sin_anomalias_sub','Tus finanzas están en orden.')}</div></div>`}
     </div>
   </div>
 
-  <!-- Previsión gastos -->
-  <div class="card" style="margin-bottom:16px">
+  <!-- ── INSIGHTS PERSONALIZADOS ──────────────────────────────── -->
+  <div class="card mn-section">
+    <div class="card-header"><div class="card-title">🧠 ${t('insights_titulo','Insights personalizados')}</div><div class="card-subtitle">${t('insights_sub','Basados en tus datos reales')}</div></div>
+    ${insightTips.map(tip=>`<div class="mn-insight mn-insight--${tip.cls}"><span class="mn-insight-icon">${tip.icon}</span><div class="mn-insight-body">${tip.txt}</div></div>`).join('')}
+  </div>
+
+  <!-- ── PREVISIÓN GASTOS ──────────────────────────────────────── -->
+  <div class="card mn-section">
     <div class="card-header">
-      <div><div class="card-title">🔮 Previsión de gastos próximo mes</div><div class="card-subtitle">Basada en patrones de los últimos 3 meses</div></div>
+      <div><div class="card-title">🔮 ${t('prevision_titulo','Previsión próximo mes')}</div><div class="card-subtitle">${t('prevision_sub','Basada en patrones de los últimos 3 meses')}</div></div>
     </div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Concepto</th><th>Categoría</th><th>Importe estimado</th><th>Confianza</th></tr></thead>
-        <tbody>${prevRows}</tbody>
+        <thead><tr><th>${t('concepto','Concepto')}</th><th>${t('categoria','Categoría')}</th><th>${t('importe','Importe')}</th><th>${t('confianza','Confianza')}</th></tr></thead>
+        <tbody>${prev.length
+          ? prev.map(p=>`<tr>
+              <td class="td-main">${p.concepto}</td>
+              <td><span class="tag">${p.categoria||'—'}</span></td>
+              <td class="td-amount td-neg">~${eur(p.importe)}</td>
+              <td><span class="badge badge-${p.confidence==='alta'?'green':'gold'}">${p.confidence==='alta'?`🟢 ${t('alta','Alta')}`:`🟡 ${t('media','Media')}`}</span></td>
+            </tr>`).join('')
+          : `<tr><td colspan="4" style="text-align:center;color:var(--text2);padding:24px">${t('sin_datos_predecir','Sin datos suficientes para predecir')}</td></tr>`}
+        </tbody>
       </table>
     </div>
-    ${prev.length?`<div style="margin-top:10px;padding:10px 12px;background:var(--bg2);border-radius:var(--radius-sm);font-size:.8rem;color:var(--text2)">Total estimado próximo mes: <strong style="color:var(--text)">${eur(prev.reduce((a,p)=>a+p.importe,0))}</strong></div>`:''}
+    ${prev.length?`<div style="margin-top:10px;padding:10px 14px;background:var(--bg2);border-radius:var(--radius-sm);font-size:.8rem;color:var(--text2)">${t('total_estimado','Total estimado')}: <strong style="color:var(--text)">${eur(prev.reduce((a,p)=>a+p.importe,0))}</strong></div>`:''}
   </div>
 
-  <!-- Facturas pendientes -->
-  <div class="card" style="margin-top:16px;margin-bottom:16px">
+  <!-- ── FACTURAS PENDIENTES ───────────────────────────────────── -->
+  ${pending.length ? `
+  <div class="card mn-section">
     <div class="card-header">
-      <div><div class="card-title">🧾 Facturas pendientes de cobro</div><div class="card-subtitle">Ingresos con estado "pendiente"</div></div>
-      ${pending.length?`<span class="badge badge-gold">${eur(getPendingTotal())} pendiente</span>`:''}
+      <div><div class="card-title">🧾 ${t('facturas_pendientes','Facturas pendientes')}</div><div class="card-subtitle">${t('facturas_pendientes_sub','Ingresos aún no cobrados')}</div></div>
+      <span class="badge badge-gold">${eur(getPendingTotal())}</span>
     </div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Concepto</th><th>Importe</th><th>Cliente</th><th>Fecha</th><th></th></tr></thead>
-        <tbody>${pendingRows}</tbody>
+        <thead><tr><th>${t('concepto','Concepto')}</th><th>${t('importe','Importe')}</th><th>${t('cliente','Cliente')}</th><th>${t('fecha','Fecha')}</th><th></th></tr></thead>
+        <tbody>${pending.map(p=>`<tr>
+          <td class="td-main">${p.concepto}</td>
+          <td class="td-amount td-pos">+${eur(p.importe)}</td>
+          <td>${p.cliente||'—'}</td>
+          <td>${fmtDate(p.fecha)}</td>
+          <td><button class="btn btn-primary btn-xs" onclick="marcarIngresoCobrado('${p.id}')">${t('cobrar_btn','Cobrar')}</button></td>
+        </tr>`).join('')}</tbody>
       </table>
     </div>
-    <div style="margin-top:10px;font-size:.78rem;color:var(--text2)">💡 Marca ingresos como "pendiente" al añadirlos si aún no los has cobrado.</div>
-  </div>
+  </div>` : ''}
 
-  <div style="height:8px"></div>
-
-  <!-- NEW: Spending patterns + Income consistency -->
-  <div class="grid-2" style="margin-top:24px;margin-bottom:16px">
-    <div class="card">
-      <div class="card-header"><div class="card-title">📅 Patrón de gastos (6 meses)</div><div class="card-subtitle">Evolución por mes</div></div>
-      ${(() => {
-        const months6 = getMonths(6)
-        const spendData = months6.map(mo => ({label: monthLabel(mo), val: calcGastosMes(mo)}))
-        const maxVal = Math.max(...spendData.map(d=>d.val), 1)
-        return spendData.map(d => {
-          const pctW = (d.val/maxVal*100).toFixed(1)
-          const color = d.val===maxVal?'var(--red)':d.val===Math.min(...spendData.map(x=>x.val))?'var(--green)':'var(--accent)'
-          return `<div style="margin-bottom:8px">
-            <div style="display:flex;justify-content:space-between;font-size:.78rem;margin-bottom:3px">
-              <span style="color:var(--text2)">${d.label}</span>
-              <span style="font-weight:700;color:var(--text)">${d.val>0?eur(d.val):'—'}</span>
-            </div>
-            <div class="progress-wrap"><div style="height:100%;width:${pctW}%;background:${color};border-radius:inherit;transition:width .4s ease"></div></div>
-          </div>`
-        }).join('')
-      })()}
-    </div>
-    <div class="card">
-      <div class="card-header"><div class="card-title">💰 Consistencia de ingresos</div><div class="card-subtitle">Últimos 6 meses cobrados</div></div>
-      ${(() => {
-        const months6 = getMonths(6)
-        const incData = months6.map(mo => ({label: monthLabel(mo), val: calcIngresosMes(mo)}))
-        const maxVal = Math.max(...incData.map(d=>d.val), 1)
-        const nonZero = incData.filter(d=>d.val>0).length
-        const avg = nonZero ? incData.reduce((a,d)=>a+d.val,0)/nonZero : 0
-        const consistency = nonZero >= 4 ? '✅ Alta' : nonZero >= 2 ? '⚡ Media' : '⚠️ Baja'
-        const consColor = nonZero >= 4 ? 'var(--green)' : nonZero >= 2 ? 'var(--gold)' : 'var(--red)'
-        return `
-          <div style="display:flex;gap:12px;margin-bottom:12px">
-            <div style="flex:1;text-align:center;padding:10px;background:var(--bg2);border-radius:var(--radius-sm)">
-              <div style="font-size:.68rem;color:var(--text2);text-transform:uppercase;letter-spacing:.06em">Media mensual</div>
-              <div style="font-size:1.1rem;font-weight:800;color:var(--text);margin-top:3px">${eur(avg)}</div>
-            </div>
-            <div style="flex:1;text-align:center;padding:10px;background:var(--bg2);border-radius:var(--radius-sm)">
-              <div style="font-size:.68rem;color:var(--text2);text-transform:uppercase;letter-spacing:.06em">Consistencia</div>
-              <div style="font-size:1rem;font-weight:800;color:${consColor};margin-top:3px">${consistency}</div>
-            </div>
-          </div>` +
-          incData.map(d => {
-            const pctW = (d.val/maxVal*100).toFixed(1)
-            return `<div style="margin-bottom:8px">
-              <div style="display:flex;justify-content:space-between;font-size:.78rem;margin-bottom:3px">
-                <span style="color:var(--text2)">${d.label}</span>
-                <span style="font-weight:700;color:${d.val>0?'var(--green)':'var(--text3)'}">${d.val>0?eur(d.val):'Sin ingresos'}</span>
-              </div>
-              <div class="progress-wrap"><div style="height:100%;width:${pctW}%;background:var(--green);border-radius:inherit;opacity:${d.val>0?'1':'0.2'};transition:width .4s ease"></div></div>
-            </div>`
-          }).join('')
-      })()}
-    </div>
-  </div>
-
-  <!-- NEW: Behavioral insights based on real data -->
-  ${(() => {
-    const months3 = getMonths(3)
-    const tips = []
-    // Check saving trend
-    const avgInc = months3.reduce((a,mo)=>a+calcIngresosMes(mo),0)/3
-    const avgGas = months3.reduce((a,mo)=>a+calcGastosMes(mo),0)/3
-    if (avgInc > 0 && avgGas/avgInc > 0.9) tips.push({icon:'⚠️',bg:'var(--red-dim)',txt:`Tus gastos representan el <strong>${((avgGas/avgInc)*100).toFixed(0)}%</strong> de tus ingresos medios. Intenta bajar de 80%.`})
-    if (avgInc > 0 && avgGas/avgInc < 0.6) tips.push({icon:'🌟',bg:'var(--green-dim)',txt:`Excelente: gastas solo el <strong>${((avgGas/avgInc)*100).toFixed(0)}%</strong> de tus ingresos. Considera aumentar inversiones.`})
-    // Check recurring expenses
-    const recGas = S.gastos.filter(g=>g.recurrente&&g.tipo!==TX_TYPES.GOAL_TRANSFER)
-    if (recGas.length > 0) {
-      const totalRec = recGas.reduce((a,g)=>a+(Number(g.importe)||0),0)
-      tips.push({icon:'🔄',bg:'var(--indigo-dim)',txt:`Tienes <strong>${recGas.length} gastos recurrentes</strong> por <strong>${eur(totalRec)}</strong> mensuales. Revísalos periódicamente.`})
-    }
-    // Check top category dominance
-    const catMap = gastosMesByCat(currentMonth())
-    const entries = Object.entries(catMap).sort((a,b)=>b[1]-a[1])
-    const totalG = entries.reduce((a,[,v])=>a+v,0)
-    if (entries.length && totalG > 0 && entries[0][1]/totalG > 0.4) tips.push({icon:'🏷',bg:'var(--gold-dim)',txt:`<strong>${entries[0][0]}</strong> representa el <strong>${((entries[0][1]/totalG)*100).toFixed(0)}%</strong> de tus gastos este mes. ¿Hay margen de optimización?`})
-    // Investments check
-    if (S.inversiones.filter(i=>!i.cerrada).length === 0 && avgInc > 500) tips.push({icon:'📈',bg:'var(--accent-dim)',txt:`No tienes inversiones activas. Con ingresos regulares, considera empezar con un fondo indexado.`})
-    if (!tips.length) tips.push({icon:'✅',bg:'var(--green-dim)',txt:`¡Tus finanzas se ven equilibradas este período! Sigue registrando para obtener más insights personalizados.`})
-    return `<div class="card" style="margin-bottom:16px">
-      <div class="card-header"><div class="card-title">🧠 Insights personalizados</div><div class="card-subtitle">Basados en tus datos reales</div></div>
-      ${tips.map(t=>`<div class="insight-item"><div class="insight-icon" style="background:${t.bg}">${t.icon}</div><div class="insight-text">${t.txt}</div></div>`).join('')}
-    </div>`
-  })()}
-
-  <!-- Financial Planner — 3 scenarios (rediseñado) -->
-  ${(() => {
-    const months3 = getMonths(3)
-    const avgInc3 = months3.reduce((a,mo) => a + calcIngresosMes(mo), 0) / 3
-    const avgGas3 = months3.reduce((a,mo) => a + calcGastosMes(mo), 0) / 3
-    const cashFlow = avgInc3 - avgGas3
-    const saldoInicial = S.cuentas.reduce((a,c) => a + (Number(c.saldo)||0), 0)
-
-    if (avgInc3 === 0 && avgGas3 === 0) return `
-      <div class="card" style="margin-bottom:16px">
-        <div class="card-header"><div class="card-title">🔭 ${t('proyeccion_titulo','Proyección patrimonial')}</div></div>
-        ${window.mnEmptyStates ? window.mnEmptyStates.analisis() : '<div class="empty"><div class="empty-icon">📊</div><div class="empty-title">Sin datos</div></div>'}
-      </div>`
-
-    const buildSeries = mul => {
-      let val = saldoInicial
-      return Array.from({length: 12}, () => { val += cashFlow * mul; return Math.round(val) })
-    }
-    const cons = buildSeries(0.8)
-    const mod  = buildSeries(1.0)
-    const opt  = buildSeries(1.2)
-
-    const diff = arr => arr[arr.length - 1] - saldoInicial
-    const dfmt = v => (v >= 0 ? '+' : '') + eur(v)
-
-    const scenarios = [
-      { label: t('escenario_conservador','Conservador'), icon: '🐢', val: cons[11], dif: diff(cons), color: '#F87171', bg: 'rgba(248,113,113,0.08)', border: 'rgba(248,113,113,0.25)' },
-      { label: t('escenario_moderado','Moderado'),    icon: '⚖️', val: mod[11],  dif: diff(mod),  color: '#00D4AA', bg: 'rgba(0,212,170,0.08)',   border: 'rgba(0,212,170,0.25)' },
-      { label: t('escenario_optimista','Optimista'),   icon: '🚀', val: opt[11],  dif: diff(opt),  color: '#10B981', bg: 'rgba(16,185,129,0.08)',  border: 'rgba(16,185,129,0.25)' },
-    ]
-
-    const scenarioCards = scenarios.map(s => `
-      <div style="flex:1;min-width:120px;background:${s.bg};border:1px solid ${s.border};border-radius:12px;padding:14px 12px;text-align:center">
-        <div style="font-size:1.3rem;margin-bottom:5px">${s.icon}</div>
-        <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:${s.color};margin-bottom:5px">${s.label}</div>
-        <div style="font-size:1.05rem;font-weight:800;color:var(--text)">${eur(s.val)}</div>
-        <div style="font-size:.7rem;font-weight:700;color:${s.dif>=0?'var(--green)':'var(--red)'};margin-top:2px">${dfmt(s.dif)}</div>
-        <div style="font-size:.63rem;color:var(--text3);margin-top:1px">en 12 meses</div>
-      </div>`).join('')
-
-    const cfMensual = cashFlow >= 0
-      ? `+${eur(cashFlow)}/mes de media`
-      : `${eur(cashFlow)}/mes de media`
-
-    return `
-    <div class="card" style="margin-bottom:16px">
-      <div class="card-header">
-        <div>
-          <div class="card-title">🔭 ${t('proyeccion_titulo','Proyección patrimonial')}</div>
-          <div class="card-subtitle">${t('proyeccion_sub','Basada en tus últimos 3 meses')} · ${cfMensual}</div>
-        </div>
+  <!-- ── PROYECCIÓN PATRIMONIAL ────────────────────────────────── -->
+  ${(avgInc3>0||avgGas3>0) ? `
+  <div class="card mn-section">
+    <div class="card-header">
+      <div>
+        <div class="card-title">🔭 ${t('proyeccion_titulo','Proyección patrimonial')}</div>
+        <div class="card-subtitle">${t('proyeccion_sub','Últimos 3 meses de media')} · ${cfPlanner>=0?'+':''}${eur(cfPlanner)}/${t('mes_lbl','mes')}</div>
       </div>
-      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">${scenarioCards}</div>
-      <div class="chart-container" style="height:200px"><canvas id="chartFinancialPlanner"></canvas></div>
-      <div style="margin-top:8px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
-        ${scenarios.map(s=>`<div style="display:flex;align-items:center;gap:5px;font-size:.72rem;color:var(--text2);font-weight:600">
-          <span style="width:12px;height:3px;border-radius:99px;background:${s.color};display:inline-block"></span>${s.label}</div>`).join('')}
-      </div>
-    </div>`
-  })()}
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">
+      ${planScenarios.map(s=>`
+        <div style="background:${s.bg};border:1px solid ${s.border};border-radius:12px;padding:16px 12px;text-align:center">
+          <div style="font-size:1.4rem;margin-bottom:6px">${s.icon}</div>
+          <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:${s.color};margin-bottom:6px">${s.label}</div>
+          <div style="font-size:1.1rem;font-weight:800;color:var(--text)">${eur(s.val)}</div>
+          <div style="font-size:.72rem;font-weight:700;color:${s.dif>=0?'var(--green)':'var(--red)'};margin-top:3px">${s.dif>=0?'+':''}${eur(s.dif)}</div>
+          <div style="font-size:.65rem;color:var(--text3);margin-top:2px">${t('en_12_meses','en 12 meses')}</div>
+        </div>`).join('')}
+    </div>
+    <div class="chart-container" style="height:200px"><canvas id="chartFinancialPlanner"></canvas></div>
+    <div style="margin-top:10px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+      ${planScenarios.map(s=>`<div style="display:flex;align-items:center;gap:5px;font-size:.72rem;color:var(--text2);font-weight:600"><span style="width:14px;height:3px;border-radius:99px;background:${s.color};display:inline-block"></span>${s.label}</div>`).join('')}
+    </div>
+  </div>` : ''}
 `
 
   // Charts
