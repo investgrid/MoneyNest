@@ -19,17 +19,20 @@
 
 const MN_USER_KEY        = 'mn_user';
 const TRIAL_DURATION_MS  = 24 * 60 * 60 * 1000;
-const TRIAL_DAYS         = 1;   // 24h = 1 day (legacy compat)
 const PRO_TRIAL_DAYS     = 7;
 
-const PLANS = Object.freeze({
+// Estas constantes son usadas por auth.js internamente y exportadas a window.MNAuth.
+// app.js también las define con el mismo valor — cuando app.js carga, sobreescribe
+// las globales. auth.js usa sus propias referencias locales, no las globales.
+const _AUTH_PLANS = Object.freeze({
+  GUEST:        'trial',
   TRIAL:        'trial',
   LOCKED_LOCAL: 'locked_local',
   LOCAL:        'local',
   PRO:          'pro',
 });
 
-const DEFAULT_USER = Object.freeze({
+const _AUTH_DEFAULT_USER = Object.freeze({
   id:              null,
   plan:            'trial',
   trialEndsAt:     null,
@@ -42,6 +45,8 @@ const DEFAULT_USER = Object.freeze({
   proTrialEndsAt:  null,
 });
 
+const _AUTH_TRIAL_DAYS = 1;
+
 
 // ════════════════════════════════════════════════════════════════
 //  CRUD BÁSICO
@@ -49,17 +54,17 @@ const DEFAULT_USER = Object.freeze({
 
 /**
  * Lee el usuario desde localStorage.
- * Si no existe o está corrupto devuelve DEFAULT_USER (sin tocar storage).
+ * Si no existe o está corrupto devuelve _AUTH_DEFAULT_USER (sin tocar storage).
  * @returns {Object}
  */
 function getUser() {
   try {
     const raw = localStorage.getItem(MN_USER_KEY);
-    if (!raw) return { ...DEFAULT_USER };
+    if (!raw) return { ..._AUTH_DEFAULT_USER };
     const parsed = JSON.parse(raw);
-    return { ...DEFAULT_USER, ...parsed };
+    return { ..._AUTH_DEFAULT_USER, ...parsed };
   } catch {
-    return { ...DEFAULT_USER };
+    return { ..._AUTH_DEFAULT_USER };
   }
 }
 
@@ -105,9 +110,9 @@ function initUser() {
     // ── Primera visita ──────────────────────────────────────────
     const now = Date.now();
     user = {
-      ...DEFAULT_USER,
+      ..._AUTH_DEFAULT_USER,
       id:          _generateId(),
-      plan:        PLANS.TRIAL,
+      plan:        _AUTH_PLANS.TRIAL,
       trialEndsAt: now + TRIAL_DURATION_MS,
       createdAt:   now,
     };
@@ -118,7 +123,7 @@ function initUser() {
     let dirty = false;
     if (!user.createdAt) { user.createdAt = Date.now(); dirty = true; }
     // Migrar plan 'guest' legacy → 'trial'
-    if (user.plan === 'guest') { user.plan = PLANS.TRIAL; dirty = true; }
+    if (user.plan === 'guest') { user.plan = _AUTH_PLANS.TRIAL; dirty = true; }
     if (dirty) saveUser(user);
   }
 
@@ -140,19 +145,19 @@ function checkAccess() {
 
   switch (user.plan) {
     // ── Planes desbloqueados ────────────────────────────────────
-    case PLANS.PRO:
+    case _AUTH_PLANS.PRO:
       _checkProSubscription(user); // puede hacer downgrade silencioso a local
       return { ok: true, reason: null };
 
-    case PLANS.LOCAL:
+    case _AUTH_PLANS.LOCAL:
       return { ok: true, reason: null };
 
     // ── Trial activo ────────────────────────────────────────────
-    case PLANS.TRIAL: {
+    case _AUTH_PLANS.TRIAL: {
       const now = Date.now();
       if (user.trialEndsAt && now > user.trialEndsAt) {
         // Trial expirado → bloquear
-        patchUser({ plan: PLANS.LOCKED_LOCAL, upgradedAt: now });
+        patchUser({ plan: _AUTH_PLANS.LOCKED_LOCAL, upgradedAt: now });
         bloquearApp();
         return { ok: false, reason: 'trial_expired' };
       }
@@ -160,7 +165,7 @@ function checkAccess() {
     }
 
     // ── Bloqueado ───────────────────────────────────────────────
-    case PLANS.LOCKED_LOCAL:
+    case _AUTH_PLANS.LOCKED_LOCAL:
       bloquearApp();
       return { ok: false, reason: 'locked_local' };
 
@@ -178,7 +183,7 @@ function checkAccess() {
  */
 function _checkProSubscription(user) {
   const u = user || getUser();
-  if (u.plan !== PLANS.PRO) return;
+  if (u.plan !== _AUTH_PLANS.PRO) return;
 
   // Si tiene proTrialEndsAt significa que está en periodo de prueba Pro
   // y aún no ha vinculado pago. Downgrade silencioso al expirar.
@@ -203,7 +208,7 @@ function upgradeTrial(email) {
   const now = Date.now();
   const trialEndsAt = now + TRIAL_DURATION_MS;
   const user = patchUser({
-    plan:        PLANS.TRIAL,
+    plan:        _AUTH_PLANS.TRIAL,
     trialEndsAt,
     upgradedAt:  now,
     ...(email ? { email } : {}),
@@ -220,7 +225,7 @@ function upgradeTrial(email) {
  */
 function buyLocal(email) {
   const user = patchUser({
-    plan:            PLANS.LOCAL,
+    plan:            _AUTH_PLANS.LOCAL,
     trialEndsAt:     null,   // el trial ya no aplica
     cloudEnabled:    false,
     upgradedAt:      Date.now(),
@@ -244,7 +249,7 @@ function activatePro(email, skipTrial = false) {
   const useFreeTrial = !current.proTrialUsed && !skipTrial;
 
   const user = patchUser({
-    plan:                  PLANS.PRO,
+    plan:                  _AUTH_PLANS.PRO,
     cloudEnabled:          true,
     proTrialEndsAt:        useFreeTrial ? now + PRO_TRIAL_DAYS * 24 * 60 * 60 * 1000 : null,
     proTrialUsed:          true,
@@ -263,7 +268,7 @@ function activatePro(email, skipTrial = false) {
  */
 function cancelPro() {
   const user = patchUser({
-    plan:                  PLANS.LOCAL,
+    plan:                  _AUTH_PLANS.LOCAL,
     cloudEnabled:          false,
     proTrialEndsAt:        null,
     proSubscriptionActive: false,
@@ -286,7 +291,7 @@ function downgradeGuest()   { return cancelPro(); }
 /** Milisegundos restantes de trial (0 si no aplica o expiró). */
 function trialMsLeft() {
   const user = getUser();
-  if (user.plan !== PLANS.TRIAL || !user.trialEndsAt) return 0;
+  if (user.plan !== _AUTH_PLANS.TRIAL || !user.trialEndsAt) return 0;
   return Math.max(0, user.trialEndsAt - Date.now());
 }
 
@@ -314,14 +319,14 @@ function trialDaysLeft() {
 
 function isTrialExpired() {
   const user = getUser();
-  return (user.plan === PLANS.TRIAL || user.plan === PLANS.LOCKED_LOCAL)
+  return (user.plan === _AUTH_PLANS.TRIAL || user.plan === _AUTH_PLANS.LOCKED_LOCAL)
     && !!user.trialEndsAt && Date.now() > user.trialEndsAt;
 }
 
-function isTrial()       { return getUser().plan === PLANS.TRIAL;        }
-function isLocked()      { return getUser().plan === PLANS.LOCKED_LOCAL;  }
-function isLocal()       { return getUser().plan === PLANS.LOCAL;         }
-function isPro()         { return getUser().plan === PLANS.PRO;           }
+function isTrial()       { return getUser().plan === _AUTH_PLANS.TRIAL;        }
+function isLocked()      { return getUser().plan === _AUTH_PLANS.LOCKED_LOCAL;  }
+function isLocal()       { return getUser().plan === _AUTH_PLANS.LOCAL;         }
+function isPro()         { return getUser().plan === _AUTH_PLANS.PRO;           }
 /** @deprecated — en el nuevo modelo no hay plan 'guest' */
 function isGuest()       { return isTrial();                              }
 
@@ -583,7 +588,7 @@ if (typeof window !== 'undefined') {
   window.MNAuth = {
     // Constantes
     PLANS,
-    DEFAULT_USER,
+    _AUTH_DEFAULT_USER,
     TRIAL_DAYS,    // legacy
     // CRUD
     getUser,

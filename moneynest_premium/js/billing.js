@@ -15,6 +15,9 @@
 
 'use strict';
 
+// Safe _bt() wrapper — billing.js may load before _bt() is defined
+function _bt(key) { return (typeof window.t === 'function') ? window.t(key) : key; }
+
 // ─── Storage keys ────────────────────────────────────────────────
 const BK = {
   SUB:     'mn_billing_sub',
@@ -233,11 +236,11 @@ function getTrialTimeLeft() {
 async function mockBuyLocal(opts = {}) {
   const { email = null, onProgress } = opts;
   const steps = [
-    { msg: t('billing_step_conectando'),  delay: 600 },
-    { msg: t('billing_step_verificando'), delay: 900 },
-    { msg: t('billing_step_procesando'),  delay: 1200 },
-    { msg: t('billing_step_activando'),   delay: 600 },
-    { msg: t('billing_step_listo'),       delay: 300 },
+    { msg: _bt('billing_step_conectando'),  delay: 600 },
+    { msg: _bt('billing_step_verificando'), delay: 900 },
+    { msg: _bt('billing_step_procesando'),  delay: 1200 },
+    { msg: _bt('billing_step_activando'),   delay: 600 },
+    { msg: _bt('billing_step_listo'),       delay: 300 },
   ];
   for (const step of steps) {
     if (onProgress) onProgress(step.msg);
@@ -253,11 +256,11 @@ async function mockBuyLocal(opts = {}) {
 async function mockActivatePro(opts = {}) {
   const { email = null, onProgress } = opts;
   const steps = [
-    { msg: t('billing_step_iniciando_pro'),    delay: 500 },
-    { msg: t('billing_step_config_cloud'),     delay: 800 },
-    { msg: t('billing_step_activando_sync'),   delay: 700 },
-    { msg: t('billing_step_trial_pro'),        delay: 500 },
-    { msg: t('billing_step_bienvenido_pro'),   delay: 300 },
+    { msg: _bt('billing_step_iniciando_pro'),    delay: 500 },
+    { msg: _bt('billing_step_config_cloud'),     delay: 800 },
+    { msg: _bt('billing_step_activando_sync'),   delay: 700 },
+    { msg: _bt('billing_step_trial_pro'),        delay: 500 },
+    { msg: _bt('billing_step_bienvenido_pro'),   delay: 300 },
   ];
   for (const step of steps) {
     if (onProgress) onProgress(step.msg);
@@ -272,9 +275,9 @@ async function mockActivatePro(opts = {}) {
 async function mockCancelPro(opts = {}) {
   const { onProgress } = opts;
   const steps = [
-    { msg: t('billing_step_cancelando'),         delay: 700 },
-    { msg: t('billing_step_desactivando_sync'),  delay: 600 },
-    { msg: t('billing_step_manteniendo_datos'),  delay: 400 },
+    { msg: _bt('billing_step_cancelando'),         delay: 700 },
+    { msg: _bt('billing_step_desactivando_sync'),  delay: 600 },
+    { msg: _bt('billing_step_manteniendo_datos'),  delay: 400 },
   ];
   for (const step of steps) {
     if (onProgress) onProgress(step.msg);
@@ -294,11 +297,11 @@ async function mockSyncCloud(opts = {}) {
   patchSub({ syncStatus: 'syncing' });
   document.dispatchEvent(new CustomEvent('mn:billing:syncStart'));
 
-  if (onProgress) onProgress(t('billing_step_sincronizando'));
+  if (onProgress) onProgress(_bt('billing_step_sincronizando'));
   await _delay(800);
-  if (onProgress) onProgress(t('billing_step_subiendo'));
+  if (onProgress) onProgress(_bt('billing_step_subiendo'));
   await _delay(600);
-  if (onProgress) onProgress(t('billing_step_verificando_integ'));
+  if (onProgress) onProgress(_bt('billing_step_verificando_integ'));
   await _delay(400);
 
   const result = patchSub({ syncStatus: 'synced', lastSyncAt: Date.now() });
@@ -398,14 +401,14 @@ function getSubStatus() {
   let statusLabel = '';
   let statusColor = planDef.color;
   switch (state) {
-    case SUB_STATES.ACTIVE_TRIAL:   statusLabel = t('billing_status_trial_activo');      statusColor = '#6366F1'; break;
-    case SUB_STATES.TRIAL_ENDING:   statusLabel = t('billing_status_trial_finalizando'); statusColor = '#F59E0B'; break;
-    case SUB_STATES.EXPIRED_TRIAL:  statusLabel = t('billing_status_trial_expirado');    statusColor = '#F43F5E'; break;
-    case SUB_STATES.LOCAL_ACTIVE:   statusLabel = t('billing_status_local');             statusColor = '#00D4AA'; break;
-    case SUB_STATES.PRO_TRIALING:   statusLabel = t('billing_status_pro_trial');         statusColor = '#A78BFA'; break;
-    case SUB_STATES.PRO_ACTIVE:     statusLabel = t('billing_status_pro_activo');        statusColor = '#A78BFA'; break;
-    case SUB_STATES.PRO_CANCELLED:  statusLabel = t('billing_status_pro_cancelado');     statusColor = '#F43F5E'; break;
-    case SUB_STATES.SYNCING:        statusLabel = t('billing_status_sincronizando');     statusColor = '#38BDF8'; break;
+    case SUB_STATES.ACTIVE_TRIAL:   statusLabel = _bt('billing_status_trial_activo');      statusColor = '#6366F1'; break;
+    case SUB_STATES.TRIAL_ENDING:   statusLabel = _bt('billing_status_trial_finalizando'); statusColor = '#F59E0B'; break;
+    case SUB_STATES.EXPIRED_TRIAL:  statusLabel = _bt('billing_status_trial_expirado');    statusColor = '#F43F5E'; break;
+    case SUB_STATES.LOCAL_ACTIVE:   statusLabel = _bt('billing_status_local');             statusColor = '#00D4AA'; break;
+    case SUB_STATES.PRO_TRIALING:   statusLabel = _bt('billing_status_pro_trial');         statusColor = '#A78BFA'; break;
+    case SUB_STATES.PRO_ACTIVE:     statusLabel = _bt('billing_status_pro_activo');        statusColor = '#A78BFA'; break;
+    case SUB_STATES.PRO_CANCELLED:  statusLabel = _bt('billing_status_pro_cancelado');     statusColor = '#F43F5E'; break;
+    case SUB_STATES.SYNCING:        statusLabel = _bt('billing_status_sincronizando');     statusColor = '#38BDF8'; break;
   }
 
   return { sub, state, planDef, trialLeft, isExpired, isActive, statusLabel, statusColor };
