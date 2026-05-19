@@ -531,6 +531,18 @@
       insight_recurrentes3: 'Revísalos periódicamente.',
       insight_top_cat: 'representa el', insight_top_cat2: 'de tus gastos. ¿Hay margen de mejora?',
       insight_sin_inversiones: 'No tienes inversiones activas. Con ingresos regulares, considera un fondo indexado.',
+      // Deudas calc personalizado
+      calc_desc: '¿Cuánto puedes destinar a pagar deudas? Calcula tu fecha exacta de libertad financiera.',
+      puedo_pagar: 'Puedo pagar',
+      al_mes: 'al mes', a_la_semana: 'a la semana', al_dia: 'al día',
+      cuota_insuficiente: 'La cuota no cubre los intereses. Necesitas al menos',
+      aplicar_como_estrategia: 'Aplicar como estrategia activa',
+      estrategia_aplicada: 'Estrategia aplicada',
+      en_intereses: 'en intereses', pendiente_lbl: 'pendiente',
+      // Transferencias
+      transferencia_hacia: 'Transferencia hacia',
+      transferencia_desde: 'Transferencia desde',
+      transferencia_cat: 'Transferencia',
       // Deudas
       libertad_financiera: 'Libertad financiera',
       interes_anual: 'anual', interes_medio: 'Interés medio',
@@ -950,6 +962,18 @@
       insight_recurrentes3: 'Review them regularly.',
       insight_top_cat: 'accounts for', insight_top_cat2: 'of your expenses. Any room for improvement?',
       insight_sin_inversiones: 'No active investments. With regular income, consider an index fund.',
+      // Debts calc personalised
+      calc_desc: 'How much can you put towards paying off debt? Calculate your exact debt-free date.',
+      puedo_pagar: 'I can pay',
+      al_mes: 'per month', a_la_semana: 'per week', al_dia: 'per day',
+      cuota_insuficiente: "The payment doesn't cover the interest. You need at least",
+      aplicar_como_estrategia: 'Apply as active strategy',
+      estrategia_aplicada: 'Strategy applied',
+      en_intereses: 'in interest', pendiente_lbl: 'pending',
+      // Transfers
+      transferencia_hacia: 'Transfer to',
+      transferencia_desde: 'Transfer from',
+      transferencia_cat: 'Transfer',
       // Debts
       libertad_financiera: 'Debt-free date',
       interes_anual: 'annual', interes_medio: 'Average interest',

@@ -5249,19 +5249,19 @@ function renderDeudas() {
     <!-- Calculadora personalizada -->
     <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
       <div style="font-size:.82rem;font-weight:700;color:var(--text);margin-bottom:10px">🧮 ${t('calc_personalizada','Calculadora personalizada')}</div>
+      <div style="font-size:.75rem;color:var(--text2);margin-bottom:10px">${t('calc_desc','¿Cuánto puedes destinar a pagar deudas? Calcula tu fecha exacta de libertad financiera.')}</div>
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">
-        <span style="font-size:.82rem;color:var(--text2)">${t('quiero_libre_en','Quiero ser libre en')}</span>
-        <input type="number" id="libertadN" min="1" max="600" placeholder="12"
-          style="width:64px;padding:7px 10px;background:var(--bg2);border:1.5px solid var(--border2);border-radius:8px;color:var(--text);font-size:.92rem;font-weight:700;text-align:center"
+        <span style="font-size:.82rem;color:var(--text2)">${t('puedo_pagar','Puedo pagar')}</span>
+        <input type="number" id="libertadN" min="1" placeholder="200"
+          style="width:88px;padding:7px 10px;background:var(--bg2);border:1.5px solid var(--border2);border-radius:8px;color:var(--text);font-size:.95rem;font-weight:700;text-align:center"
+          oninput="calcLibertad3Cards()"
           onkeydown="if(event.key==='Enter')calcLibertad3Cards()">
-        <select id="libertadUnit" style="padding:7px 12px;background:var(--bg2);border:1.5px solid var(--border2);border-radius:8px;color:var(--text);font-size:.82rem;font-weight:600;cursor:pointer">
-          <option value="meses">${t('meses','meses')}</option>
-          <option value="anos">${t('anios','años')}</option>
+        <select id="libertadUnit" style="padding:7px 12px;background:var(--bg2);border:1.5px solid var(--border2);border-radius:8px;color:var(--text);font-size:.82rem;font-weight:600;cursor:pointer"
+          onchange="calcLibertad3Cards()">
+          <option value="mes">${t('al_mes','al mes')}</option>
+          <option value="semana">${t('a_la_semana','a la semana')}</option>
+          <option value="dia">${t('al_dia','al día')}</option>
         </select>
-        <button onclick="calcLibertad3Cards()"
-          style="padding:7px 16px;background:linear-gradient(135deg,var(--accent),#00b894);border:none;border-radius:8px;color:#fff;font-size:.82rem;font-weight:700;cursor:pointer;font-family:inherit">
-          🎯 ${t('calcular_cuota','Calcular cuota')}
-        </button>
       </div>
       <div id="libertad3Cards"></div>
     </div>
@@ -5315,165 +5315,201 @@ function renderDeudas() {
   }
 }
 
+/**
+ * Reemplaza el gráfico de línea feo por barras horizontales por deuda.
+ * Muestra el estado actual de cada deuda: pagado vs pendiente.
+ * Mucho más legible y útil que una línea de amortización.
+ */
 function renderChartDeudaProyeccion(totalPendiente, mensualPago) {
-  const canvas = document.getElementById('chartDeudaProyeccion')
-  if (!canvas) return
-  if (mensualPago <= 0) return
+  const container = document.getElementById('chartDeudaProyeccion')
+  if (!container) return
 
-  // Build monthly paydown curve — max 60 months
   const interesMedio = S.deudas.length
     ? S.deudas.reduce((a,d) => a + (Number(d.interes)||0), 0) / S.deudas.length
     : 0
-  const monthlyRate = interesMedio / 100 / 12
 
-  const labels = []
-  const values = []
-  let saldo = totalPendiente
-  const hoy = new Date()
-  for (let i = 0; i <= 60 && saldo > 0; i++) {
-    const d = new Date(hoy.getFullYear(), hoy.getMonth() + i, 1)
-    const _loc={'es':'es-ES','en':'en-GB','it':'it-IT','fr':'fr-FR','de':'de-DE','pt':'pt-PT'}[_currentLang]||'es-ES'; labels.push(d.toLocaleDateString(_loc, { month:'short', year:'2-digit' }))
-    values.push(Math.max(0, Math.round(saldo)))
-    // Apply interest then subtract payment
-    const interest = saldo * monthlyRate
-    saldo = saldo + interest - mensualPago
-  }
-  // Ensure we reach zero
-  if (values[values.length-1] > 0) {
-    labels.push(t('libre'))
-    values.push(0)
-  }
+  // Calcular meses por deuda según estrategia activa
+  const estrategia = window._deudaStrat || 'moderado'
+  const mulMap = { conservador: 0.6, moderado: 1.0, agresivo: 1.6 }
+  const mul = mulMap[estrategia] || 1.0
 
-  const isDark = (S.theme||'dark') === 'dark'
-  const gridCol = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'
-  const labelCol = isDark ? '#94A3B8' : '#64748B'
-
-  const ctx = canvas.getContext('2d')
-  const gradient = ctx.createLinearGradient(0, 0, 0, 180)
-  gradient.addColorStop(0, 'rgba(244,63,94,0.3)')
-  gradient.addColorStop(1, 'rgba(244,63,94,0.02)')
-
-  // Register in chart registry so destroyAllCharts() cleans it
-  if (charts['deudaProyeccion']) { try { charts['deudaProyeccion'].destroy() } catch(e){} }
-  charts['deudaProyeccion'] = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels,
-      datasets: [{
-        label: t('pendiente_total'),
-        data: values,
-        borderColor: 'var(--red)',
-        backgroundColor: gradient,
-        borderWidth: 2.5,
-        pointRadius: 0,
-        pointHoverRadius: 4,
-        tension: 0.4,
-        fill: true,
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            label: ctx2 => ' Pendiente: ' + new Intl.NumberFormat('es-ES',{minimumFractionDigits:0,maximumFractionDigits:0}).format(ctx2.raw) + ' €'
-          }
-        }
-      },
-      scales: {
-        x: { grid:{ color:gridCol }, ticks:{ color:labelCol, font:{size:9}, maxTicksLimit:8 } },
-        y: {
-          grid: { color:gridCol },
-          ticks: {
-            color: labelCol, font:{size:9},
-            callback: v => new Intl.NumberFormat('es-ES',{minimumFractionDigits:0,maximumFractionDigits:0}).format(v) + ' €'
-          },
-          suggestedMin: 0,
-        }
-      }
-    }
+  const deudas = S.deudas.filter(d => {
+    const pend = (Number(d.importeTotal)||0) - (Number(d.importePagado)||0)
+    return pend > 0
+  }).sort((a, b) => {
+    // Ordenar según estrategia activa
+    if (estrategia === 'agresivo') return (Number(b.interes)||0) - (Number(a.interes)||0)
+    const pA = (Number(a.importeTotal)||0) - (Number(a.importePagado)||0)
+    const pB = (Number(b.importeTotal)||0) - (Number(b.importePagado)||0)
+    return pA - pB // snowball por defecto
   })
+
+  if (!deudas.length) {
+    container.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--green);font-weight:700">✅ ${t('sin_deudas','Sin deudas pendientes')}</div>`
+    return
+  }
+
+  // Calcular cuándo se paga cada deuda de forma acumulada
+  const { monthlyPayment } = calcDebtStrategy(totalPendiente, interesMedio, mul)
+  let presupuesto = monthlyPayment
+  let acumMeses = 0
+  const deudaInfo = deudas.map(d => {
+    const total  = Number(d.importeTotal) || 0
+    const pagado = Number(d.importePagado) || 0
+    const pend   = Math.max(0, total - pagado)
+    const pct2   = total > 0 ? (pagado / total) * 100 : 0
+    const r      = (Number(d.interes)||0) / 100 / 12
+    let meses
+    if (r > 0 && presupuesto > r * pend) {
+      meses = Math.ceil(Math.log(presupuesto / (presupuesto - r * pend)) / Math.log(1 + r))
+    } else {
+      meses = Math.ceil(pend / Math.max(presupuesto, 1))
+    }
+    if (!isFinite(meses) || meses <= 0) meses = 1
+    acumMeses += meses
+    const fechaLibre = (() => {
+      const fd = new Date(); fd.setMonth(fd.getMonth() + acumMeses)
+      return fd.toLocaleDateString('es-ES', { month: 'short', year: 'numeric' })
+    })()
+    // Siguiente deuda recibe el pago liberado (efecto bola de nieve / avalancha)
+    presupuesto += pend / Math.max(meses, 1) * 0.3
+    return { nombre: d.nombre || '—', total, pagado, pend, pct: pct2, meses, fechaLibre, interes: Number(d.interes)||0 }
+  })
+
+  // Renderizar como barras horizontales
+  container.innerHTML = deudaInfo.map(d => {
+    const urgencyColor = d.interes > 15 ? '#F43F5E' : d.interes > 8 ? '#F59E0B' : '#00D4AA'
+    return `
+      <div style="margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">
+          <div style="display:flex;align-items:center;gap:6px;min-width:0">
+            <span style="width:8px;height:8px;border-radius:50%;background:${urgencyColor};flex-shrink:0;
+              box-shadow:0 0 5px ${urgencyColor}88"></span>
+            <span style="font-size:.82rem;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px">${d.nombre}</span>
+            ${d.interes > 0 ? `<span style="font-size:.62rem;color:var(--gold);font-weight:600">${pct(d.interes)}</span>` : ''}
+          </div>
+          <div style="text-align:right;flex-shrink:0;margin-left:8px">
+            <span style="font-size:.78rem;font-weight:800;color:var(--text)">${eur(d.pend)}</span>
+            <span style="font-size:.64rem;color:var(--text3);margin-left:4px">→ ${d.fechaLibre}</span>
+          </div>
+        </div>
+        <div style="height:8px;background:var(--border);border-radius:99px;overflow:hidden">
+          <div style="height:100%;width:${d.pct.toFixed(1)}%;background:${urgencyColor};border-radius:99px;
+            transition:width .6s cubic-bezier(0.16,1,0.3,1);
+            box-shadow:0 0 8px ${urgencyColor}66"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:.63rem;color:var(--text3);margin-top:2px">
+          <span>${t('pagado','Pagado')}: ${eur(d.pagado)} (${d.pct.toFixed(0)}%)</span>
+          <span>${fmtMonths(d.meses)}</span>
+        </div>
+      </div>`
+  }).join('')
 }
 
+/**
+ * Calculador de deuda mejorado:
+ * El usuario introduce cuánto puede pagar/mes → se calcula cuándo estará libre,
+ * con desglose diario y semanal, y puede aplicar esa cuota como estrategia activa.
+ */
 function calcLibertad3Cards() {
-  var n    = parseFloat(document.getElementById('libertadN').value)
-  var unit = document.getElementById('libertadUnit').value
-  var box  = document.getElementById('libertad3Cards')
+  const input = document.getElementById('libertadN')
+  const unit  = document.getElementById('libertadUnit').value
+  const box   = document.getElementById('libertad3Cards')
   if (!box) return
+
+  const n = parseFloat(input?.value)
   if (!n || n <= 0) {
-    box.innerHTML = '<div style="color:var(--red);font-size:.82rem;padding:8px 12px;background:var(--red-dim);border-radius:8px">Introduce un período válido.</div>'
+    box.innerHTML = `<div class="mn-insight mn-insight--alert"><span class="mn-insight-icon">⚠️</span><div class="mn-insight-body">${t('err_importe_valido','Introduce un importe válido.')}</div></div>`
     return
   }
-  var pend = S.deudas.reduce(function(a,d){ return a + Math.max(0,(Number(d.importeTotal)||0)-(Number(d.importePagado)||0)) },0)
+
+  const pend = S.deudas.reduce((a,d) => a + Math.max(0,(Number(d.importeTotal)||0)-(Number(d.importePagado)||0)), 0)
   if (pend <= 0) {
-    box.innerHTML = '<div style="text-align:center;padding:16px;font-size:1rem;font-weight:800;color:var(--green)">¡Ya estás libre de deudas! 🎉</div>'
+    box.innerHTML = `<div class="mn-insight mn-insight--ok"><span class="mn-insight-icon">🎉</span><div class="mn-insight-body"><strong>${t('deuda_libertad_exito','¡Ya estás libre de deudas!')}</strong></div></div>`
     return
   }
-  var meses = unit === 'anos' ? Math.round(n*12) : Math.round(n)
-  if (meses < 1) meses = 1
-  var intMed = S.deudas.length ? S.deudas.reduce(function(a,d){return a+(Number(d.interes)||0)},0)/S.deudas.length : 0
-  var mensual
+
+  const intMed = S.deudas.length ? S.deudas.reduce((a,d) => a+(Number(d.interes)||0),0)/S.deudas.length : 0
+
+  // Convertir a mensual si viene en otra unidad
+  let mensual
+  if (unit === 'semana')  mensual = n * 52 / 12
+  else if (unit === 'dia') mensual = n * 365 / 12
+  else mensual = n  // /mes por defecto
+
+  // Calcular meses con fórmula financiera
+  let meses
   if (intMed > 0) {
-    var r = intMed/100/12
-    mensual = (pend * r * Math.pow(1+r,meses)) / (Math.pow(1+r,meses)-1)
+    const r = intMed / 100 / 12
+    if (mensual <= r * pend) {
+      // No cubre ni los intereses
+      box.innerHTML = `<div class="mn-insight mn-insight--alert"><span class="mn-insight-icon">🚨</span><div class="mn-insight-body">${t('cuota_insuficiente','La cuota no cubre los intereses. Necesitas al menos')} <strong>${eur(r * pend + 1)}/mes</strong>.</div></div>`
+      return
+    }
+    meses = Math.ceil(Math.log(mensual / (mensual - r * pend)) / Math.log(1 + r))
+    if (!isFinite(meses) || meses <= 0) meses = Math.ceil(pend / mensual)
   } else {
-    mensual = pend/meses
-  }
-  var semanal = mensual*12/52
-  var diario  = mensual*12/365
-  var periodoLabel = n + ' ' + (unit==='anos'?'años':'meses')
-  var activeKey = window._lib3Active || null
-
-  function render(ak) {
-    window._lib3Active = ak
-    var defs = [
-      { key:'mensual', icon:'📅', label:'Mensual',  amount:mensual, unit:'/mes',    color:'#2563eb' },
-      { key:'semanal', icon:'⏰', label:'Semanal',  amount:semanal, unit:'/semana', color:'#d97706' },
-      { key:'diario',  icon:'☀️', label:'Diario',   amount:diario,  unit:'/día',   color:'#7c3aed' },
-    ]
-    var html = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">'
-    defs.forEach(function(c) {
-      var isActive = ak === c.key
-      var cardStyle = 'background:var(--card);border-radius:14px;padding:18px 14px 14px;text-align:center;cursor:pointer;transition:all .2s;position:relative;overflow:hidden;' +
-        (isActive
-          ? 'border:2px solid var(--accent);box-shadow:0 0 0 4px rgba(0,212,170,.12),0 4px 20px rgba(0,212,170,.18);'
-          : 'border:1.5px solid var(--border2);box-shadow:0 2px 8px rgba(0,0,0,.07);')
-      var badge = isActive
-        ? '<div style="position:absolute;top:10px;right:10px;background:var(--accent);color:#fff;font-size:.6rem;font-weight:800;padding:2px 8px;border-radius:99px;letter-spacing:.04em">ACTIVA</div>'
-        : ''
-      var btnStyle = isActive
-        ? 'margin-top:12px;width:100%;padding:6px 0;border:none;border-radius:8px;background:var(--accent);color:#fff;font-size:.72rem;font-weight:800;cursor:pointer'
-        : 'margin-top:12px;width:100%;padding:6px 0;border:1.5px solid var(--border2);border-radius:8px;background:transparent;color:var(--text2);font-size:.72rem;font-weight:700;cursor:pointer'
-      var infoHtml = isActive
-        ? '<div style="font-size:.7rem;color:var(--text2);margin-top:10px;padding:8px;background:var(--bg2);border-radius:8px;border-left:3px solid var(--accent);text-align:left;line-height:1.5">El plan de pagos se ha sincronizado con tu calendario. Tus pagos se distribuirán según esta cuota para cumplir tu objetivo en ' + periodoLabel + '.</div>'
-        : ''
-      html +=
-        '<div style="' + cardStyle + '">' +
-          badge +
-          '<div style="font-size:1.8rem;margin-bottom:6px">' + c.icon + '</div>' +
-          '<div style="font-size:.65rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">' + c.label + '</div>' +
-          '<div style="font-size:1.6rem;font-weight:900;color:' + c.color + ';letter-spacing:-.5px;line-height:1">' + eur(c.amount) + '</div>' +
-          '<div style="font-size:.7rem;color:var(--text3);margin-top:3px">' + c.unit + '</div>' +
-          '<button onclick="calcLibertad3Cards._activate(\'' + c.key + '\')" style="' + btnStyle + '">' +
-            (isActive ? '✓ Estrategia Activa' : 'Activar estrategia') +
-          '</button>' +
-          infoHtml +
-        '</div>'
-    })
-    html += '</div>'
-    if (intMed > 0) html += '<div style="font-size:.7rem;color:var(--text3);margin-top:10px">* Incluye interés medio del ' + pct(intMed) + '/año</div>'
-    box.innerHTML = html
+    meses = Math.ceil(pend / mensual)
   }
 
-  calcLibertad3Cards._activate = function(key) {
-    render(key)
-    if (typeof toast === 'function') toast('📅 Plan de pagos sincronizado con tu calendario ✓')
-  }
+  const semanal = mensual * 12 / 52
+  const diario  = mensual * 12 / 365
 
-  render(activeKey)
+  const fechaLibre = (() => {
+    const d = new Date(); d.setMonth(d.getMonth() + meses)
+    return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })
+  })()
+
+  const totalIntereses = intMed > 0
+    ? Math.max(0, mensual * meses - pend).toFixed(0)
+    : 0
+
+  box.innerHTML = `
+    <!-- Resultado principal -->
+    <div style="background:linear-gradient(135deg,rgba(0,212,170,0.08),rgba(0,212,170,0.03));border:1px solid rgba(0,212,170,0.25);border-radius:14px;padding:18px 20px;margin-bottom:12px">
+      <div style="font-size:.68rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">🏁 ${t('libertad_financiera','Fecha de libertad financiera')}</div>
+      <div style="font-size:1.3rem;font-weight:900;color:var(--accent);letter-spacing:-.03em">${fechaLibre}</div>
+      <div style="font-size:.75rem;color:var(--text2);margin-top:4px">${fmtMonths(meses)} · ${eur(pend)} ${t('pendiente_lbl','pendiente')}${intMed>0?` · ${eur(totalIntereses)} ${t('en_intereses','en intereses')}`:''}</div>
+    </div>
+
+    <!-- Desglose de cuotas -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px">
+      ${[
+        { label: t('mes_lbl','/mes'), amount: mensual, icon: '📅', color: '#00D4AA', unit: 'mes' },
+        { label: t('semana_lbl','/semana'), amount: semanal, icon: '🗓', color: '#6366F1', unit: 'semana' },
+        { label: t('dia_lbl','/día'), amount: diario, icon: '☀️', color: '#F59E0B', unit: 'dia' },
+      ].map(c => `
+        <div style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:12px 10px;text-align:center;cursor:pointer;transition:border-color .15s"
+          onclick="calcLibertad3Cards._setUnit('${c.unit}')"
+          onmouseover="this.style.borderColor='${c.color}'" onmouseout="this.style.borderColor='var(--border)'">
+          <div style="font-size:1rem;margin-bottom:4px">${c.icon}</div>
+          <div style="font-size:1rem;font-weight:900;color:${c.color};letter-spacing:-.03em">${eur(c.amount)}</div>
+          <div style="font-size:.65rem;color:var(--text3);font-weight:600">${c.label}</div>
+        </div>`
+      ).join('')}
+    </div>
+
+    <!-- Botón aplicar como estrategia activa -->
+    <button onclick="calcLibertad3Cards._apply(${mensual})"
+      style="width:100%;padding:10px;border-radius:10px;border:none;background:linear-gradient(135deg,var(--accent),#00A882);color:#0A0E17;font-size:.85rem;font-weight:800;cursor:pointer;font-family:inherit;letter-spacing:-.01em">
+      ✓ ${t('aplicar_como_estrategia','Aplicar como estrategia activa')}
+    </button>
+    ${intMed>0?`<div style="font-size:.68rem;color:var(--text3);text-align:center;margin-top:6px">* ${t('incluye_interes','Incluye interés medio del')} ${pct(intMed)}/año</div>`:''}
+  `
+}
+
+calcLibertad3Cards._setUnit = function(unit) {
+  const sel = document.getElementById('libertadUnit')
+  if (sel) sel.value = unit
+}
+
+calcLibertad3Cards._apply = function(cuotaMensual) {
+  // Guardar la cuota como estrategia personalizada
+  window._deudaCustomPago = cuotaMensual
+  if (typeof toast === 'function') toast(`✅ ${t('estrategia_aplicada','Estrategia aplicada')}: ${eur(cuotaMensual)}/mes`)
+  // Actualizar la proyección con la nueva cuota
+  const pend = S.deudas.reduce((a,d) => a + Math.max(0,(Number(d.importeTotal)||0)-(Number(d.importePagado)||0)), 0)
+  setTimeout(() => renderChartDeudaProyeccion(pend, cuotaMensual), 50)
 }
 
 function calcDeudaPersonalizada() {
@@ -5496,6 +5532,15 @@ function calcDeudaPersonalizada() {
 }
 
 function switchDebtTab(tab) {
+  // Actualizar estrategia activa según tab seleccionado
+  // snowball = conservador (pagos desde pequeños), avalanche = agresivo (mayor interés primero)
+  if (tab === 'avalanche' && window._deudaStrat === 'conservador') window._deudaStrat = 'moderado'
+  // Refrescar proyección con la nueva ordenación
+  const pend = S && S.deudas ? S.deudas.reduce((a,d) => a + Math.max(0,(Number(d.importeTotal)||0)-(Number(d.importePagado)||0)), 0) : 0
+  const intM  = S && S.deudas ? S.deudas.reduce((a,d)=>a+(Number(d.interes)||0),0)/(S.deudas.length||1) : 0
+  const { monthlyPayment } = calcDebtStrategy(pend, intM, { conservador:0.6,moderado:1.0,agresivo:1.6 }[window._deudaStrat||'moderado'] || 1.0)
+  setTimeout(() => renderChartDeudaProyeccion(pend, window._deudaCustomPago || monthlyPayment), 40)
+
   const snow = document.getElementById('debt-snowball')
   const aval = document.getElementById('debt-avalanche')
   if (snow) snow.style.display = tab==='snowball' ? 'block' : 'none'
@@ -7512,8 +7557,43 @@ function realizarTransferencia() {
   const desde = getCuenta(desdeId)
   const hacia = getCuenta(haciaId)
   if (!desde||!hacia) return
+
+  // Actualizar saldos
   desde.saldo = (Number(desde.saldo)||0) - importe
   hacia.saldo = (Number(hacia.saldo)||0) + importe
+
+  // Registrar como movimiento en ambas cuentas para que aparezca en el historial
+  const fecha = todayISO()
+  const txId  = uid()
+  const concepto = `${t('transferencia_hacia','Transferencia hacia')} ${hacia.nombre}`
+  const conceptoEntrada = `${t('transferencia_desde','Transferencia desde')} ${desde.nombre}`
+
+  // Salida de la cuenta origen
+  S.gastos.push({
+    id: txId + '_out',
+    concepto,
+    importe,
+    categoria: t('transferencia_cat','Transferencia'),
+    fecha,
+    cuentaId: desdeId,
+    tipo: TX_TYPES.ACCOUNT_TRANSFER || 'account_transfer',
+    recurrente: false,
+    _transferRef: txId,
+  })
+
+  // Entrada en la cuenta destino
+  S.ingresos.push({
+    id: txId + '_in',
+    concepto: conceptoEntrada,
+    importe,
+    categoria: t('transferencia_cat','Transferencia'),
+    fecha,
+    cuentaId: haciaId,
+    status: 'cobrado',
+    tipo: TX_TYPES.ACCOUNT_TRANSFER || 'account_transfer',
+    _transferRef: txId,
+  })
+
   save(); closeModal('transModal'); render(); toast(t('toast_transferencia_ok') + ': ' + eur(importe))
 }
 
@@ -10459,192 +10539,181 @@ function isDemoMode() { try { return localStorage.getItem(DEMO_FLAG) === 'true' 
 function loadDemoData(scenario, nombreOverride) {
   try { localStorage.setItem(DEMO_FLAG, 'true') } catch(e){}
   const hoy = new Date()
-  const m0 = hoy.toISOString().slice(0,7)
-  const m1 = new Date(hoy.getFullYear(), hoy.getMonth()-1, 1).toISOString().slice(0,7)
-  const m2 = new Date(hoy.getFullYear(), hoy.getMonth()-2, 1).toISOString().slice(0,7)
-  const d = (mes, dia) => `${mes}-${String(dia).padStart(2,'0')}`
+  const mes = (offset) => new Date(hoy.getFullYear(), hoy.getMonth() + offset, 1).toISOString().slice(0,7)
+  const d = (m, dia) => `${m}-${String(dia).padStart(2,'0')}`
+  const jitter = (base, pct=0.07) => Math.round(base * (1 + (Math.random()-0.5)*pct*2))
+  const uid2 = (prefix, n) => `${prefix}${n}`
 
-  // Helper: slight randomness so amounts look human
-  const jitter = (base, pct=0.08) => Math.round(base * (1 + (Math.random()-0.5)*pct))
+  // Perfil único maximizado: Alex Rueda — profesional con todo tipo de activos
+  S.usuario.nombre = nombreOverride || 'Alex Rueda'
 
-  // Scenario config
-  const sc = scenario || 'standard'
-  const scenarios = {
-    standard:  { nombre:'Alex García',     salario:2950, extra:580,  alquiler:900,  ahorroBase:9200 },
-    freelance: { nombre:'Sara López',      salario:0,    extra:4200, alquiler:850,  ahorroBase:6500 },
-    family:    { nombre:'Familia Martín',  salario:5200, extra:300,  alquiler:1100, ahorroBase:15000 },
-    investor:  { nombre:'Carlos Rueda',    salario:3800, extra:1200, alquiler:0,    ahorroBase:28000 },
-  }
-  const cfg = scenarios[sc] || scenarios.standard
-
-  S.usuario.nombre = nombreOverride || cfg.nombre || 'Demo'
-
-  // ── CUENTAS ────────────────────────────────────────────────────
-  const saldoCorriente = sc === 'freelance' ? 1850 : sc === 'family' ? 4200 : sc === 'investor' ? 6800 : 2870
-  const saldoAhorro    = cfg.ahorroBase
+  // ── CUENTAS ──────────────────────────────────────────────────────
   S.cuentas = [
-    { id:'dc1', nombre: sc==='family'?'BBVA Familia':'BBVA Corriente', tipo:'banco',    saldo: saldoCorriente, color:'#00D4AA' },
-    { id:'dc2', nombre:'ING Ahorro',     tipo:'ahorro',   saldo: saldoAhorro, color:'#6366F1' },
-    { id:'dc3', nombre:'Revolut',        tipo:'banco',    saldo: sc==='investor'?1200:340, color:'#F59E0B' },
-    { id:'dc4', nombre:'Efectivo',       tipo:'efectivo', saldo:95, color:'#10B981' },
+    { id:'dc1', nombre:'BBVA Corriente',    tipo:'banco',    saldo:4280,  valorTotal:4280,  color:'#00D4AA' },
+    { id:'dc2', nombre:'ING Ahorro Plus',   tipo:'ahorro',   saldo:18500, valorTotal:18500, color:'#6366F1' },
+    { id:'dc3', nombre:'Revolut Premium',   tipo:'banco',    saldo:890,   valorTotal:890,   color:'#F59E0B' },
+    { id:'dc4', nombre:'Coinbase (cripto)', tipo:'cripto',   saldo:1240,  valorTotal:3800,  color:'#F43F5E' },
+    { id:'dc5', nombre:'Efectivo',          tipo:'efectivo', saldo:180,   valorTotal:180,   color:'#10B981' },
   ]
 
-  // ── INGRESOS: 3 meses, varias fuentes ─────────────────────────
-  const salNombre = sc==='freelance' ? 'Proyecto principal' : sc==='family' ? 'Nómina titular' : 'Nómina'
-  const salario   = cfg.salario
-  const extra     = cfg.extra
-  const extraNom  = sc==='freelance' ? 'Proyecto secundario' : sc==='family' ? 'Nómina pareja' : sc==='investor' ? 'Dividendos cartera' : 'Proyecto freelance'
-  S.ingresos = [
-    // Mes actual
-    ...(salario > 0 ? [{ id:'di01', concepto:`${salNombre} ${new Date(hoy.getFullYear(),hoy.getMonth()).toLocaleString('es',{month:'long'})}`, importe:salario, categoria:'Salario', fecha:d(m0,'01'), cuentaId:'dc1', status:'cobrado', recurrente:true }] : []),
-    { id:'di02', concepto: extraNom,          importe:extra,  categoria: sc==='freelance'?'Freelance':sc==='investor'?'Dividendos':'Freelance', fecha:d(m0,'08'), cuentaId:'dc3', status:'cobrado' },
-    { id:'di03', concepto:'Dividendos ETF',   importe: sc==='investor'?340:94, categoria:'Dividendos', fecha:d(m0,'15'), cuentaId:'dc2', status:'cobrado' },
-    { id:'di04', concepto:'Alquiler habitación', importe:380, categoria:'Alquiler', fecha:d(m0,'05'), cuentaId:'dc1', status:'pendiente' },
-    // Mes anterior
-    ...(salario > 0 ? [{ id:'di05', concepto:`${salNombre} (mes anterior)`, importe:jitter(salario,.03), categoria:'Salario', fecha:d(m1,'01'), cuentaId:'dc1', status:'cobrado', recurrente:true }] : []),
-    { id:'di06', concepto: extraNom,          importe:jitter(extra,.15), categoria: sc==='freelance'?'Freelance':sc==='investor'?'Dividendos':'Freelance', fecha:d(m1,'22'), cuentaId:'dc3', status:'cobrado' },
-    { id:'di07', concepto:'Dividendos ETF',   importe: sc==='investor'?jitter(340,.08):88, categoria:'Dividendos', fecha:d(m1,'15'), cuentaId:'dc2', status:'cobrado' },
-    // Hace 2 meses
-    ...(salario > 0 ? [{ id:'di08', concepto:`${salNombre} (hace 2 meses)`, importe:jitter(salario,.03), categoria:'Salario', fecha:d(m2,'01'), cuentaId:'dc1', status:'cobrado', recurrente:true }] : []),
-    { id:'di09', concepto:'Bono / ingreso extra', importe: sc==='investor'?800:750, categoria:'Bono', fecha:d(m2,'07'), cuentaId:'dc1', status:'cobrado' },
-    { id:'di10', concepto:'Venta artículo',    importe:145, categoria:'Otros', fecha:d(m2,'19'), cuentaId:'dc3', status:'cobrado' },
-    { id:'di11', concepto:'Dividendos ETF',    importe: sc==='investor'?jitter(340,.05):91, categoria:'Dividendos', fecha:d(m2,'15'), cuentaId:'dc2', status:'cobrado' },
-  ].filter(Boolean)
+  // ── INGRESOS: 6 meses de datos ────────────────────────────────
+  const ingresos = []
+  for (let i = 0; i <= 5; i++) {
+    const mi = mes(-i)
+    const idx = String(i).padStart(2,'0')
+    ingresos.push({ id:`di${idx}a`, concepto:`Nómina ${i===0?'este mes':monthLabel(mi)}`, importe:jitter(3850,.02), categoria:'Salario', fecha:d(mi,'01'), cuentaId:'dc1', status:'cobrado', recurrente:true })
+    ingresos.push({ id:`di${idx}b`, concepto:i%2===0?'Proyecto freelance':'Consultoría Digtal', importe:jitter(i===0?1200:900,.12), categoria:'Freelance', fecha:d(mi,'10'), cuentaId:'dc3', status:'cobrado' })
+    if (i <= 3) ingresos.push({ id:`di${idx}c`, concepto:'Dividendos cartera ETF', importe:jitter(148,.1), categoria:'Dividendos', fecha:d(mi,'15'), cuentaId:'dc2', status:'cobrado' })
+    if (i === 1) ingresos.push({ id:`di${idx}d`, concepto:'Bono anual empresa', importe:2800, categoria:'Bono', fecha:d(mi,'20'), cuentaId:'dc1', status:'cobrado' })
+    if (i === 0) ingresos.push({ id:`di${idx}e`, concepto:'Alquiler habitación Airbnb', importe:480, categoria:'Alquiler', fecha:d(mi,'05'), cuentaId:'dc1', status:'pendiente' })
+    if (i === 2) ingresos.push({ id:`di${idx}f`, concepto:'Venta coche antiguo', importe:5500, categoria:'Venta', fecha:d(mi,'22'), cuentaId:'dc1', status:'cobrado' })
+    if (i === 4) ingresos.push({ id:`di${idx}g`, concepto:'Reembolso seguro médico', importe:320, categoria:'Otros', fecha:d(mi,'18'), cuentaId:'dc1', status:'cobrado' })
+  }
+  S.ingresos = ingresos
 
-  // ── GASTOS: 55+ transacciones distribuidas en 3 meses ─────────
-  const alq = cfg.alquiler
+  // ── GASTOS: 6 meses, +90 transacciones, todas las categorías ─
   const g = []
-
-  // ─ MES ACTUAL (m0) ─
-  // Fijos recurrentes
-  if (alq > 0) g.push(['dg01','Alquiler', alq, 'Vivienda', m0,'01','dc1',true])
-  g.push(['dg02','Gym Urban Sports',   jitter(40),  'Salud',         m0,'01','dc1',true])
-  g.push(['dg03','Netflix',            jitter(18),  'Suscripciones', m0,'05','dc3',true])
-  g.push(['dg04','Spotify',            jitter(10),  'Suscripciones', m0,'05','dc3',true])
-  g.push(['dg05','Amazon Prime',       jitter(5),   'Suscripciones', m0,'07','dc3',true])
-  g.push(['dg06','Seguro médico',      jitter(55),  'Salud',         m0,'02','dc1',true])
-  // Alimentación (compras semanales)
-  g.push(['dg07','Mercadona',          jitter(82),  'Alimentación',  m0,'04','dc1'])
-  g.push(['dg08','Lidl',               jitter(47),  'Alimentación',  m0,'11','dc1'])
-  g.push(['dg09','Mercadona',          jitter(91),  'Alimentación',  m0,'18','dc1'])
-  g.push(['dg10','Frutas mercado',     jitter(14),  'Alimentación',  m0,'20','dc4'])
-  g.push(['dg11','Mercadona',          jitter(78),  'Alimentación',  m0,'25','dc1'])
-  // Cafés / pequeños
-  g.push(['dg12','Café Avenida',       jitter(3),   'Restaurantes',  m0,'06','dc4'])
-  g.push(['dg13','Café',               jitter(2),   'Restaurantes',  m0,'08','dc4'])
-  g.push(['dg14','Café Starbucks',     jitter(6),   'Restaurantes',  m0,'13','dc3'])
-  g.push(['dg15','Café',               jitter(3),   'Restaurantes',  m0,'17','dc4'])
-  g.push(['dg16','Café Cortado',       jitter(2),   'Restaurantes',  m0,'22','dc4'])
-  // Restaurantes
-  g.push(['dg17','Restaurante Mesón',  jitter(38),  'Restaurantes',  m0,'09','dc1'])
-  g.push(['dg18','Sushi bar',          jitter(52),  'Restaurantes',  m0,'16','dc3'])
-  // Transporte
-  g.push(['dg19','Gasolina BP',        jitter(68),  'Transporte',    m0,'10','dc1'])
-  g.push(['dg20','Tren AVE',           jitter(42),  'Transporte',    m0,'14','dc1'])
-  // Ocio / personal
-  g.push(['dg21','Cine',               jitter(12),  'Ocio',          m0,'12','dc3'])
-  g.push(['dg22','Farmacia',           jitter(24),  'Salud',         m0,'15','dc4'])
-  g.push(['dg23','H&M ropa',           jitter(75),  'Ropa',          m0,'19','dc1'])
-
-  // ─ MES ANTERIOR (m1) ─
-  // Fijos recurrentes
-  if (alq > 0) g.push(['dg24','Alquiler', alq, 'Vivienda', m1,'01','dc1',true])
-  g.push(['dg25','Gym Urban Sports',   jitter(40),  'Salud',         m1,'01','dc1',true])
-  g.push(['dg26','Netflix',            jitter(18),  'Suscripciones', m1,'05','dc3',true])
-  g.push(['dg27','Spotify',            jitter(10),  'Suscripciones', m1,'05','dc3',true])
-  g.push(['dg28','Amazon Prime',       jitter(5),   'Suscripciones', m1,'07','dc3',true])
-  g.push(['dg29','Seguro médico',      jitter(55),  'Salud',         m1,'02','dc1',true])
-  // Alimentación
-  g.push(['dg30','Mercadona',          jitter(89),  'Alimentación',  m1,'05','dc1'])
-  g.push(['dg31','Carrefour',          jitter(63),  'Alimentación',  m1,'12','dc1'])
-  g.push(['dg32','Mercadona',          jitter(74),  'Alimentación',  m1,'19','dc1'])
-  g.push(['dg33','Panadería',          jitter(8),   'Alimentación',  m1,'23','dc4'])
-  g.push(['dg34','Mercadona',          jitter(55),  'Alimentación',  m1,'26','dc1'])
-  // Cafés
-  g.push(['dg35','Café',               jitter(2),   'Restaurantes',  m1,'03','dc4'])
-  g.push(['dg36','Café Cortado',       jitter(3),   'Restaurantes',  m1,'09','dc4'])
-  g.push(['dg37','Starbucks',          jitter(5),   'Restaurantes',  m1,'15','dc3'])
-  g.push(['dg38','Café',               jitter(2),   'Restaurantes',  m1,'21','dc4'])
-  // Restaurantes
-  g.push(['dg39','Cena cumpleaños',    jitter(88),  'Restaurantes',  m1,'20','dc1'])
-  g.push(['dg40','Almuerzo trabajo',   jitter(14),  'Restaurantes',  m1,'10','dc3'])
-  // Transporte
-  g.push(['dg41','Gasolina',           jitter(61),  'Transporte',    m1,'08','dc1'])
-  g.push(['dg42','Metro mensual',      jitter(20),  'Transporte',    m1,'01','dc1',true])
-  // Educación / ocio
-  g.push(['dg43','Udemy curso',        jitter(18),  'Educación',     m1,'14','dc3'])
-  g.push(['dg44','Concierto entrada',  jitter(45),  'Ocio',          m1,'24','dc1'])
-
-  // ─ HACE 2 MESES (m2) ─
-  // Fijos recurrentes
-  if (alq > 0) g.push(['dg45','Alquiler', alq, 'Vivienda', m2,'01','dc1',true])
-  g.push(['dg46','Gym Urban Sports',   jitter(40),  'Salud',         m2,'01','dc1',true])
-  g.push(['dg47','Netflix',            jitter(18),  'Suscripciones', m2,'05','dc3',true])
-  g.push(['dg48','Spotify',            jitter(10),  'Suscripciones', m2,'05','dc3',true])
-  g.push(['dg49','Amazon Prime',       jitter(5),   'Suscripciones', m2,'07','dc3',true])
-  g.push(['dg50','Seguro médico',      jitter(55),  'Salud',         m2,'02','dc1',true])
-  // Alimentación
-  g.push(['dg51','Mercadona',          jitter(77),  'Alimentación',  m2,'06','dc1'])
-  g.push(['dg52','Lidl',               jitter(44),  'Alimentación',  m2,'13','dc1'])
-  g.push(['dg53','Mercadona',          jitter(83),  'Alimentación',  m2,'20','dc1'])
-  g.push(['dg54','Mercado ecológico',  jitter(22),  'Alimentación',  m2,'24','dc4'])
-  // Cafés
-  g.push(['dg55','Café',               jitter(3),   'Restaurantes',  m2,'04','dc4'])
-  g.push(['dg56','Café Cortado',       jitter(2),   'Restaurantes',  m2,'11','dc4'])
-  g.push(['dg57','Café Starbucks',     jitter(5),   'Restaurantes',  m2,'18','dc3'])
-  // Restaurantes / ocio
-  g.push(['dg58','Tapas bar',          jitter(28),  'Restaurantes',  m2,'17','dc1'])
-  g.push(['dg59','Teatro',             jitter(32),  'Ocio',          m2,'22','dc3'])
-  g.push(['dg60','Gasolina',           jitter(72),  'Transporte',    m2,'11','dc1'])
-  g.push(['dg61','Metro mensual',      jitter(20),  'Transporte',    m2,'01','dc1',true])
-  g.push(['dg62','Libro técnico',      jitter(28),  'Educación',     m2,'16','dc2'])
-  g.push(['dg63','Farmacia',           jitter(19),  'Salud',         m2,'27','dc4'])
-
-  S.gastos = g.map(([id,concepto,importe,categoria,mes,dia,cuentaId,recurrente]) => ({
+  for (let i = 0; i <= 5; i++) {
+    const mi = mes(-i)
+    const p = `dg${i}`
+    // Vivienda fijos
+    g.push([`${p}01`,'Alquiler piso',       jitter(1050,.0), 'Vivienda',      mi,'01','dc1',true])
+    g.push([`${p}02`,'Comunidad + IBI',     jitter(85,.02),  'Vivienda',      mi,'05','dc1',true])
+    g.push([`${p}03`,'Agua + Luz',          jitter(95,.12),  'Vivienda',      mi,'08','dc1',true])
+    // Suscripciones
+    g.push([`${p}04`,'Netflix',             jitter(18,.02),  'Suscripciones', mi,'05','dc3',true])
+    g.push([`${p}05`,'Spotify Premium',     jitter(10,.02),  'Suscripciones', mi,'05','dc3',true])
+    g.push([`${p}06`,'Amazon Prime',        jitter(5,.02),   'Suscripciones', mi,'07','dc3',true])
+    g.push([`${p}07`,'ChatGPT Plus',        jitter(22,.02),  'Suscripciones', mi,'10','dc3',true])
+    g.push([`${p}08`,'Adobe Creative',      jitter(60,.02),  'Suscripciones', mi,'12','dc3',true])
+    if (i <= 2) g.push([`${p}09`,'GitHub Copilot', jitter(11,.02),'Suscripciones',mi,'14','dc3',true])
+    // Alimentación
+    g.push([`${p}10`,'Mercadona',           jitter(95,.1),   'Alimentación',  mi,'04','dc1'])
+    g.push([`${p}11`,'Lidl',                jitter(52,.1),   'Alimentación',  mi,'11','dc1'])
+    g.push([`${p}12`,'Mercadona',           jitter(88,.1),   'Alimentación',  mi,'18','dc1'])
+    g.push([`${p}13`,'Carrefour BIO',       jitter(34,.1),   'Alimentación',  mi,'21','dc1'])
+    g.push([`${p}14`,'Mercado local',       jitter(22,.15),  'Alimentación',  mi,'24','dc5'])
+    g.push([`${p}15`,'Mercadona',           jitter(70,.1),   'Alimentación',  mi,'28','dc1'])
+    // Restaurantes
+    g.push([`${p}16`,'Café Avenida',        jitter(3,.2),    'Restaurantes',  mi,'03','dc5'])
+    g.push([`${p}17`,'Almuerzo trabajo',    jitter(14,.2),   'Restaurantes',  mi,'07','dc3'])
+    g.push([`${p}18`,'Café Starbucks',      jitter(6,.2),    'Restaurantes',  mi,'09','dc3'])
+    g.push([`${p}19`,'Restaurante italiano',jitter(48,.15),  'Restaurantes',  mi,'13','dc1'])
+    g.push([`${p}20`,'Café',                jitter(2,.2),    'Restaurantes',  mi,'16','dc5'])
+    g.push([`${p}21`,'Sushi box',           jitter(32,.15),  'Restaurantes',  mi,'20','dc1'])
+    if (i % 2 === 0) g.push([`${p}22`,'Cena amigos',   jitter(65,.2),'Restaurantes',mi,'25','dc1'])
+    // Transporte
+    g.push([`${p}23`,'Gasolina BP',         jitter(72,.12),  'Transporte',    mi,'06','dc1'])
+    g.push([`${p}24`,'Metro mensual',       jitter(21,.02),  'Transporte',    mi,'01','dc1',true])
+    if (i % 3 === 0) g.push([`${p}25`,'Tren AVE',      jitter(58,.15),'Transporte',mi,'19','dc1'])
+    // Salud
+    g.push([`${p}26`,'Seguro médico',       jitter(65,.02),  'Salud',         mi,'02','dc1',true])
+    g.push([`${p}27`,'Gym',                 jitter(45,.02),  'Salud',         mi,'01','dc1',true])
+    if (i % 2 === 0) g.push([`${p}28`,'Farmacia',      jitter(28,.2),'Salud',mi,'17','dc5'])
+    // Educación
+    if (i === 1) g.push([`${p}29`,'Udemy Pro anual', 200,  'Educación',  mi,'14','dc3'])
+    if (i === 3) g.push([`${p}30`,'Máster online',   890,  'Educación',  mi,'10','dc2'])
+    if (i % 2 === 1) g.push([`${p}31`,'Libro técnico', jitter(32,.2),'Educación',mi,'22','dc3'])
+    // Ocio
+    g.push([`${p}32`,'Cine / streaming',    jitter(12,.2),   'Ocio',          mi,'12','dc3'])
+    if (i % 2 === 0) g.push([`${p}33`,'Concierto',    jitter(55,.2),'Ocio',   mi,'23','dc1'])
+    if (i === 0) g.push([`${p}34`,'PlayStation Plus',jitter(60,.02),'Ocio',   mi,'15','dc3',true])
+    // Ropa / personal
+    if (i % 2 === 0) g.push([`${p}35`,'Zara ropa',    jitter(85,.2),'Ropa',   mi,'19','dc1'])
+    if (i === 2) g.push([`${p}36`,'Nike zapatillas', 130,   'Ropa',          mi,'08','dc1'])
+    // Seguros
+    g.push([`${p}37`,'Seguro coche',        jitter(78,.02),  'Seguros',       mi,'03','dc1',true])
+    // Tecnología
+    if (i === 0) g.push([`${p}38`,'Teclado mecánico',  145, 'Tecnología',    mi,'11','dc3'])
+    if (i === 1) g.push([`${p}39`,'Monitor LG 27"',    380, 'Tecnología',    mi,'16','dc2'])
+    if (i === 4) g.push([`${p}40`,'iPhone 16 Pro',    1199, 'Tecnología',    mi,'05','dc1'])
+  }
+  S.gastos = g.map(([id,concepto,importe,categoria,mes2,dia,cuentaId,recurrente]) => ({
     id, concepto, importe, categoria,
-    fecha: `${mes}-${String(dia).padStart(2,'0')}`,
+    fecha: `${mes2}-${String(dia).padStart(2,'0')}`,
     cuentaId, recurrente: !!recurrente, _demo: true
   }))
 
-  // ── INVERSIONES ────────────────────────────────────────────────
+  // ── INVERSIONES: abiertas + liquidadas ───────────────────────
   S.inversiones = [
-    { id:'dinv1', nombre:'ETF World MSCI',      importe:5000, rentabilidad:13.2, categoria:'ETF',           fecha:d(m2,'15'), cuentaId:'dc2', cerrada:false },
-    { id:'dinv2', nombre:'Bitcoin',             importe:600,  rentabilidad:-6.4, categoria:'Cripto',        fecha:d(m1,'20'), cuentaId:'dc3', cerrada:false },
-    { id:'dinv3', nombre:'Acciones Inditex',    importe:1400, rentabilidad:7.8,  categoria:'Acciones',      fecha:d(m2,'03'), cuentaId:'dc2', cerrada:false },
-    { id:'dinv4', nombre:'Fondo indexado S&P',  importe:2500, rentabilidad:14.5, categoria:'Fondo indexado',fecha:d(m2,'10'), cuentaId:'dc2', cerrada:false },
+    // ABIERTAS — en curso
+    { id:'dinv1', nombre:'ETF MSCI World',        importe:8000,  rentabilidad:12.4, categoria:'ETF',           fecha:d(mes(-5),'10'), cuentaId:'dc2', cerrada:false },
+    { id:'dinv2', nombre:'S&P 500 Vanguard',      importe:5500,  rentabilidad:14.8, categoria:'Fondo indexado', fecha:d(mes(-4),'15'), cuentaId:'dc2', cerrada:false },
+    { id:'dinv3', nombre:'Acciones Apple',         importe:2200,  rentabilidad:8.2,  categoria:'Acciones',      fecha:d(mes(-3),'20'), cuentaId:'dc2', cerrada:false },
+    { id:'dinv4', nombre:'Bitcoin',                importe:1500,  rentabilidad:-4.1, categoria:'Cripto',        fecha:d(mes(-2),'08'), cuentaId:'dc4', cerrada:false },
+    { id:'dinv5', nombre:'Bonos Tesoro ES 3a',     importe:3000,  rentabilidad:3.8,  categoria:'Bonos',         fecha:d(mes(-4),'01'), cuentaId:'dc2', cerrada:false },
+    { id:'dinv6', nombre:'Ethereum',               importe:800,   rentabilidad:12.5, categoria:'Cripto',        fecha:d(mes(-1),'18'), cuentaId:'dc4', cerrada:false },
+    { id:'dinv7', nombre:'REITs inmobiliarios',    importe:2000,  rentabilidad:5.2,  categoria:'Inmuebles',     fecha:d(mes(-3),'05'), cuentaId:'dc2', cerrada:false },
+    // LIQUIDADAS — con ganancia y pérdida
+    { id:'dinv8', nombre:'Tesla (vendida)',        importe:1800, rentabilidad:0, categoria:'Acciones', fecha:d(mes(-8),'12'), cuentaId:'dc2', cerrada:true, ganancia:540, roiReal:30, fechaCierre:d(mes(-3),'15'), valorSalida:2340 },
+    { id:'dinv9', nombre:'Cardano (vendida)',      importe:600,  rentabilidad:0, categoria:'Cripto',   fecha:d(mes(-7),'20'), cuentaId:'dc4', cerrada:true, ganancia:-180, roiReal:-30, fechaCierre:d(mes(-4),'10'), valorSalida:420 },
+    { id:'dinv10',nombre:'ETF Nasdaq 100',        importe:3000, rentabilidad:0, categoria:'ETF',      fecha:d(mes(-10),'05'),cuentaId:'dc2', cerrada:true, ganancia:780, roiReal:26, fechaCierre:d(mes(-2),'20'), valorSalida:3780 },
+    { id:'dinv11',nombre:'Acciones Santander',    importe:900,  rentabilidad:0, categoria:'Acciones', fecha:d(mes(-6),'14'), cuentaId:'dc2', cerrada:true, ganancia:126, roiReal:14, fechaCierre:d(mes(-1),'08'), valorSalida:1026 },
   ]
 
-  // ── DEUDAS ─────────────────────────────────────────────────────
+  // ── DEUDAS: en curso + pagadas ───────────────────────────────
   S.deudas = [
-    { id:'dd1', nombre:'Préstamo coche',   importeTotal:9200, importePagado:4100, interes:4.2, categoria:'Préstamo personal', vencimiento:'2027-06-01', pagos:[] },
-    { id:'dd2', nombre:'Tarjeta Visa',     importeTotal:950,  importePagado:320,  interes:17,  categoria:'Tarjeta crédito',   vencimiento:'2026-02-01', pagos:[] },
+    // EN CURSO
+    { id:'dd1', nombre:'Hipoteca piso',       importeTotal:145000, importePagado:38000, interes:2.8, categoria:'Hipoteca',        vencimiento:'2048-01-01', pagos:[] },
+    { id:'dd2', nombre:'Préstamo coche',      importeTotal:12000,  importePagado:7200,  interes:4.5, categoria:'Préstamo personal',vencimiento:'2026-09-01', pagos:[] },
+    { id:'dd3', nombre:'Tarjeta Visa Oro',    importeTotal:2400,   importePagado:900,   interes:19,  categoria:'Tarjeta crédito', vencimiento:'2025-12-01', pagos:[] },
+    // PAGADAS (importePagado >= importeTotal)
+    { id:'dd4', nombre:'Préstamo estudios',   importeTotal:8000,   importePagado:8000,  interes:3.2, categoria:'Préstamo personal', pagos:[] },
+    { id:'dd5', nombre:'Tarjeta débito extra',importeTotal:1200,   importePagado:1200,  interes:0,   categoria:'Tarjeta crédito',   pagos:[] },
   ]
 
-  // ── OBJETIVOS ──────────────────────────────────────────────────
+  // ── OBJETIVOS: completados + en curso ────────────────────────
   S.objetivos = [
-    { id:'do1', nombre:'Fondo de emergencia', objetivo:10000, actual:9200, categoria:'Emergencia', color:'#00D4AA', emoji:'🛡️', fechaObjetivo:'2025-09-01' },
-    { id:'do2', nombre:'Vacaciones Japón',    objetivo:4000,  actual:1450, categoria:'Viaje',      color:'#6366F1', emoji:'✈️', fechaObjetivo:'2026-03-01' },
-    { id:'do3', nombre:'MacBook Pro M4',      objetivo:2800,  actual:700,  categoria:'Tecnología', color:'#F59E0B', emoji:'💻', fechaObjetivo:'2026-06-01' },
+    // EN CURSO
+    { id:'do1', nombre:'Fondo emergencia (8m)',  objetivo:25000, actual:18500, categoria:'Emergencia', color:'#00D4AA', emoji:'🛡️', fechaObjetivo:'2025-12-01',
+      aportaciones:[{importe:2000,fecha:d(mes(-4),'01')},{importe:1500,fecha:d(mes(-3),'01')},{importe:2000,fecha:d(mes(-2),'01')},{importe:1800,fecha:d(mes(-1),'01')}] },
+    { id:'do2', nombre:'Vacaciones Australia',   objetivo:6000,  actual:2800,  categoria:'Viaje',      color:'#6366F1', emoji:'✈️', fechaObjetivo:'2026-03-01',
+      aportaciones:[{importe:600,fecha:d(mes(-3),'15')},{importe:700,fecha:d(mes(-2),'15')},{importe:650,fecha:d(mes(-1),'15')}] },
+    { id:'do3', nombre:'Tesla Model 3',          objetivo:50000, actual:12000, categoria:'Coche',      color:'#F43F5E', emoji:'🚗', fechaObjetivo:'2027-06-01',
+      aportaciones:[{importe:2000,fecha:d(mes(-5),'01')},{importe:2500,fecha:d(mes(-3),'01')},{importe:3000,fecha:d(mes(-1),'01')}] },
+    { id:'do4', nombre:'MacBook Pro M4',         objetivo:3200,  actual:3200,  categoria:'Tecnología', color:'#F59E0B', emoji:'💻', fechaObjetivo:'2025-08-01',
+      aportaciones:[{importe:800,fecha:d(mes(-4),'10')},{importe:1200,fecha:d(mes(-3),'10')},{importe:1200,fecha:d(mes(-2),'10')}] },
+    // COMPLETADOS
+    { id:'do5', nombre:'Colchón inicial (3m)',   objetivo:9000,  actual:9000,  categoria:'Emergencia', color:'#10B981', emoji:'🏦', fechaObjetivo:'2024-06-01',
+      aportaciones:[{importe:3000,fecha:d(mes(-8),'01')},{importe:3000,fecha:d(mes(-7),'01')},{importe:3000,fecha:d(mes(-6),'01')}] },
+    { id:'do6', nombre:'Vacaciones Japón 2024',  objetivo:4500,  actual:4500,  categoria:'Viaje',      color:'#A78BFA', emoji:'🗾', fechaObjetivo:'2024-09-01',
+      aportaciones:[{importe:1500,fecha:d(mes(-9),'01')},{importe:1500,fecha:d(mes(-8),'01')},{importe:1500,fecha:d(mes(-7),'01')}] },
+    { id:'do7', nombre:'Portátil gaming',        objetivo:1800,  actual:1800,  categoria:'Tecnología', color:'#38BDF8', emoji:'🎮', fechaObjetivo:'2024-04-01',
+      aportaciones:[{importe:600,fecha:d(mes(-11),'01')},{importe:600,fecha:d(mes(-10),'01')},{importe:600,fecha:d(mes(-9),'01')}] },
   ]
 
-  // ── PRESUPUESTOS ───────────────────────────────────────────────
+  // ── PRESUPUESTOS — todos con alertas reales ───────────────────
   S.presupuestos = {
-    'Alimentación':  300,
-    'Transporte':    110,
-    'Restaurantes':  130,
-    'Ocio':          100,
-    'Suscripciones':  50,
-    'Ropa':          120,
+    'Alimentación':  350,
+    'Transporte':    130,
+    'Restaurantes':  160,
+    'Ocio':          120,
+    'Suscripciones': 130,
+    'Ropa':          150,
+    'Salud':         140,
+    'Tecnología':    200,
+    'Seguros':       100,
   }
 
-  // ── PATRIMONIO HISTÓRICO ───────────────────────────────────────
-  const basePatr = 19500
+  // ── ACTIVOS FÍSICOS ───────────────────────────────────────────
+  if (!S.assets) S.assets = []
+  S.assets = [
+    { id:'da1', nombre:'Piso Madrid (50%)',   tipo:'property', valor:185000, valorCompra:160000, fecha:d(mes(-36),'01'), status:'active',  notas:'50% propiedad, hipoteca activa' },
+    { id:'da2', nombre:'Tesla Model 3 2022', tipo:'vehicle',  valor:28000,  valorCompra:42000,  fecha:d(mes(-18),'15'), status:'active',  depreciacion:true, depPct:8, notas:'Financiado parcialmente' },
+    { id:'da3', nombre:'MacBook Pro M3 Max', tipo:'electronics',valor:2800, valorCompra:3200,   fecha:d(mes(-8),'10'),  status:'active',  depreciacion:true, depPct:20 },
+    { id:'da4', nombre:'Colección arte NFT', tipo:'other',    valor:1200,   valorCompra:2400,   fecha:d(mes(-14),'05'), status:'active',  notas:'Cartera NFT blue chip' },
+    { id:'da5', nombre:'BMW 320d 2018',      tipo:'vehicle',  valor:0,      valorCompra:18000,  fecha:d(mes(-30),'01'), status:'sold',    fechaVenta:d(mes(-5),'22'), valorVenta:12000, notas:'Vendido' },
+  ]
+
+  // ── PATRIMONIO HISTÓRICO — 12 meses con tendencia creciente ──
   S.patrimonio_hist = []
-  for (let i = 5; i >= 0; i--) {
-    const dt  = new Date(hoy.getFullYear(), hoy.getMonth()-i, 1)
-    const mes = dt.toISOString().slice(0,7)
-    const growth = (5-i) * 380 + Math.round(Math.random()*300 - 60)
-    S.patrimonio_hist.push({ mes, valor: basePatr + growth })
+  const basePatr = 38000
+  for (let i = 11; i >= 0; i--) {
+    const dt    = new Date(hoy.getFullYear(), hoy.getMonth()-i, 1)
+    const mesi  = dt.toISOString().slice(0,7)
+    const trend = (11 - i) * 1200
+    const noise = Math.round(Math.random() * 800 - 200)
+    S.patrimonio_hist.push({ mes: mesi, valor: basePatr + trend + noise })
   }
 }
 
