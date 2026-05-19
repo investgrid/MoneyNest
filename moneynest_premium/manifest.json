@@ -14,34 +14,28 @@
   "categories": ["finance", "productivity"],
   "icons": [
     {
-      "src": "./assets/icon-192.png",
+      "src": "./assets/icon-with-text.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "./assets/icon-192.png",
+      "src": "./assets/icon-with-text.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "./assets/icon-512.png",
+      "src": "./assets/icon-with-text.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "./assets/icon-512.png",
+      "src": "./assets/icon-with-text.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
-    },
-    {
-      "src": "./assets/logo.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any"
     }
   ],
   "shortcuts": [
@@ -49,13 +43,13 @@
       "name": "Dashboard",
       "url": "./index.html#dashboard",
       "description": "Ver resumen financiero",
-      "icons": [{ "src": "./assets/icon-192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "./assets/icon-with-text.png", "sizes": "192x192" }]
     },
     {
       "name": "Nuevo gasto",
       "url": "./index.html#gastos",
       "description": "Registrar un gasto rápido",
-      "icons": [{ "src": "./assets/icon-192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "./assets/icon-with-text.png", "sizes": "192x192" }]
     }
   ],
   "screenshots": []

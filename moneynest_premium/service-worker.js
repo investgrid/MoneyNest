@@ -1,11 +1,12 @@
-/* ─── MoneyNest Service Worker v2 ─────────────────────────────── */
-const CACHE_NAME = 'moneynest-v2'
+/* ─── MoneyNest Service Worker v3 ─────────────────────────────── */
+const CACHE_NAME = 'moneynest-v3'
 const LOCAL_ASSETS = [
   './index.html',
   './manifest.json',
-  './assets/logo.svg',
+  './assets/Favicon.png',
   './assets/icon-192.png',
   './assets/icon-512.png',
+  './assets/icon-with-text.png',
 ]
 const REMOTE_ASSETS = [
   'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap',
