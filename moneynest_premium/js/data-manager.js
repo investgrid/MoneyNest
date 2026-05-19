@@ -39,8 +39,8 @@ function dmToast(msg, type = 'success') {
 
 // ── SVG Icons ─────────────────────────────────────────────────
 const ICONS = {
-  download: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`,
-  upload:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>`,
+  download: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>`,
+  upload:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`,
   save:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>`,
   loader:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>`,
   check:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="20 6 9 17 4 12"/></svg>`,
@@ -800,15 +800,15 @@ function injectTopbarButtons() {
   group.innerHTML = `
     <button class="tb-btn tb-btn--import" onclick="openDmPanel('dm-import-panel')" title="Importar datos">
       ${ICONS.upload}
-      <span class="tb-btn-label">Importar</span>
+      <span class="tb-btn-label">⬇ Importar</span>
+    </button>
+    <button class="tb-btn tb-btn--export" onclick="openDmPanel('dm-export-panel')" title="Exportar datos">
+      ${ICONS.download}
+      <span class="tb-btn-label">⬆ Exportar</span>
     </button>
     <button class="tb-btn tb-btn--save" id="dm-save-btn" onclick="dmSaveLocal()" title="Guardar datos localmente">
       <span id="dm-save-icon">${ICONS.save}</span>
       <span class="tb-btn-label">Guardar</span>
-    </button>
-    <button class="tb-btn tb-btn--export" onclick="openDmPanel('dm-export-panel')" title="Exportar datos">
-      ${ICONS.download}
-      <span class="tb-btn-label">Exportar</span>
     </button>
     <button class="tb-btn tb-btn--theme" id="topThemeBtn" onclick="toggleTheme()" title="Cambiar tema">
       <span id="dm-theme-icon">🌙</span>
@@ -830,8 +830,8 @@ function injectPanelHTML() {
         <div class="dm-panel-title">
           <div class="dm-panel-icon dm-panel-icon--export">${ICONS.download}</div>
           <div>
-            <div class="dm-panel-name">Exportar datos</div>
-            <div class="dm-panel-sub">Elige formato y descarga</div>
+            <div class="dm-panel-name">⬆ Exportar datos</div>
+            <div class="dm-panel-sub">Descarga tus datos en el formato que prefieras</div>
           </div>
         </div>
         <button class="dm-close" onclick="closeDmPanel('dm-export-panel')" title="Cerrar">✕</button>
@@ -847,8 +847,8 @@ function injectPanelHTML() {
         <div class="dm-panel-title">
           <div class="dm-panel-icon dm-panel-icon--import">${ICONS.upload}</div>
           <div>
-            <div class="dm-panel-name">Importar datos</div>
-            <div class="dm-panel-sub">Restaura o fusiona un archivo</div>
+            <div class="dm-panel-name">⬇ Importar datos</div>
+            <div class="dm-panel-sub">Restaura o fusiona un archivo .moneynest o .json</div>
           </div>
         </div>
         <button class="dm-close" onclick="closeDmPanel('dm-import-panel')" title="Cerrar">✕</button>
@@ -860,8 +860,8 @@ function injectPanelHTML() {
         <button class="dm-btn-cancel" onclick="closeDmPanel('dm-import-panel')">Cancelar</button>
         <button class="dm-btn-main dm-btn-main--import" id="dm-import-confirm-btn"
                 onclick="dmConfirmImport()" disabled>
-          ${ICONS.upload}
-          Importar ahora
+          ${ICONS.download}
+          ⬇ Importar ahora
         </button>
       </div>
     </div>
