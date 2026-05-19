@@ -6547,7 +6547,7 @@ function guardarIngreso() {
   }
   save()
   updateStreak()
-  if (window.MNGamification) MNGamification.checkAchievement('ingreso_added')
+  if (window.MNGamification) { MNGamification.checkAchievement('ingreso_added'); MNGamification.checkAchievement('data_check'); }
   closeModal('ingresoModal')
   _unlock()
   // Clear month filter so all incomes are visible after saving
@@ -6624,7 +6624,7 @@ function guardarGasto() {
         if (c) c.saldo = (Number(c.saldo)||0) - importe
       }
     }
-    save(); updateStreak(); if (window.MNGamification) MNGamification.checkAchievement('gasto_added'); closeModal('gastoModal'); _unlock(); render(); toast(t('toast_gasto_guardado'))
+    save(); updateStreak(); if (window.MNGamification) { MNGamification.checkAchievement('gasto_added'); MNGamification.checkAchievement('data_check'); } closeModal('gastoModal'); _unlock(); render(); toast(t('toast_gasto_guardado'))
   }
 
   // Warn if operation would leave account in negative balance
@@ -6719,7 +6719,7 @@ function guardarInversion() {
       const cuentaOrigen = getCuenta(cuentaId)
       if (cuentaOrigen) cuentaOrigen.saldo = (Number(cuentaOrigen.saldo)||0) - importe
     }
-    save(); closeModal('inversionModal'); _unlock(); render(); toast(t('toast_inversion_guardada'))
+    save(); if (window.MNGamification) MNGamification.checkAchievement('inversion_added'); closeModal('inversionModal'); _unlock(); render(); toast(t('toast_inversion_guardada'))
   }
 
   // Warn if operation would leave account in negative balance
@@ -6944,7 +6944,7 @@ function guardarDeuda() {
   } else {
     S.deudas.push({id:uid(),...data})
   }
-  save(); closeModal('deudaModal'); _unlock(); render(); toast(t('toast_deuda_guardada'))
+  save(); if (window.MNGamification) MNGamification.checkAchievement('deuda_added'); if (window.MNGamification) MNGamification.checkAchievement('data_check'); closeModal('deudaModal'); _unlock(); render(); toast(t('toast_deuda_guardada'))
 }
 function borrarDeuda(id) {
   confirmar(t('confirm_eliminar_deuda'), ()=>{
@@ -7058,7 +7058,7 @@ function guardarObjetivo() {
   } else {
     S.objetivos.push({id:uid(), ...data})
   }
-  save(); closeModal('objetivoModal'); _unlock(); render(); toast(t('toast_objetivo_guardado'))
+  save(); if (window.MNGamification) MNGamification.checkAchievement('objetivo_added'); closeModal('objetivoModal'); _unlock(); render(); toast(t('toast_objetivo_guardado'))
 }
 function borrarObjetivo(id) {
   confirmar(t('confirm_eliminar_objetivo'), ()=>{
@@ -7150,7 +7150,7 @@ function guardarPresupuesto() {
   const limite = parseFloat(document.getElementById('presLimite').value)
   if (!limite || limite <= 0) { toast(t('err_limite_valido'),'error'); _unlock(); return }
   S.presupuestos[cat] = limite
-  save(); closeModal('presupuestoModal'); _unlock(); render(); toast(t('toast_presupuesto_guardado'))
+  save(); if (window.MNGamification) MNGamification.checkAchievement('presupuesto_added'); closeModal('presupuestoModal'); _unlock(); render(); toast(t('toast_presupuesto_guardado'))
 }
 function borrarPresupuesto(cat) {
   confirmar(t('confirm_eliminar_presupuesto') + ' "' + cat + '"?', ()=>{
@@ -11839,6 +11839,7 @@ function updateStreak() {
   }
   S.streak.lastDate = today
   save()
+  if (window.MNGamification) MNGamification.checkAchievement('streak')
 }
 
 function getStreak() {

@@ -73,8 +73,10 @@
   // ─── Check logic ─────────────────────────────────────────────────
   function checkAchievement(trigger) {
     try {
-      const raw = localStorage.getItem('mn_data');
-      const data = raw ? JSON.parse(raw) : {};
+      // Use global S state if available, fall back to localStorage key mn7_data
+      const data = (typeof window.S !== 'undefined' && window.S)
+        ? window.S
+        : (() => { try { return JSON.parse(localStorage.getItem('mn7_data') || '{}'); } catch { return {}; } })();
 
       // Primeros pasos
       if (trigger === 'ingreso_added' && (data.ingresos||[]).length >= 1) unlock('primer_ingreso');

@@ -794,6 +794,15 @@ window.dmSaveLocal = async function() {
 // ══════════════════════════════════════════════════════════════
 
 window.openDmPanel = function(id) {
+  // Import blocked on trial — only Local/Pro can import
+  if (id === 'dm-import-panel') {
+    const plan = (typeof window.MNAuth !== 'undefined') ? window.MNAuth.getUser().plan : 'trial';
+    if (plan === 'trial') {
+      dmToast('🔒 Importar datos requiere Plan Local o Pro', 'warn');
+      if (window.MNAuthUI) MNAuthUI.showAuthModal('plan');
+      return;
+    }
+  }
   // Build panel content fresh each time
   if (id === 'dm-export-panel') buildExportPanel();
   if (id === 'dm-import-panel') buildImportPanel();
@@ -842,7 +851,7 @@ function injectTopbarButtons() {
   group.className = 'tb-action-group';
   group.id = 'dm-topbar-group';
   group.innerHTML = `
-    <button class="tb-btn tb-btn--import" onclick="openDmPanel('dm-import-panel')" title="Importar datos">
+    <button class="tb-btn tb-btn--import" id="dm-import-topbtn" onclick="openDmPanel('dm-import-panel')" title="Importar datos">
       ${ICONS.upload}
       <span class="tb-btn-label">Importar</span>
     </button>
@@ -893,6 +902,13 @@ function _updateTrialPill() {
   pill.style.background = bg;
   pill.style.border = `1px solid ${border}`;
   pill.innerHTML = `<span style="font-size:.9rem">${urgent?'🚨':warn?'⚠️':'⏳'}</span> <span>Trial: <strong style="color:#fff">${label}</strong></span> <span style="font-size:.68rem;padding:2px 8px;border-radius:99px;background:${color};color:#0A0E17;font-weight:800">Desbloquear →</span>`;
+
+  // Lock import button visually during trial
+  const importBtn = document.getElementById('dm-import-topbtn');
+  if (importBtn) {
+    importBtn.style.opacity = '0.45';
+    importBtn.title = '🔒 Importar requiere Plan Local o Pro';
+  }
 }
 
 // ── Inject panel HTML ──────────────────────────────────────────

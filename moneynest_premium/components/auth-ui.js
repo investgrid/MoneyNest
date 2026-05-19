@@ -53,6 +53,7 @@ function initAuthUI() {
   // Paywall events — both open the correct modal view
   document.addEventListener('mn:buyLocal',      () => showAuthModal('plan'));
   document.addEventListener('mn:restoreAccess', () => showAuthModal('login'));
+  document.addEventListener('mn:activatePro',   () => showAuthModal('plan'));
 }
 
 function showAuthModal(mode) {
@@ -211,8 +212,10 @@ function _buildContent(user) {
   if (_modalMode === 'forgot')          return _buildForgotView();
   if (_modalMode === 'update-password') return _buildUpdatePasswordView();
 
-  // Plan views
-  if (!isLoggedIn) return _buildGuestPlanView(user);
+  // Plan views — show plan view directly if user has any plan (even without Supabase session)
+  // Only show guest view if user has no local identity at all
+  const hasPlan = user.plan && user.plan !== 'trial' || (user.plan === 'trial' && user.id);
+  if (!isLoggedIn && !hasPlan) return _buildGuestPlanView(user);
 
   switch (user.plan) {
     case 'trial':        return _buildTrialView(user);
