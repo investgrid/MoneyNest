@@ -58,11 +58,11 @@ function updateSidebarLogo() {
   }
   const b = BADGES[state]
 
-  // 3. Badge position:absolute en la esquina inferior izquierda del logo
+  // 3. Badge — esquina inferior derecha, dentro del wrapper
   const badgeEl = b ? `<span style="
       position:absolute;
-      bottom:-4px;
-      left:0px;
+      bottom:0px;
+      right:0px;
       background:${b.bg};
       color:${b.color};
       font-size:8.5px;
@@ -80,7 +80,7 @@ function updateSidebarLogo() {
       z-index:10;
     "><span style="font-size:11px;line-height:1">${b.icon}</span>${b.label}</span>` : ''
 
-  // 4. Wrapper con el SVG del logo + badge superpuesto
+  // 4. Wrapper — mismo tamaño que el SVG
   el.innerHTML = `<span style="
     position:relative;
     display:inline-block;
@@ -6195,20 +6195,17 @@ function chartDefaults() {
         caretSize: 5,
         callbacks: {}
       }
-    },
-    // Escala por defecto — sin bordes visibles, grid sutil
-    scales: {
-      x: {
-        grid: { color: 'transparent' },
-        border: { color: 'transparent' },
-        ticks: { color: labelColor(), font: { size: 11 } }
-      },
-      y: {
-        grid: { color: gridColor() },
-        border: { color: 'transparent' },
-        ticks: { color: labelColor(), font: { size: 11 } }
-      }
     }
+    // Sin scales en el default — cada gráfico los define explícitamente
+    // (los doughnuts no deben heredar ejes X/Y)
+  }
+}
+
+// Scales estándar para gráficos de línea/barra
+function _chartScales(yCallback) {
+  return {
+    x: { grid: { color: 'transparent' }, border: { color: 'transparent' }, ticks: { color: labelColor(), font: { size: 11 } } },
+    y: { grid: { color: gridColor() }, border: { color: 'transparent' }, ticks: { color: labelColor(), font: { size: 11 }, callback: yCallback || (v => v) } }
   }
 }
 function destroyChart(id) {
@@ -6410,6 +6407,21 @@ function renderChartIngVsGas() {
   })
 }
 
+function _donutOptions(total) {
+  return {
+    ...chartDefaults(),
+    cutout: '72%',
+    plugins: { ...chartDefaults().plugins,
+      tooltip: { ...chartDefaults().plugins.tooltip,
+        callbacks: {
+          title: i => i[0].label,
+          label: c => ' ' + eur(c.raw) + '  (' + pct(total ? c.raw / total * 100 : 0, 1) + ')'
+        }
+      }
+    }
+  }
+}
+
 function renderChartDonut() {
   const ctx = document.getElementById('chartDonut')
   const legendEl = document.getElementById('donutLegend')
@@ -6420,6 +6432,7 @@ function renderChartDonut() {
   const entries = Object.entries(catMap).sort((a,b)=>b[1]-a[1]).slice(0,6)
   if (!entries.length) return
   const total = entries.reduce((a,e)=>a+e[1],0)
+  const bg = S.theme === 'light' ? '#F8FAFC' : '#0F1724'
   charts['donut'] = new Chart(ctx, {
     type: 'doughnut',
     data: {
@@ -6427,30 +6440,21 @@ function renderChartDonut() {
       datasets: [{
         data: entries.map(e => e[1]),
         backgroundColor: CHART_COLORS,
-        borderWidth: 2,
-        borderColor: S.theme === 'light' ? '#F8FAFC' : '#111827',
-        hoverOffset: 8,
+        borderWidth: 3,
+        borderColor: bg,
         hoverBorderWidth: 0,
+        hoverOffset: 6,
       }]
     },
-    options: { ...chartDefaults(),
-      cutout: '72%',
-      plugins: { ...chartDefaults().plugins,
-        tooltip: { ...chartDefaults().plugins.tooltip,
-          callbacks: {
-            title: i => i[0].label,
-            label: c => ' ' + eur(c.raw) + '  (' + pct(total ? c.raw / total * 100 : 0, 1) + ')'
-          }
-        }
-      }
-    }
+    options: _donutOptions(total),
   })
   if (legendEl) {
     legendEl.innerHTML = entries.map((e, i) => `
       <div class="legend-item">
-        <div class="legend-dot" style="background:${CHART_COLORS[i]};border-radius:3px;width:10px;height:10px;flex-shrink:0"></div>
-        <span class="legend-label" style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e[0]}</span>
-        <span class="legend-val" style="font-weight:700;color:var(--text)">${pct(total ? e[1] / total * 100 : 0, 0)}</span>
+        <span style="width:10px;height:10px;border-radius:3px;background:${CHART_COLORS[i]};flex-shrink:0;
+          box-shadow:0 0 6px ${CHART_COLORS[i]}88"></span>
+        <span class="legend-label" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e[0]}</span>
+        <span style="font-size:.75rem;font-weight:700;color:var(--text)">${pct(total ? e[1]/total*100 : 0, 0)}</span>
       </div>`).join('')
   }
 }
@@ -6463,20 +6467,29 @@ function renderDonutCat(canvasId, legendId, catMap, type) {
   const entries = Object.entries(catMap).sort((a,b)=>b[1]-a[1]).slice(0,7)
   if (!entries.length) return
   const total = entries.reduce((a,e)=>a+e[1],0)
+  const bg = S.theme === 'light' ? '#F8FAFC' : '#0F1724'
   charts[canvasId] = new Chart(ctx, {
     type: 'doughnut',
     data: {
       labels: entries.map(e=>e[0]),
-      datasets: [{ data: entries.map(e=>e[1]), backgroundColor: CHART_COLORS, borderWidth: 0, hoverOffset: 4 }]
+      datasets: [{
+        data: entries.map(e=>e[1]),
+        backgroundColor: CHART_COLORS,
+        borderWidth: 3,
+        borderColor: bg,
+        hoverBorderWidth: 0,
+        hoverOffset: 6,
+      }]
     },
-    options: { ...chartDefaults(), cutout: '65%' }
+    options: { ..._donutOptions(total), cutout: '68%' }
   })
   if (legendEl) {
     legendEl.innerHTML = entries.map((e,i)=>`
       <div class="legend-item">
-        <div class="legend-dot" style="background:${CHART_COLORS[i]}"></div>
-        <span class="legend-label">${e[0]}</span>
-        <span class="legend-val">${eur(e[1])}</span>
+        <span style="width:9px;height:9px;border-radius:2px;background:${CHART_COLORS[i]};flex-shrink:0;
+          box-shadow:0 0 5px ${CHART_COLORS[i]}88"></span>
+        <span class="legend-label" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e[0]}</span>
+        <span style="font-size:.73rem;font-weight:700;color:var(--text)">${eur(e[1])}</span>
       </div>`).join('')
   }
 }
@@ -9981,26 +9994,30 @@ function obSelectLang(l) {
   const sel = document.querySelector(`.ob-lang-tile[onclick*="'${l}'"], .ob-lang-tile-left[onclick*="'${l}'"]`)
   if (sel) sel.classList.add('selected')
 
-  // Re-render completo del onboarding en el nuevo idioma (panel derecho + panel izquierdo)
+  // Re-render completo del onboarding en el nuevo idioma
+  // Pequeño delay para que el DOM procese el cambio de _currentLang antes de re-render
   const contentArea = document.getElementById('obContentArea')
+  const leftPanel   = document.getElementById('obLeftPanel')
+
   if (contentArea) {
-    contentArea.style.transition = 'opacity .15s'
     contentArea.style.opacity = '0'
-    setTimeout(() => {
+    contentArea.style.transition = 'opacity .15s'
+  }
+  if (leftPanel) {
+    leftPanel.style.opacity = '0'
+    leftPanel.style.transition = 'opacity .15s'
+  }
+
+  setTimeout(() => {
+    if (contentArea) {
       contentArea.innerHTML = _obRightHTML(obStep)
       contentArea.style.opacity = '1'
-    }, 150)
-  }
-  // También actualizar el panel izquierdo con el nuevo idioma
-  const leftPanel = document.getElementById('obLeftPanel')
-  if (leftPanel) {
-    leftPanel.style.transition = 'opacity .15s'
-    leftPanel.style.opacity = '0'
-    setTimeout(() => {
+    }
+    if (leftPanel) {
       leftPanel.innerHTML = _obLeftHTML(obStep)
       leftPanel.style.opacity = '1'
-    }, 150)
-  }
+    }
+  }, 80)
 }
 
 function obSelectTheme(theme) {
