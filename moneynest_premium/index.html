@@ -880,7 +880,7 @@
     <div class="modal-body" id="monthlyBody"><!-- filled by JS --></div>
     <div class="modal-footer">
       <button class="btn btn-ghost btn-sm" onclick="closeModal('monthlyModal')" data-i18n="btn_monthly_cerrar">Cerrar</button>
-      <button class="btn btn-primary btn-sm" onclick="exportarPDF()" data-i18n="btn_monthly_pdf">📄 Exportar PDF</button>
+      <button class="btn btn-primary btn-sm" onclick="dmExportPDF()" data-i18n="btn_monthly_pdf">📄 Exportar PDF</button>
     </div>
   </div>
 </div>
@@ -995,14 +995,14 @@
     <div class="modal-body">
       <p style="font-size:.85rem;color:var(--text2);margin-bottom:16px" data-i18n="modal_export_desc">Exporta tus datos financieros en el formato que prefieras.</p>
       <div style="display:flex;flex-direction:column;gap:10px">
-        <button class="btn btn-secondary" style="justify-content:flex-start;padding:14px 16px" onclick="exportarPDF();closeModal('exportModal')">
+        <button class="btn btn-secondary" style="justify-content:flex-start;padding:14px 16px" onclick="closeModal('exportModal');dmExportPDF()">
           <span style="font-size:1.2rem">📄</span>
           <div style="text-align:left">
             <div style="font-size:.9rem;font-weight:700;color:var(--text)" data-i18n="modal_export_pdf_titulo">Informe PDF completo</div>
             <div style="font-size:.75rem;font-weight:400;color:var(--text2)" data-i18n="modal_export_pdf_sub">Resumen visual con todas las secciones</div>
           </div>
         </button>
-        <button class="btn btn-secondary" style="justify-content:flex-start;padding:14px 16px" onclick="exportarExcel();closeModal('exportModal')">
+        <button class="btn btn-secondary" style="justify-content:flex-start;padding:14px 16px" onclick="closeModal('exportModal');dmExportExcel()">
           <span style="font-size:1.2rem">📊</span>
           <div style="text-align:left">
             <div style="font-size:.9rem;font-weight:700;color:var(--text)" data-i18n="modal_export_excel_titulo">Excel completo (todas las hojas)</div>

@@ -213,6 +213,51 @@ function buildExportPanel() {
   const body = panel.querySelector('.dm-panel-body');
   if (!body) return;
 
+  // Plan check: PDF/Excel require Local or Pro
+  const plan = (typeof window.MNAuth !== 'undefined') ? window.MNAuth.getUser().plan : 'trial';
+  const canExportReports = plan === 'local' || plan === 'pro';
+
+  const lockBadge = `<span style="
+    display:inline-flex;align-items:center;gap:4px;
+    background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.25);
+    color:#F59E0B;font-size:.65rem;font-weight:700;
+    padding:2px 8px;border-radius:99px;
+  ">🔒 Local / Pro</span>`;
+
+  const pdfBtn = canExportReports
+    ? `<button class="dm-export-card dm-export-card--pdf" onclick="dmExportPDF()">
+        <div class="dm-card-icon dm-card-icon--pdf">📄</div>
+        <div class="dm-card-content">
+          <div class="dm-card-title">Informe PDF completo</div>
+          <div class="dm-card-desc">Resumen visual con todas las secciones</div>
+        </div>
+        <span class="dm-card-arrow">${ICONS.arrow}</span>
+      </button>`
+    : `<button class="dm-export-card" style="opacity:.6;cursor:default" onclick="dmToast('El PDF requiere Plan Local o Pro 🔒','warn')">
+        <div class="dm-card-icon dm-card-icon--pdf">📄</div>
+        <div class="dm-card-content">
+          <div class="dm-card-title">Informe PDF completo ${lockBadge}</div>
+          <div class="dm-card-desc">Disponible desde el Plan Local (5€)</div>
+        </div>
+      </button>`;
+
+  const excelBtn = canExportReports
+    ? `<button class="dm-export-card dm-export-card--excel" onclick="dmExportExcel()">
+        <div class="dm-card-icon dm-card-icon--excel">📊</div>
+        <div class="dm-card-content">
+          <div class="dm-card-title">Excel completo</div>
+          <div class="dm-card-desc">Todas las hojas · Ingresos, gastos, inversiones...</div>
+        </div>
+        <span class="dm-card-arrow">${ICONS.arrow}</span>
+      </button>`
+    : `<button class="dm-export-card" style="opacity:.6;cursor:default" onclick="dmToast('El Excel requiere Plan Local o Pro 🔒','warn')">
+        <div class="dm-card-icon dm-card-icon--excel">📊</div>
+        <div class="dm-card-content">
+          <div class="dm-card-title">Excel completo ${lockBadge}</div>
+          <div class="dm-card-desc">Disponible desde el Plan Local (5€)</div>
+        </div>
+      </button>`;
+
   body.innerHTML = `
     <div>
       <div class="dm-section-label">Copia de seguridad completa</div>
@@ -223,7 +268,7 @@ function buildExportPanel() {
             <div class="dm-card-title">Exportar como .moneynest</div>
             <div class="dm-card-desc">Backup completo con versionado · Recomendado</div>
           </div>
-          <span class="dm-card-badge">Preferido</span>
+          <span class="dm-card-badge">Gratis</span>
           <span class="dm-card-arrow">${ICONS.arrow}</span>
         </button>
         <button class="dm-export-card" onclick="dmExportJSON()">
@@ -242,23 +287,16 @@ function buildExportPanel() {
     <div>
       <div class="dm-section-label">Informes</div>
       <div class="dm-export-cards">
-        <button class="dm-export-card dm-export-card--pdf" onclick="dmExportPDF()">
-          <div class="dm-card-icon dm-card-icon--pdf">📄</div>
-          <div class="dm-card-content">
-            <div class="dm-card-title">Informe PDF completo</div>
-            <div class="dm-card-desc">Resumen visual con todas las secciones</div>
-          </div>
-          <span class="dm-card-arrow">${ICONS.arrow}</span>
-        </button>
-        <button class="dm-export-card dm-export-card--excel" onclick="dmExportExcel()">
-          <div class="dm-card-icon dm-card-icon--excel">📊</div>
-          <div class="dm-card-content">
-            <div class="dm-card-title">Excel completo</div>
-            <div class="dm-card-desc">Todas las hojas · Ingresos, gastos, inversiones...</div>
-          </div>
-          <span class="dm-card-arrow">${ICONS.arrow}</span>
-        </button>
+        ${pdfBtn}
+        ${excelBtn}
       </div>
+      ${!canExportReports ? `<div style="margin-top:10px;text-align:center">
+        <button onclick="closeDmPanel('dm-export-panel');if(window.MNAuthUI)MNAuthUI.showAuthModal('plan')" style="
+          background:linear-gradient(135deg,#00D4AA,#00A882);color:#0A0E17;
+          border:none;border-radius:10px;padding:10px 20px;
+          font-size:.82rem;font-weight:800;cursor:pointer;font-family:inherit;
+        ">🔓 Desbloquear con Plan Local — 5€ →</button>
+      </div>` : ''}
     </div>
 
     <hr class="dm-divider">
@@ -311,21 +349,27 @@ window.dmExportJSON = function() {
 };
 
 window.dmExportPDF = function() {
-  closeDmPanel('dm-export-panel');
-  if (typeof exportarPDF === 'function') {
-    exportarPDF();
-  } else {
-    dmToast('PDF no disponible en este momento', 'warn');
+  const plan = (typeof window.MNAuth !== 'undefined') ? window.MNAuth.getUser().plan : 'trial';
+  if (plan !== 'local' && plan !== 'pro') {
+    dmToast('🔒 El PDF requiere Plan Local o Pro', 'warn');
+    if (window.MNAuthUI) MNAuthUI.showAuthModal('plan');
+    return;
   }
+  closeDmPanel('dm-export-panel');
+  if (typeof exportarPDF === 'function') exportarPDF();
+  else dmToast('PDF no disponible en este momento', 'warn');
 };
 
 window.dmExportExcel = function() {
-  closeDmPanel('dm-export-panel');
-  if (typeof exportarExcel === 'function') {
-    exportarExcel();
-  } else {
-    dmToast('Excel no disponible en este momento', 'warn');
+  const plan = (typeof window.MNAuth !== 'undefined') ? window.MNAuth.getUser().plan : 'trial';
+  if (plan !== 'local' && plan !== 'pro') {
+    dmToast('🔒 El Excel requiere Plan Local o Pro', 'warn');
+    if (window.MNAuthUI) MNAuthUI.showAuthModal('plan');
+    return;
   }
+  closeDmPanel('dm-export-panel');
+  if (typeof exportarExcel === 'function') exportarExcel();
+  else dmToast('Excel no disponible en este momento', 'warn');
 };
 
 window.dmSectionExport = function(section) {

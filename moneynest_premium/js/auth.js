@@ -463,26 +463,49 @@ function _buildPaywallHTML(user) {
         <span class="pw-icon">🔒</span>
         <div class="pw-title">Tu acceso ha expirado</div>
         <div class="pw-sub">
-          El período de prueba de 24 horas ha concluido.<br>
-          Desbloquea <strong>MoneyNest Local</strong> con un pago único para seguir.
+          Tus datos están a salvo. Elige el plan que mejor se adapte a ti para seguir usando MoneyNest.
         </div>
 
-        <div class="pw-price-card">
-          <div class="pw-price-label">⚡ Plan Local — pago único</div>
+        <!-- Plan Local -->
+        <div class="pw-price-card" style="margin-bottom:10px">
+          <div class="pw-price-label">💾 Plan Local — pago único</div>
           <div class="pw-price-amount">5€ <span>para siempre</span></div>
-          <div class="pw-price-desc">Sin suscripción. Sin sorpresas. Tus datos, siempre en tu dispositivo.</div>
+          <div class="pw-price-desc" style="margin-bottom:12px">Sin suscripción. Sin sorpresas. Tus datos en tu dispositivo.</div>
+          <div style="display:flex;flex-direction:column;gap:5px;margin-bottom:14px;text-align:left">
+            <div class="pw-feat" style="padding:7px 12px"><span class="pw-feat-icon">✅</span>Todos tus datos conservados</div>
+            <div class="pw-feat" style="padding:7px 12px"><span class="pw-feat-icon">✅</span>Ingresos, gastos, inversiones ilimitados</div>
+            <div class="pw-feat" style="padding:7px 12px"><span class="pw-feat-icon">✅</span>Exportación PDF y Excel</div>
+          </div>
+          <button class="pw-btn-primary" id="pw-buy-local-btn" style="margin-bottom:0">
+            🔓 Comprar Plan Local — 5€ →
+          </button>
         </div>
 
-        <div class="pw-features">
-          <div class="pw-feat"><span class="pw-feat-icon">✅</span>Todos tus datos conservados</div>
-          <div class="pw-feat"><span class="pw-feat-icon">✅</span>Ingresos, gastos, inversiones y deudas ilimitados</div>
-          <div class="pw-feat"><span class="pw-feat-icon">✅</span>Exportación PDF y Excel</div>
-          <div class="pw-feat"><span class="pw-feat-icon">☁️</span>Nube disponible con Plan Pro (upgrade opcional)</div>
+        <!-- Plan Pro -->
+        <div style="
+          background:linear-gradient(135deg,rgba(99,102,241,.12),rgba(99,102,241,.04));
+          border:1px solid rgba(99,102,241,.3);border-radius:16px;padding:18px;margin-bottom:16px;
+        ">
+          <div style="font-size:.68rem;font-weight:700;color:#A5B4FC;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">⚡ Plan Pro — todo incluido</div>
+          <div style="font-size:1.6rem;font-weight:800;color:${text};letter-spacing:-.04em;line-height:1;margin-bottom:4px">
+            10€ <span style="font-size:.9rem;font-weight:600;color:${text2}">Local + 5€/año Pro</span>
+          </div>
+          <div style="font-size:.75rem;color:#A5B4FC;margin-bottom:12px">7 días gratis · Sin compromiso</div>
+          <div style="display:flex;flex-direction:column;gap:5px;margin-bottom:14px;text-align:left">
+            <div class="pw-feat" style="padding:7px 12px;background:rgba(99,102,241,.08);border-color:rgba(99,102,241,.15)"><span class="pw-feat-icon">☁️</span>Sincronización multi-dispositivo</div>
+            <div class="pw-feat" style="padding:7px 12px;background:rgba(99,102,241,.08);border-color:rgba(99,102,241,.15)"><span class="pw-feat-icon">🔄</span>Backup automático en la nube</div>
+            <div class="pw-feat" style="padding:7px 12px;background:rgba(99,102,241,.08);border-color:rgba(99,102,241,.15)"><span class="pw-feat-icon">⚡</span>Todo lo del Plan Local incluido</div>
+          </div>
+          <button style="
+            width:100%;padding:13px;border-radius:12px;border:none;
+            background:linear-gradient(135deg,#6366F1,#4F46E5);
+            color:#fff;font-size:.88rem;font-weight:800;cursor:pointer;font-family:inherit;
+            box-shadow:0 6px 20px rgba(99,102,241,.35);
+          " id="pw-buy-pro-btn">
+            ⚡ Activar Plan Pro — 7 días gratis →
+          </button>
         </div>
 
-        <button class="pw-btn-primary" id="pw-buy-local-btn">
-          🔓 Comprar Plan Local — 5€ →
-        </button>
         <button class="pw-btn-ghost" id="pw-restore-btn-inline">
           ¿Ya compraste? Restaurar acceso
         </button>
@@ -500,7 +523,24 @@ function _initPaywallListeners() {
   const buyLocalBtn = document.getElementById('pw-buy-local-btn');
   if (buyLocalBtn) {
     buyLocalBtn.addEventListener('click', () => {
-      document.dispatchEvent(new CustomEvent('mn:buyLocal', { detail: { source: 'paywall' } }));
+      const email = window.MNSupabaseAuth?.getEmail() || '';
+      if (window.MNPayment && window.MNStripeConfig) {
+        MNPayment.open(MNStripeConfig.prices.local, email);
+      } else {
+        document.dispatchEvent(new CustomEvent('mn:buyLocal', { detail: { source: 'paywall' } }));
+      }
+    });
+  }
+
+  const buyProBtn = document.getElementById('pw-buy-pro-btn');
+  if (buyProBtn) {
+    buyProBtn.addEventListener('click', () => {
+      const email = window.MNSupabaseAuth?.getEmail() || '';
+      if (window.MNPayment && window.MNStripeConfig) {
+        MNPayment.open(MNStripeConfig.prices.pro, email);
+      } else {
+        document.dispatchEvent(new CustomEvent('mn:activatePro', { detail: { source: 'paywall' } }));
+      }
     });
   }
 
