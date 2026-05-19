@@ -302,6 +302,10 @@ window.MNPayment = (() => {
               window.MNAuthUI.renderAuthBadge('authPlanBadge');
               window.MNAuthUI.renderTrialPill('trialPillContainer');
             }
+            // Refresh billing UI if currently on that page
+            if (typeof goTo === 'function' && typeof MNBillingUI !== 'undefined') {
+              goTo('billing');
+            }
           }
           break;
         }

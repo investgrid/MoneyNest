@@ -29,7 +29,7 @@
       // ── HTML TOPBAR ─────────────────────────────────────────
       topbar_disponible: 'Disponible',
       topbar_activar_pro: '⚡ Activar Pro',
-      topbar_exportar: '⬆ Exportar',
+      topbar_exportar: '⬇ Exportar',
       topbar_cambiar_tema: 'Cambiar tema',
 
       // ── HTML BOTTOM NAV ─────────────────────────────────────

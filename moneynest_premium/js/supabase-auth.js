@@ -95,11 +95,14 @@
       throw Object.assign(new Error('Demasiados intentos. Espera unos minutos.'), { code: 'rate_limited' });
     }
 
-    // Step 1: create the account
+    // Step 1: create the account.
+    // emailRedirectTo set to empty string so Supabase does NOT send its own
+    // confirmation email — we send the numeric OTP ourselves in step 2.
     const { data, error } = await sb.auth.signUp({
       email,
       password,
       options: {
+        emailRedirectTo: '',
         data: { display_name: displayName || null },
       },
     });
@@ -172,9 +175,6 @@
       if (msg.includes('Invalid login credentials') || msg.includes('invalid_credentials')) {
         throw Object.assign(new Error('Email o contraseña incorrectos.'), { code: 'invalid_credentials' });
       }
-      if (msg.includes('Email not confirmed')) {
-        throw Object.assign(new Error('Confirma tu email antes de entrar. Revisa tu bandeja de entrada.'), { code: 'email_not_confirmed' });
-      }
       throw error;
     }
 
@@ -206,36 +206,6 @@
     return data;
   }
 
-
-  // ════════════════════════════════════════════════════════════════
-  //  OAUTH — GOOGLE & APPLE
-  // ════════════════════════════════════════════════════════════════
-
-  async function signInWithGoogle() {
-    const { data, error } = await sb.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${location.origin}/?action=oauth-callback`,
-        queryParams: { access_type: 'offline', prompt: 'select_account' },
-        scopes: 'openid email profile',
-        skipBrowserRedirect: false,
-      },
-    });
-    if (error) throw error;
-    return data;
-  }
-
-  async function signInWithApple() {
-    const { data, error } = await sb.auth.signInWithOAuth({
-      provider: 'apple',
-      options: {
-        redirectTo: `${location.origin}${location.pathname}?action=oauth-callback`,
-        scopes:     'name email',
-      },
-    });
-    if (error) throw error;
-    return data;
-  }
 
   async function _handleOAuthCallback() {
     const params = new URLSearchParams(location.search);
@@ -447,9 +417,6 @@
     signUp,
     signIn,
     signOut,
-    // OAuth
-    signInWithGoogle,
-    signInWithApple,
     // Password
     resetPassword,
     updatePassword,

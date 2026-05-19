@@ -190,7 +190,7 @@ function isTrialExpired() {
 }
 
 function isPro()   { return getUser().plan === 'pro' }
-function isGuest() { const p = getUser().plan; return p === 'trial' || p === 'locked_local'; }
+function isGuest() { return getUser().plan === 'locked_local'; }
 
 function bloquearApp(user) {
   const u = user || getUser()
@@ -716,7 +716,7 @@ const TRANSLATIONS = {
     topbar_activar_pro: '⚡ Activar Pro',
     topbar_cambiar_tema: 'Cambiar tema',
     topbar_disponible: 'Disponible',
-    topbar_exportar: '↗ Exportar',
+    topbar_exportar: '⬇ Exportar',
     tut_salir: '✕ Salir',
     tut_siguiente: 'Siguiente →',
     ver_movimientos_btn: '📋 Ver movimientos',
@@ -1158,7 +1158,7 @@ const TRANSLATIONS = {
     topbar_activar_pro: '⚡ Upgrade Pro',
     topbar_cambiar_tema: 'Change theme',
     topbar_disponible: 'Available',
-    topbar_exportar: '↗ Export',
+    topbar_exportar: '⬇ Export',
     tut_salir: '✕ Exit',
     tut_siguiente: 'Next →',
     ver_movimientos_btn: '📋 View movements',
@@ -1569,7 +1569,7 @@ const TRANSLATIONS = {
     topbar_activar_pro: '⚡ Attiva Pro',
     topbar_cambiar_tema: 'Cambia tema',
     topbar_disponible: 'Disponibile',
-    topbar_exportar: '↗ Esporta',
+    topbar_exportar: '⬇ Esporta',
     tut_salir: '✕ Esci',
     tut_siguiente: 'Avanti →',
     ver_movimientos_btn: '📋 Visualizza movimenti',
@@ -1980,7 +1980,7 @@ const TRANSLATIONS = {
     topbar_activar_pro: '⚡ Passer à Pro',
     topbar_cambiar_tema: 'Changer le thème',
     topbar_disponible: 'Disponible',
-    topbar_exportar: '↗ Exporter',
+    topbar_exportar: '⬇ Exporter',
     tut_salir: '✕ Quitter',
     tut_siguiente: 'Suivant →',
     ver_movimientos_btn: '📋 Voir mouvements',
@@ -2391,7 +2391,7 @@ const TRANSLATIONS = {
     topbar_activar_pro: '⚡ Pro aktivieren',
     topbar_cambiar_tema: 'Design ändern',
     topbar_disponible: 'Verfügbar',
-    topbar_exportar: '↗ Exportieren',
+    topbar_exportar: '⬇ Exportieren',
     tut_salir: '✕ Beenden',
     tut_siguiente: 'Nächste →',
     ver_movimientos_btn: '📋 Bewegungen anzeigen',
@@ -2802,7 +2802,7 @@ const TRANSLATIONS = {
     topbar_activar_pro: '⚡ Ativar Pro',
     topbar_cambiar_tema: 'Mudar tema',
     topbar_disponible: 'Disponível',
-    topbar_exportar: '↗ Exportar',
+    topbar_exportar: '⬇ Exportar',
     tut_salir: '✕ Sair',
     tut_siguiente: 'Próximo →',
     ver_movimientos_btn: '📋 Ver movimentos',
@@ -3508,6 +3508,7 @@ function _updateSidebarLang() {
     'nav-cuentas':       'nav_cuentas',
     'nav-patrimonio':    'nav_patrimonio',
     'nav-analisis':      'nav_analisis',
+    'nav-logros':        'nav_logros',
     'nav-configuracion': 'nav_configuracion',
     'nav-billing':       'nav_billing',
     'nav-faq':           'nav_faq',
@@ -5914,6 +5915,12 @@ function renderConfiguracion() {
         </div>
       </div>
 
+      <!-- Notificaciones -->
+      <div class="card">
+        <div class="card-header"><div class="card-title">🔔 ${t('cfg_notificaciones') || 'Notificaciones'}</div></div>
+        <div id="mn-notif-settings-container"></div>
+      </div>
+
       <!-- Info -->
       <div class="card">
         <div class="card-header"><div class="card-title">ℹ️ ${t('cfg_info')}</div></div>
@@ -5938,7 +5945,33 @@ function renderConfiguracion() {
       ${catSections}
     </div>
   </div>`
+
+  // Notifications settings panel (post-render)
+  const nc = document.getElementById('mn-notif-settings-container')
+  if (nc) {
+    if (window.MNNotifications?.renderSettingsUI) {
+      MNNotifications.renderSettingsUI('mn-notif-settings-container')
+    } else {
+      nc.innerHTML = '<p style="font-size:.8rem;color:var(--text2)">Las notificaciones push no están disponibles en este dispositivo.</p>'
+    }
+  }
 }
+function renderLogros() {
+  const el = document.getElementById('content')
+  if (!el) return
+  el.innerHTML = `
+  <div class="section-header">
+    <div><div class="page-h1">🏆 ${t('nav_logros') || 'Logros'}</div><div class="page-sub">${t('nav_sub_logros') || 'Tu progreso en MoneyNest'}</div></div>
+  </div>
+  <div id="achievementsContainer"></div>`
+  if (window.MNGamification && window.MNGamification.renderAchievementsPanel) {
+    MNGamification.renderAchievementsPanel('achievementsContainer')
+  } else {
+    const ac = document.getElementById('achievementsContainer')
+    if (ac) ac.innerHTML = '<div class="empty"><div class="empty-icon">🏆</div><div class="empty-title">Sistema de logros cargando...</div></div>'
+  }
+}
+
 // ─── CHARTS ────────────────────────────────────────────────────
 const CHART_COLORS = ['#00D4AA','#6366F1','#F59E0B','#F43F5E','#10B981','#8B5CF6','#EC4899','#3B82F6','#14B8A6','#F97316']
 function chartDefaults() {
@@ -6490,6 +6523,7 @@ function guardarIngreso() {
   }
   save()
   updateStreak()
+  if (window.MNGamification) MNGamification.checkAchievement('ingreso_added')
   closeModal('ingresoModal')
   _unlock()
   // Clear month filter so all incomes are visible after saving
@@ -6566,7 +6600,7 @@ function guardarGasto() {
         if (c) c.saldo = (Number(c.saldo)||0) - importe
       }
     }
-    save(); updateStreak(); closeModal('gastoModal'); _unlock(); render(); toast(t('toast_gasto_guardado'))
+    save(); updateStreak(); if (window.MNGamification) MNGamification.checkAchievement('gasto_added'); closeModal('gastoModal'); _unlock(); render(); toast(t('toast_gasto_guardado'))
   }
 
   // Warn if operation would leave account in negative balance
@@ -9050,18 +9084,6 @@ function _obRightHTML(step) {
     <div class="ob-headline">${isLogin ? 'Bienvenido<br><span class="ob-headline-accent">de nuevo</span>' : 'Crea tu<br><span class="ob-headline-accent">cuenta gratis</span>'}</div>
     <p class="ob-lead">${isLogin ? 'Inicia sesión para continuar con tus datos.' : 'Sin tarjeta. Sin compromisos. 24h de prueba incluidas.'}</p>
 
-    <button class="ob-google-btn" onclick="_obGoogleAuth()">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="flex-shrink:0">
-        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
-        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-      </svg>
-      ${isLogin ? 'Entrar con Google' : 'Registrarse con Google'}
-    </button>
-
-    <div class="ob-or-divider"><span>o continúa con email</span></div>
-
     <div class="ob-fields">
       <div class="ob-field-wrap">
         <label class="ob-field-label">Correo electrónico</label>
@@ -9440,48 +9462,6 @@ function _obToggleAuthMode() {
   }, 120)
 }
 
-async function _obGoogleAuth() {
-  if (!window.MNSupabaseAuth) {
-    const errEl = document.getElementById('obAccountError')
-    if (errEl) { errEl.textContent = '⚠ Servicio no disponible. Intenta con email.'; errEl.style.display = 'block' }
-    return
-  }
-  const btn = document.querySelector('.ob-google-btn')
-  if (btn) {
-    btn.disabled = true
-    btn.style.opacity = '0.6'
-    btn.innerHTML = `
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="flex-shrink:0;animation:mnSpin 600ms linear infinite">
-        <circle cx="12" cy="12" r="9" stroke="rgba(255,255,255,0.2)" stroke-width="2.5"/>
-        <path d="M12 3a9 9 0 0 1 9 9" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
-      </svg>
-      Conectando con Google…`
-  }
-  try {
-    await window.MNSupabaseAuth.signInWithGoogle()
-    // Browser redirects to Google — execution stops here
-  } catch (err) {
-    if (btn) {
-      btn.disabled = false
-      btn.style.opacity = ''
-      const isLogin = obData._authMode === 'login'
-      btn.innerHTML = `
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="flex-shrink:0">
-          <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-          <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-          <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
-          <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-        </svg>
-        ${isLogin ? 'Entrar con Google' : 'Registrarse con Google'}`
-    }
-    // Don't show error if user just closed the popup
-    if (err?.code !== 'popup_closed') {
-      const errEl = document.getElementById('obAccountError')
-      if (errEl) { errEl.textContent = '⚠ Error al conectar con Google. Intenta con email.'; errEl.style.display = 'block' }
-    }
-  }
-}
-
 async function _obForgotPassword() {
   const email = (document.getElementById('obEmail')?.value || '').trim()
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -9538,7 +9518,6 @@ async function obNext() {
         const code = err?.code || ''
         const map = {
           invalid_credentials: '⚠ Email o contraseña incorrectos.',
-          email_not_confirmed: '⚠ Confirma tu email antes de entrar.',
           rate_limited: '⚠ Demasiados intentos. Espera unos minutos.',
         }
         showErr(map[code] || '⚠ ' + (err?.message || 'Error al iniciar sesión.'))
@@ -9546,21 +9525,17 @@ async function obNext() {
         return
       }
     } else {
-      // Registration flow: create account + send OTP, show verification screen
       const btn = document.querySelector('#obContentArea .ob-next-btn')
       if (btn) { btn.disabled = true; btn.textContent = 'Creando cuenta…' }
       try {
         await window.MNSupabaseAuth.signUp(email, pw)
         obData._registered = true
-        // Supabase sends the OTP email automatically on signUp.
-        // Show our verification overlay to collect the code.
-        _obShowOtpOverlay(email)
-        if (btn) { btn.disabled = false; btn.innerHTML = 'Crear cuenta <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="display:inline;vertical-align:middle"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' }
-        return
+        _auth.upgradeTrial && _auth.upgradeTrial(email)
+        if (btn) { btn.disabled = false }
+        // Continue to next step normally (no OTP required)
       } catch (err) {
         const code = err?.code || ''
         if (code === 'email_exists') {
-          // Account exists — let them log in
           showErr('⚠ Este email ya tiene cuenta. Usa "Iniciar sesión →"')
         } else if (code === 'rate_limited') {
           showErr('⚠ Demasiados intentos. Espera unos minutos.')
@@ -10383,7 +10358,7 @@ function renderTutStep() {
     inversiones:renderInversiones, deudas:renderDeudas, cuentas:renderCuentas,
     objetivos:renderObjetivos, presupuestos:renderPresupuestos,
     analisis:renderAnalisis, configuracion:renderConfiguracion,
-    patrimonio:renderPatrimonio, billing:renderBilling
+    patrimonio:renderPatrimonio, billing:renderBilling, logros:renderLogros
   }
   if (step.page && step.page !== currentPage) {
     currentPage = step.page
@@ -11611,6 +11586,7 @@ function render() {
     patrimonio:   renderPatrimonio,
     faq:          renderFAQ,
     sugerencias:  renderFAQ,
+    logros:       renderLogros,
   }
   const pageKeyMap = {
     dashboard:'nav_dashboard', ingresos:'nav_ingresos', gastos:'nav_gastos',
@@ -11618,6 +11594,7 @@ function render() {
     presupuestos:'nav_presupuestos', cuentas:'nav_cuentas',
     analisis:'nav_analisis', configuracion:'nav_configuracion',
     patrimonio:'nav_patrimonio', faq:'nav_faq', sugerencias:'nav_sugerencias', billing:'nav_billing',
+    logros:'nav_logros',
   }
   const el = document.getElementById('pageTitle')
   if (el) el.textContent = pageKeyMap[currentPage] ? t(pageKeyMap[currentPage]) : currentPage
@@ -12086,10 +12063,6 @@ function runMiniIntro(onComplete) {
 }
 
 function init() {
-  // Boot multi-account system first — installs localStorage proxy before any read
-  if (window.MNAccounts) {
-    try { window.MNAccounts.boot() } catch(e) { console.warn('[MNAccounts] boot error', e) }
-  }
   // ── Auth: inicializar usuario y verificar acceso ────────────
   initUser()
   const access = checkAccess()
@@ -12697,6 +12670,7 @@ function _authActivatePro() {
   if (gg) gg.style.display = 'none';
   _renderTrialPill();
   _renderAuthBadge();
+  if (window.MNAuthUI) { MNAuthUI.showAuthModal('plan'); }
 }
 
 /** Guest-gate modal: shown when a guest tries to add a movement */
