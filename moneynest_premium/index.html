@@ -1420,8 +1420,8 @@
     //    (requiere un contenedor con id="trialPillContainer" en el HTML)
     MNAuthUI.renderTrialPill('trialPillContainer');
 
-    // 4b. Banner prominente de countdown del trial (fixed top)
-    if (typeof MNAuthUI.renderTrialBanner === 'function') MNAuthUI.renderTrialBanner();
+    // 4b. Banner trial — desactivado por petición del usuario
+    // if (typeof MNAuthUI.renderTrialBanner === 'function') MNAuthUI.renderTrialBanner();
 
     // 5. Comprueba acceso — bloquea la app si el trial ha expirado
     MNAuth.checkAccess();

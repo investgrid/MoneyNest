@@ -2116,8 +2116,10 @@ ize:.92rem;font-weight:700;color:var(--text);margin-bottom:5px;line-height:1.3}
   border-radius:var(--radius);padding:14px 18px;
   margin-bottom:14px;
 }
-.hsc-ring-wrap{position:relative;flex-shrink:0;width:56px;height:56px}
-.hsc-ring-wrap svg{transform:rotate(-90deg)}
+/* Ring wrap — tamaño = tamaño del SVG (50x50) */
+.hsc-ring-wrap{position:relative;flex-shrink:0;width:50px;height:50px}
+/* NO rotar el SVG aquí — el circle ya tiene transform="rotate(-90 25 25)" */
+.hsc-ring-wrap svg{display:block;overflow:visible}
 .hsc-num{
   position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
   font-size:.95rem;font-weight:800;color:var(--text);

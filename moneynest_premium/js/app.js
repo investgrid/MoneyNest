@@ -2,16 +2,29 @@
 const VERSION = '1.1'
 
 // ─── LOGO SVGs ────────────────────────────────────────────────
-// ── Logo SVG (clean, no badge) ───────────────────────────────────────
-const LOGO_DARK  = `<span style='display:flex;align-items:center;gap:8px;height:44px'>
-  <img src='./assets/icon-192.png' style='width:36px;height:36px;border-radius:8px;object-fit:cover;flex-shrink:0' alt='MoneyNest'>
+// Logo icon como SVG inline (sin dependencia de archivos PNG con fondo blanco)
+const _LOGO_ICON_SVG = `<svg width="34" height="34" viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0">
+  <rect width="34" height="34" rx="9" fill="#00D4AA" opacity="0.15"/>
+  <rect width="34" height="34" rx="9" fill="url(#lg_grad)" opacity="0.8"/>
+  <defs>
+    <linearGradient id="lg_grad" x1="0" y1="0" x2="34" y2="34" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#00D4AA" stop-opacity="0.25"/>
+      <stop offset="1" stop-color="#6366F1" stop-opacity="0.15"/>
+    </linearGradient>
+  </defs>
+  <path d="M8 22 L12 13 L17 18 L22 10 L26 14" stroke="#00D4AA" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="26" cy="14" r="2.5" fill="#00D4AA"/>
+</svg>`
+
+const LOGO_DARK  = `<span style='display:flex;align-items:center;gap:9px;height:44px'>
+  ${_LOGO_ICON_SVG}
   <span style='font-family:Inter,system-ui,sans-serif;font-size:19px;font-weight:800;letter-spacing:-0.5px;line-height:1;white-space:nowrap'>
     <span style='color:#ffffff'>Money</span><span style='color:#00D4AA'>Nest</span>
   </span>
 </span>`
 
-const LOGO_LIGHT = `<span style='display:flex;align-items:center;gap:8px;height:44px'>
-  <img src='./assets/icon-192.png' style='width:36px;height:36px;border-radius:8px;object-fit:cover;flex-shrink:0' alt='MoneyNest'>
+const LOGO_LIGHT = `<span style='display:flex;align-items:center;gap:9px;height:44px'>
+  ${_LOGO_ICON_SVG}
   <span style='font-family:Inter,system-ui,sans-serif;font-size:19px;font-weight:800;letter-spacing:-0.5px;line-height:1;white-space:nowrap'>
     <span style='color:#0F172A'>Money</span><span style='color:#009E82'>Nest</span>
   </span>
@@ -3965,15 +3978,20 @@ function goTo(page) {
   destroyAllCharts()
   syncBottomNav(page)
 
-  render()
-  // Fade-in solo al entrar — sin exit para evitar doble render / parpadeo
+  // Poner la clase ANTES del render para que el contenido nuevo aparezca ya animándose
   const content = document.getElementById('content')
   if (content) {
     content.classList.remove('mn-page-enter')
-    // Fuerza reflow antes de añadir la clase para que la animación siempre arranque
-    void content.offsetWidth
-    content.classList.add('mn-page-enter')
-    setTimeout(() => content.classList.remove('mn-page-enter'), 220)
+    content.style.opacity = '0'
+  }
+  render()
+  if (content) {
+    // Un rAF garantiza que el navegador haya procesado el nuevo HTML antes de animar
+    requestAnimationFrame(() => {
+      content.style.opacity = ''
+      content.classList.add('mn-page-enter')
+      setTimeout(() => content.classList.remove('mn-page-enter'), 220)
+    })
   }
 
   _updateSidebarLang()
@@ -4165,7 +4183,7 @@ function renderDashboard() {
     <div class="patrimonio-hero" style="margin-bottom:0">
       <div class="patrimonio-label">${t('patrimonio_neto')}</div>
       <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap">
-        <div class="patrimonio-num" data-animate-raw="${pat}" data-sparkline="patrimonio">${eur(pat)}</div>
+        <div class="patrimonio-num" data-animate-raw="${pat}" data-sparkline-off="patrimonio">${eur(pat)}</div>
         ${patDelta !== null ? `<span class="kpi-delta ${deltaClass(patDelta)}" style="font-size:.82rem">${deltaIcon(patDelta)} ${pct(Math.abs(patDelta))} vs. mes ant.</span>` : ''}
       </div>
       <div class="patrimonio-stats" style="margin-top:12px">
@@ -4197,21 +4215,21 @@ function renderDashboard() {
 
   <!-- ── KPI STRIP ─────────────────────────────────────────────── -->
   <div class="kpi-grid kpi-grid-3" style="margin-bottom:14px">
-    <div class="kpi-card" data-sparkline="ingresos">
+    <div class="kpi-card" data-sparkline-off="ingresos">
       <div class="kpi-icon" style="background:var(--green-dim)">💰</div>
       <div class="kpi-label">${t('ingresos_mes')}</div>
       <div class="kpi-value" data-animate-raw="${ing}">${eur(ing)}</div>
       ${ingP ? `<span class="kpi-delta ${deltaClass(ing-ingP)}">${deltaIcon(ing-ingP)} ${pct(Math.abs(ingP?((ing-ingP)/ingP*100):0))} vs. ant.</span>` : '<span class="kpi-delta neu">Primer mes</span>'}
       <div class="kpi-sub" style="margin-top:5px">${S.ingresos.filter(i=>i.status!=='pending'&&(i.fecha||'').startsWith(m)).length} entradas</div>
     </div>
-    <div class="kpi-card" data-sparkline="gastos">
+    <div class="kpi-card" data-sparkline-off="gastos">
       <div class="kpi-icon" style="background:var(--red-dim)">💳</div>
       <div class="kpi-label">${t('gastos_mes')}</div>
       <div class="kpi-value" data-animate-raw="${gas}">${eur(gas)}</div>
       ${gasP ? `<span class="kpi-delta ${gas>gasP?'down':'up'}">${gas>gasP?'↑':'↓'} ${pct(Math.abs(gasP?((gas-gasP)/gasP*100):0))} vs. ant.</span>` : '<span class="kpi-delta neu">Primer mes</span>'}
       <div class="kpi-sub" style="margin-top:5px">${S.gastos.filter(g=>g.tipo!==TX_TYPES.GOAL_TRANSFER&&(g.fecha||'').startsWith(m)).length} salidas</div>
     </div>
-    <div class="kpi-card" data-sparkline="cashflow">
+    <div class="kpi-card" data-sparkline-off="cashflow">
       <div class="kpi-icon" style="background:${cf>=0?'var(--accent-dim)':'var(--red-dim)'}">${cf>=0?'📊':'⚠️'}</div>
       <div class="kpi-label">${t('cash_flow')}</div>
       <div class="kpi-value" style="color:${cf>=0?'var(--accent)':'var(--red)'}" data-animate-raw="${cf}">${cf>=0?'+':''}${eur(cf)}</div>
@@ -5179,11 +5197,18 @@ function renderDeudas() {
       <div class="kpi-value" style="color:var(--red)">${eur(pendiente)}</div>
       <div class="kpi-sub">${S.deudas.length} ${t('deudas_label','deudas')} · ${S.deudas.filter(d=>(Number(d.importeTotal)||0)-(Number(d.importePagado)||0)<=0).length} ${t('saldadas','saldadas')}</div>
     </div>
-    <div class="kpi-card">
-      <div class="kpi-icon" style="background:var(--indigo-dim)">${activeStratData.icon}</div>
+    <div class="kpi-card" style="cursor:pointer" onclick="document.getElementById('stratPickerInline')?.scrollIntoView({behavior:'smooth'})">
+      <div class="kpi-icon" style="background:${activeStratData.color}22">${activeStratData.icon}</div>
       <div class="kpi-label">${t('estrategia_activa','Estrategia activa')}</div>
       <div class="kpi-value sm" style="color:${activeStratData.color}">${activeStratData.name}</div>
-      <div class="kpi-sub">${t('libre_en','Libre en')} ${fmtMonths(activeMonths)} · ${eur(activePago)}/${t('mes_lbl','mes')}</div>
+      <div class="kpi-sub">
+        💳 ${eur(activePago)}/${t('mes_lbl','mes')}<br>
+        🏁 ${(() => {
+          if (!activeMonths || activeMonths <= 0) return t('sin_deudas','Sin deudas')
+          const d = new Date(); d.setMonth(d.getMonth() + activeMonths)
+          return d.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })
+        })()}
+      </div>
     </div>
   </div>
 
@@ -5808,10 +5833,12 @@ function renderCuentas() {
     const saldo = Number(c.saldo)||0
     const valorTotal = Number(c.valorTotal)||saldo
     // Capital invertido: suma de inversiones abiertas originadas en esta cuenta
+    // Solo cuenta inversiones que tienen cuentaId explícitamente asignado a esta cuenta
     const invertidoCuenta = S.inversiones
-      .filter(i => !i.cerrada && i.cuentaId === c.id)
+      .filter(i => !i.cerrada && i.cuentaId && i.cuentaId === c.id)
       .reduce((a, i) => a + (Number(i.importe) || 0), 0)
-    const comprometido = invertidoCuenta > 0 ? invertidoCuenta : Math.max(0, valorTotal - saldo)
+    // No usar valorTotal-saldo como fallback — eso confunde al usuario
+    const comprometido = invertidoCuenta
     const gastosCuenta = S.gastos.filter(g=>g.cuentaId===c.id&&g.tipo!==TX_TYPES.GOAL_TRANSFER).length
     const ingresosCuenta = S.ingresos.filter(i=>i.cuentaId===c.id).length
     const invCuenta = S.inversiones.filter(i=>i.cuentaId===c.id&&!i.cerrada).length
@@ -6117,6 +6144,7 @@ function renderLogros() {
 // ─── CHARTS ────────────────────────────────────────────────────
 const CHART_COLORS = ['#00D4AA','#6366F1','#F59E0B','#F43F5E','#10B981','#8B5CF6','#EC4899','#3B82F6','#14B8A6','#F97316']
 function chartDefaults() {
+  const isLight = S && S.theme === 'light'
   return {
     responsive: true, maintainAspectRatio: false,
     animation: { duration: 700, easing: 'easeOutQuart' },
@@ -6124,20 +6152,30 @@ function chartDefaults() {
       legend: { display: false },
       tooltip: {
         backgroundColor: tooltipBg(),
-        borderColor: S.theme === 'light' ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.1)',
+        borderColor: isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.08)',
         borderWidth: 1,
         titleColor: tooltipText(),
-        bodyColor: S.theme === 'light' ? '#475569' : '#94A3B8',
+        bodyColor: isLight ? '#475569' : '#94A3B8',
         padding: { x: 14, y: 10 },
         cornerRadius: 10,
         titleFont: { size: 11, weight: '700' },
         bodyFont: { size: 12, weight: '600' },
-        displayColors: true,
-        boxWidth: 8,
-        boxHeight: 8,
-        boxPadding: 4,
+        displayColors: false,
         caretSize: 5,
         callbacks: {}
+      }
+    },
+    // Escala por defecto — sin bordes visibles, grid sutil
+    scales: {
+      x: {
+        grid: { color: 'transparent' },
+        border: { color: 'transparent' },
+        ticks: { color: labelColor(), font: { size: 11 } }
+      },
+      y: {
+        grid: { color: gridColor() },
+        border: { color: 'transparent' },
+        ticks: { color: labelColor(), font: { size: 11 } }
       }
     }
   }
@@ -6146,8 +6184,8 @@ function destroyChart(id) {
   if (charts[id]) { try { charts[id].destroy() } catch(e){} delete charts[id] }
 }
 function destroyAllCharts() { Object.keys(charts).forEach(k=>destroyChart(k)) }
-function gridColor()  { return S.theme==='light' ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.04)' }
-function labelColor() { return S.theme==='light' ? '#94A3B8' : '#64748B' }
+function gridColor()  { return S && S.theme==='light' ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.035)' }
+function labelColor() { return S && S.theme==='light' ? '#94A3B8' : '#4B5563' }
 function tooltipBg()  { return S.theme==='light' ? 'rgba(255,255,255,0.98)' : 'rgba(15,20,35,0.95)' }
 function tooltipText(){ return S.theme==='light' ? '#0F172A' : '#E8EFF7' }
 
@@ -6198,18 +6236,18 @@ function renderChartPatrimonio() {
           try {
             const h = c.chart.chartArea?.bottom || 220
             const g = c.chart.ctx.createLinearGradient(0, 0, 0, h)
-            g.addColorStop(0, 'rgba(0,212,170,0.25)')
-            g.addColorStop(0.6, 'rgba(0,212,170,0.06)')
+            g.addColorStop(0, 'rgba(0,212,170,0.18)')
+            g.addColorStop(0.7, 'rgba(0,212,170,0.04)')
             g.addColorStop(1, 'rgba(0,212,170,0)')
             return g
-          } catch { return 'rgba(0,212,170,0.12)' }
+          } catch { return 'rgba(0,212,170,0.1)' }
         },
         fill: true, tension: 0.42,
-        pointRadius: nonNullVals.length <= 1 ? 6 : 4,
-        pointHoverRadius: 7,
+        pointRadius: nonNullVals.length <= 1 ? 5 : 4,
+        pointHoverRadius: 6,
         pointBackgroundColor: '#00D4AA',
-        pointBorderColor: S.theme === 'light' ? '#fff' : '#0A0E17',
-        pointBorderWidth: 2,
+        pointBorderColor: 'transparent',
+        pointBorderWidth: 0,
         borderWidth: 2.5, spanGaps: true
       }]
     },
@@ -6264,7 +6302,7 @@ function renderChartCashFlow() {
         },
         fill: true, tension: 0.42, pointRadius: 4, pointHoverRadius: 6,
         pointBackgroundColor: cfData.map(v => v >= 0 ? '#00D4AA' : '#F43F5E'),
-        pointBorderColor: S.theme === 'light' ? '#fff' : '#0A0E17',
+        pointBorderColor: 'transparent',
         pointBorderWidth: 2,
         borderWidth: 2.5, spanGaps: true,
         segment: { borderColor: c => cfData[c.p0DataIndex] >= 0 ? '#00D4AA' : '#F43F5E' }
@@ -6316,11 +6354,11 @@ function renderChartIngVsGas() {
         { label: t('nav_ingresos'), data: ingData, borderColor: '#10B981',
           backgroundColor: c => _mkGrad(c, '#10B981', 0.18, 0),
           fill: true, tension: 0.42, pointRadius: 4, pointHoverRadius: 6,
-          pointBackgroundColor: '#10B981', pointBorderColor: S.theme==='light'?'#fff':'#0A0E17', pointBorderWidth: 2, borderWidth: 2.5, spanGaps: true },
+          pointBackgroundColor: '#10B981', pointBorderColor: 'transparent', pointBorderWidth: 0, borderWidth: 2.5, spanGaps: true },
         { label: t('nav_gastos'), data: gasData, borderColor: '#F43F5E',
           backgroundColor: c => _mkGrad(c, '#F43F5E', 0.12, 0),
           fill: true, tension: 0.42, pointRadius: 4, pointHoverRadius: 6,
-          pointBackgroundColor: '#F43F5E', pointBorderColor: S.theme==='light'?'#fff':'#0A0E17', pointBorderWidth: 2, borderWidth: 2.5, spanGaps: true }
+          pointBackgroundColor: '#F43F5E', pointBorderColor: 'transparent', pointBorderWidth: 0, borderWidth: 2.5, spanGaps: true }
       ]
     },
     options: { ...chartDefaults(),
@@ -8707,25 +8745,37 @@ function renderAnalisis() {
   }
 
   document.getElementById('content').innerHTML = `
-  <div class="section-header">
-    <div><div class="page-h1">📊 ${t('page_analisis')}</div><div class="page-sub">${_gPeriodLabel()} · Métricas avanzadas y predicciones</div></div>
-    <div class="section-actions">
-      <button class="btn btn-secondary btn-sm" onclick="abrirCierreMes()">📋 Cierre de mes</button>
+  <div class="section-header" style="align-items:center">
+    <div>
+      <div class="page-h1">📊 ${t('page_analisis')}</div>
+      <div class="page-sub">${_gPeriodLabel()}</div>
+    </div>
+    <div class="section-actions" style="align-items:center">
+      ${window.MNCompare ? `
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="font-size:.72rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.06em">${t('comparar_con','vs.')}</span>
+          <select onchange="window._analisisCompareMonth=this.value;renderAnalisis?.()"
+            style="font-size:.78rem;padding:5px 10px;border-radius:8px;border:1px solid var(--border2);background:var(--bg2);color:var(--text);cursor:pointer;font-family:inherit">
+            <option value="">${t('ninguno','—')}</option>
+            ${(typeof getMonths==='function'?getMonths(12):[]).filter(m2=>m2!==currentMonth()).map(m2=>`
+              <option value="${m2}" ${window._analisisCompareMonth===m2?'selected':''}>${monthLabel(m2)}</option>`).join('')}
+          </select>
+        </div>` : ''}
+      <button class="btn btn-secondary btn-sm" onclick="abrirCierreMes()">📋 ${t('btn_monthly_cerrar','Cierre mes')}</button>
     </div>
   </div>
 
   ${_gFilterBar('renderAnalisis()')}
-  ${window.MNCompare ? window.MNCompare.renderSelector() : ''}
 
   <!-- KPIs rápidos con deltas comparación -->
   <div class="kpi-grid kpi-grid-4" style="margin-bottom:20px">
-    <div class="kpi-card" data-sparkline="cashflow">
+    <div class="kpi-card" data-sparkline-off="cashflow">
       <div class="kpi-icon" style="background:var(--gold-dim)">🔥</div>
       <div class="kpi-label">${t('burn_rate','Burn Rate')}</div>
       <div class="kpi-value sm" style="color:${burnMonths>=6?'var(--green)':burnMonths>=3?'var(--gold)':'var(--red)'}">${burnMonths} ${t('meses','meses')}</div>
       <div class="kpi-sub">${eur(calcDineroDisponible())} ${t('topbar_disponible','disponible')}</div>
     </div>
-    <div class="kpi-card" data-sparkline="ingresos">
+    <div class="kpi-card" data-sparkline-off="ingresos">
       <div class="kpi-icon" style="background:var(--green-dim)">💰</div>
       <div class="kpi-label">${t('tasa_ahorro','Tasa de ahorro')}</div>
       <div class="kpi-value sm" style="color:${tasaAhorro>=20?'var(--green)':tasaAhorro>=10?'var(--gold)':'var(--red)'}">${pct(tasaAhorro)}</div>
@@ -8957,46 +9007,63 @@ function renderAnalisis() {
     </div>`
   })()}
 
-  <!-- Financial Planner — 3 scenarios -->
+  <!-- Financial Planner — 3 scenarios (rediseñado) -->
   ${(() => {
     const months3 = getMonths(3)
-    const avgInc3 = months3.reduce((a,mo)=>a+calcIngresosMes(mo),0)/3
-    const avgGas3 = months3.reduce((a,mo)=>a+calcGastosMes(mo),0)/3
+    const avgInc3 = months3.reduce((a,mo) => a + calcIngresosMes(mo), 0) / 3
+    const avgGas3 = months3.reduce((a,mo) => a + calcGastosMes(mo), 0) / 3
     const cashFlow = avgInc3 - avgGas3
-    const saldoInicial = S.cuentas.reduce((a,c)=>a+(Number(c.saldo)||0),0)
+    const saldoInicial = S.cuentas.reduce((a,c) => a + (Number(c.saldo)||0), 0)
+
+    if (avgInc3 === 0 && avgGas3 === 0) return `
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-header"><div class="card-title">🔭 ${t('proyeccion_titulo','Proyección patrimonial')}</div></div>
+        ${window.mnEmptyStates ? window.mnEmptyStates.analisis() : '<div class="empty"><div class="empty-icon">📊</div><div class="empty-title">Sin datos</div></div>'}
+      </div>`
+
     const buildSeries = mul => {
       let val = saldoInicial
-      return Array.from({length:12},(_,i)=>{ val += cashFlow*mul; return Math.round(val) })
+      return Array.from({length: 12}, () => { val += cashFlow * mul; return Math.round(val) })
     }
     const cons = buildSeries(0.8)
     const mod  = buildSeries(1.0)
     const opt  = buildSeries(1.2)
-    const eur2 = v => new Intl.NumberFormat('es-ES',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(v)
-    const diff = (arr) => arr[arr.length-1] - saldoInicial
+
+    const diff = arr => arr[arr.length - 1] - saldoInicial
+    const dfmt = v => (v >= 0 ? '+' : '') + eur(v)
+
     const scenarios = [
-      {label:'Conservador', icon:'📉', val:cons[11], dif:diff(cons), color:'#F87171', dimColor:'rgba(248,113,113,0.1)', series:cons},
-      {label:'Moderado',    icon:'➡️', val:mod[11],  dif:diff(mod),  color:'#00D4AA', dimColor:'rgba(0,212,170,0.1)',   series:mod},
-      {label:'Optimista',   icon:'📈', val:opt[11],  dif:diff(opt),  color:'#10B981', dimColor:'rgba(16,185,129,0.1)',  series:opt},
+      { label: t('escenario_conservador','Conservador'), icon: '🐢', val: cons[11], dif: diff(cons), color: '#F87171', bg: 'rgba(248,113,113,0.08)', border: 'rgba(248,113,113,0.25)' },
+      { label: t('escenario_moderado','Moderado'),    icon: '⚖️', val: mod[11],  dif: diff(mod),  color: '#00D4AA', bg: 'rgba(0,212,170,0.08)',   border: 'rgba(0,212,170,0.25)' },
+      { label: t('escenario_optimista','Optimista'),   icon: '🚀', val: opt[11],  dif: diff(opt),  color: '#10B981', bg: 'rgba(16,185,129,0.08)',  border: 'rgba(16,185,129,0.25)' },
     ]
-    const cards = scenarios.map(s=>`
-      <div style="flex:1;background:${s.dimColor};border:1px solid ${s.color}33;border-radius:14px;padding:16px 14px;text-align:center;min-width:0">
-        <div style="font-size:1.4rem;margin-bottom:6px">${s.icon}</div>
-        <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:${s.color};margin-bottom:4px">${s.label}</div>
-        <div style="font-size:1.1rem;font-weight:800;color:#fff">${eur2(s.val)}</div>
-        <div style="font-size:.72rem;color:${s.dif>=0?'#10B981':'#f43f5e'};margin-top:3px;font-weight:600">${s.dif>=0?'+':''}${eur2(s.dif)} en 12 meses</div>
+
+    const scenarioCards = scenarios.map(s => `
+      <div style="flex:1;min-width:120px;background:${s.bg};border:1px solid ${s.border};border-radius:12px;padding:14px 12px;text-align:center">
+        <div style="font-size:1.3rem;margin-bottom:5px">${s.icon}</div>
+        <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:${s.color};margin-bottom:5px">${s.label}</div>
+        <div style="font-size:1.05rem;font-weight:800;color:var(--text)">${eur(s.val)}</div>
+        <div style="font-size:.7rem;font-weight:700;color:${s.dif>=0?'var(--green)':'var(--red)'};margin-top:2px">${dfmt(s.dif)}</div>
+        <div style="font-size:.63rem;color:var(--text3);margin-top:1px">en 12 meses</div>
       </div>`).join('')
+
+    const cfMensual = cashFlow >= 0
+      ? `+${eur(cashFlow)}/mes de media`
+      : `${eur(cashFlow)}/mes de media`
+
     return `
-    <div class="card" style="margin-top:24px;margin-bottom:16px">
+    <div class="card" style="margin-bottom:16px">
       <div class="card-header">
         <div>
-          <div class="card-title">🔭 Si sigues así…</div>
-          <div class="card-subtitle">Proyección a 12 meses en 3 escenarios</div>
+          <div class="card-title">🔭 ${t('proyeccion_titulo','Proyección patrimonial')}</div>
+          <div class="card-subtitle">${t('proyeccion_sub','Basada en tus últimos 3 meses')} · ${cfMensual}</div>
         </div>
       </div>
-      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">${cards}</div>
-      <div class="chart-container" style="height:220px"><canvas id="chartFinancialPlanner"></canvas></div>
-      <div style="margin-top:10px;font-size:.72rem;color:rgba(255,255,255,.3)">
-        Basado en tus últimos 3 meses. Escenario conservador asume -20% de tu ritmo actual.
+      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">${scenarioCards}</div>
+      <div class="chart-container" style="height:200px"><canvas id="chartFinancialPlanner"></canvas></div>
+      <div style="margin-top:8px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+        ${scenarios.map(s=>`<div style="display:flex;align-items:center;gap:5px;font-size:.72rem;color:var(--text2);font-weight:600">
+          <span style="width:12px;height:3px;border-radius:99px;background:${s.color};display:inline-block"></span>${s.label}</div>`).join('')}
       </div>
     </div>`
   })()}
@@ -9065,7 +9132,7 @@ function renderAnalisis() {
             fill: true, tension: 0.42,
             pointRadius: 4, pointHoverRadius: 6,
             pointBackgroundColor: '#00D4AA',
-            pointBorderColor: S.theme === 'light' ? '#fff' : '#0A0E17',
+            pointBorderColor: 'transparent',
             pointBorderWidth: 2,
             borderWidth: 2.5, spanGaps: true,
           }]
@@ -9920,16 +9987,33 @@ function _obUpdateLeftLive() { /* handled per-step in obRender */ }
 function obSelectLang(l) {
   obData.lang = l
   _currentLang = l
-  // Seleccionar el tile correcto — soporta tanto .ob-lang-tile como .ob-lang-tile-left
+  // Persist immediately so t() picks it up in the re-render
+  try { localStorage.setItem(LANG_STORAGE_KEY, l) } catch(e) {}
+
+  // Actualizar tiles visuales
   document.querySelectorAll('.ob-lang-tile, .ob-lang-tile-left').forEach(el => el.classList.remove('selected'))
   const sel = document.querySelector(`.ob-lang-tile[onclick*="'${l}'"], .ob-lang-tile-left[onclick*="'${l}'"]`)
   if (sel) sel.classList.add('selected')
-  // Re-render right panel text in new language (smooth)
+
+  // Re-render completo del onboarding en el nuevo idioma (panel derecho + panel izquierdo)
   const contentArea = document.getElementById('obContentArea')
   if (contentArea) {
-    contentArea.style.transition = 'opacity .12s'
+    contentArea.style.transition = 'opacity .15s'
     contentArea.style.opacity = '0'
-    setTimeout(() => { contentArea.innerHTML = _obRightHTML(obStep); contentArea.style.opacity = '1' }, 120)
+    setTimeout(() => {
+      contentArea.innerHTML = _obRightHTML(obStep)
+      contentArea.style.opacity = '1'
+    }, 150)
+  }
+  // También actualizar el panel izquierdo con el nuevo idioma
+  const leftPanel = document.getElementById('obLeftPanel')
+  if (leftPanel) {
+    leftPanel.style.transition = 'opacity .15s'
+    leftPanel.style.opacity = '0'
+    setTimeout(() => {
+      leftPanel.innerHTML = _obLeftHTML(obStep)
+      leftPanel.style.opacity = '1'
+    }, 150)
   }
 }
 
@@ -11864,22 +11948,67 @@ function renderPatrimonio() {
 function renderChartPatrimonioPage() {
   const ctx = document.getElementById('chartPatrimonioPage')
   if (!ctx) return
+  destroyChart('chartPatrimonioPage')
   const hist = S.patrimonio_hist.slice(-12)
-  const labels = hist.map(h=>monthLabel(h.mes))
-  const data   = hist.map(h=>h.valor)
-  const ch = new Chart(ctx,{
-    type:'line',
-    data:{labels,datasets:[{
-      label:'Patrimonio neto',data,
-      borderColor:'var(--accent)',backgroundColor:'rgba(0,212,170,0.08)',
-      fill:true,tension:.4,pointRadius:4,pointBackgroundColor:'var(--accent)'
-    }]},
-    options:{responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false}},
-      scales:{x:{grid:{color:'var(--border)'},ticks:{color:'var(--text2)',font:{size:11}}},
-              y:{grid:{color:'var(--border)'},ticks:{color:'var(--text2)',font:{size:11},callback:v=>eur(v)}}}}
+  const labels = hist.map(h => monthLabel(h.mes))
+  const data   = hist.map(h => h.valor)
+  const minVal = Math.min(...data.filter(v => v != null))
+  const maxVal = Math.max(...data.filter(v => v != null))
+  const yPad   = (maxVal - minVal) * 0.15 || Math.abs(maxVal) * 0.15 || 100
+
+  charts['chartPatrimonioPage'] = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: t('patrimonio_neto', 'Patrimonio neto'),
+        data,
+        borderColor: '#00D4AA',
+        backgroundColor: c => {
+          try {
+            const h2 = c.chart.chartArea?.bottom || 300
+            const g = c.chart.ctx.createLinearGradient(0, 0, 0, h2)
+            g.addColorStop(0, 'rgba(0,212,170,0.25)')
+            g.addColorStop(0.6, 'rgba(0,212,170,0.06)')
+            g.addColorStop(1, 'rgba(0,212,170,0)')
+            return g
+          } catch { return 'rgba(0,212,170,0.1)' }
+        },
+        fill: true, tension: 0.42,
+        pointRadius: 5, pointHoverRadius: 7,
+        pointBackgroundColor: '#00D4AA',
+        pointBorderColor: 'transparent',
+        pointBorderWidth: 2,
+        borderWidth: 2.5, spanGaps: true,
+      }]
+    },
+    options: { ...chartDefaults(),
+      plugins: { ...chartDefaults().plugins,
+        tooltip: { ...chartDefaults().plugins.tooltip,
+          callbacks: {
+            title: i => i[0].label,
+            label: c => ' Patrimonio: ' + eur(c.raw),
+            afterLabel: c => {
+              const idx = c.dataIndex
+              if (idx === 0) return ''
+              const prev = data[idx - 1]
+              if (prev == null) return ''
+              const delta = c.raw - prev
+              return (delta >= 0 ? ' ▲ +' : ' ▼ ') + eur(Math.abs(delta))
+            }
+          }
+        }
+      },
+      scales: {
+        x: { grid: { color: 'transparent' }, ticks: { color: labelColor(), font: { size: 11 } }, border: { color: 'transparent' } },
+        y: { grid: { color: gridColor() }, border: { color: 'transparent' },
+          ticks: { color: labelColor(), font: { size: 11 }, callback: v => eur(v) },
+          suggestedMin: minVal - yPad,
+          suggestedMax: maxVal + yPad,
+        }
+      }
+    }
   })
-  charts['chartPatrimonioPage'] = ch
 }
 
 // ─── ASSET CRUD ────────────────────────────────────────────────
@@ -12189,10 +12318,7 @@ function render() {
         }
         // Animate EOM value
         if (window.MNKPIAnimator) window.MNKPIAnimator.runDashboardAnimations()
-        // Sparklines
-        if (window.MNPremiumFeatures) {
-          requestAnimationFrame(() => window.MNPremiumFeatures.renderSparklines())
-        }
+        // Sparklines desactivados por petición del usuario
       })
     }
   }
@@ -12327,13 +12453,13 @@ function renderHealthScore() {
 
   return `<div class="health-score-compact">
     <div class="hsc-ring-wrap">
-      <svg width="50" height="50" viewBox="0 0 50 50">
-        <!-- Track -->
+      <svg width="50" height="50" viewBox="0 0 50 50" style="transform:rotate(-90deg)">
+        <!-- Track — círculo completo como base -->
         <circle cx="25" cy="25" r="${R}"
           fill="none"
           stroke="var(--border2)"
           stroke-width="4"/>
-        <!-- Fill — empieza arriba (rotate -90deg) -->
+        <!-- Fill — mismo origen, se anima con stroke-dashoffset -->
         <circle cx="25" cy="25" r="${R}"
           fill="none"
           stroke="${color}"
@@ -12342,12 +12468,9 @@ function renderHealthScore() {
           stroke-dasharray="${C.toFixed(2)}"
           stroke-dashoffset="${C.toFixed(2)}"
           id="healthRingFill"
-          data-final-offset="${dashOffset.toFixed(2)}"
-          transform="rotate(-90 25 25)"/>
+          data-final-offset="${dashOffset.toFixed(2)}"/>
       </svg>
-      <div class="hsc-num" id="healthScoreNum" data-score="${score}">
-        ${score > 0 ? '0' : '—'}
-      </div>
+      <div class="hsc-num" id="healthScoreNum" data-score="${score}">${score > 0 ? '0' : '—'}</div>
     </div>
     <div class="hsc-info">
       <div class="hsc-title">${t('salud_financiera')}</div>
