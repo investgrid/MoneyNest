@@ -350,6 +350,12 @@ window.MNPayment = (() => {
     _activePriceId = priceId;
     _activeEmail   = email ?? '';
 
+    // Cerrar cualquier modal que esté abierto por encima (authModal, billingCheckoutModal)
+    const authModal = document.getElementById('authModal');
+    if (authModal) authModal.style.display = 'none';
+    const checkoutModal = document.getElementById('billingCheckoutModal');
+    if (checkoutModal) checkoutModal.remove();
+
     // Reset state
     const split = document.querySelector('#mnPaymentSheet .mnpo-split');
     if (split) split.style.display = '';
