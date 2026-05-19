@@ -37,58 +37,8 @@ function getCurrentLogo() {
 function updateSidebarLogo() {
   const el = document.getElementById('sidebarLogoImg')
   if (!el) return
-
-  // 1. Plan state — MNBilling autoritativo, auth como fallback
-  let state = 'none'
-  if (window.MNBilling && typeof window.MNBilling.getSubStatus === 'function') {
-    state = window.MNBilling.getSubStatus().state || 'none'
-  } else {
-    const user = (typeof getUser === 'function') ? getUser() : {}
-    const m = { pro:'pro_active', local:'local_active', trial:'active_trial', locked_local:'none' }
-    state = m[user.plan] || 'none'
-  }
-
-  // 2. Definición de badges por plan
-  const BADGES = {
-    pro_active:   { bg:'linear-gradient(135deg,#A78BFA,#7C3AED)', color:'#fff', icon:'⚡', label:'PRO'   },
-    pro_trialing: { bg:'linear-gradient(135deg,#A78BFA,#7C3AED)', color:'#fff', icon:'⚡', label:'PRO'   },
-    local_active: { bg:'linear-gradient(135deg,#10B981,#059669)', color:'#fff', icon:'💾', label:'Local' },
-    active_trial: { bg:'linear-gradient(135deg,#F59E0B,#D97706)', color:'#fff', icon:'🕐', label:'Trial' },
-    trial_ending: { bg:'linear-gradient(135deg,#F59E0B,#D97706)', color:'#fff', icon:'⏳', label:'Trial' },
-  }
-  const b = BADGES[state]
-
-  // 3. Badge — esquina inferior derecha, dentro del wrapper
-  const badgeEl = b ? `<span style="
-      position:absolute;
-      bottom:0px;
-      right:0px;
-      background:${b.bg};
-      color:${b.color};
-      font-size:8.5px;
-      font-weight:800;
-      padding:2px 7px 2px 5px;
-      border-radius:999px;
-      display:inline-flex;
-      align-items:center;
-      gap:3px;
-      white-space:nowrap;
-      pointer-events:none;
-      box-shadow:0 2px 8px rgba(0,0,0,0.3);
-      letter-spacing:0.05em;
-      line-height:1;
-      z-index:10;
-    "><span style="font-size:11px;line-height:1">${b.icon}</span>${b.label}</span>` : ''
-
-  // 4. Wrapper — mismo tamaño que el SVG
-  el.innerHTML = `<span style="
-    position:relative;
-    display:inline-block;
-    width:160px;
-    height:44px;
-    line-height:0;
-    flex-shrink:0;
-  ">${getCurrentLogo()}${badgeEl}</span>`
+  // Solo el SVG del logo — sin badge (el plan se ve en Facturación)
+  el.innerHTML = `<span style="display:inline-block;line-height:0;flex-shrink:0">${getCurrentLogo()}</span>`
 }
 
 
@@ -4536,7 +4486,7 @@ function renderIngresos() {
   <div class="section-header">
     <div><div class="page-h1">💰 ${t('page_ingresos')}</div><div class="page-sub">${ingPeriodLabel} · ${S.ingresos.filter(i=>i.status!=='pending').length} cobrados · ${pendingIngs.length} pendientes</div></div>
     <div class="section-actions">
-      <button class="btn btn-primary btn-sm" onclick="openModal('ingresoModal');resetIngresoForm()">+ ${t('btn_nuevo_ingreso','Nuevo ingreso')}</button>
+      <button class="btn btn-primary btn-sm" onclick="openModal('ingresoModal');resetIngresoForm()">${t('btn_nuevo_ingreso','+ Nuevo ingreso')}</button>
     </div>
   </div>
 
@@ -4925,7 +4875,7 @@ function renderInversiones() {
       <div class="page-sub">${t('inv_page_sub','Cartera de inversiones')}</div>
     </div>
     <div class="section-actions">
-      <button class="btn btn-primary btn-sm" onclick="openModal('inversionModal');resetInvForm()">+ ${t('btn_nueva_inversion','Nueva inversión')}</button>
+      <button class="btn btn-primary btn-sm" onclick="openModal('inversionModal');resetInvForm()">${t('btn_nueva_inversion','+ Nueva inversión')}</button>
     </div>
   </div>
 
@@ -5184,7 +5134,7 @@ function renderDeudas() {
       <div class="page-sub">${t('deudas_page_sub','Seguimiento, reducción y estrategia de pago')}</div>
     </div>
     <div class="section-actions">
-      <button class="btn btn-primary btn-sm" onclick="openModal('deudaModal');resetDeudaForm()">+ ${t('btn_nueva_deuda','Nueva deuda')}</button>
+      <button class="btn btn-primary btn-sm" onclick="openModal('deudaModal');resetDeudaForm()">${t('btn_nueva_deuda','+ Nueva deuda')}</button>
     </div>
   </div>
 
@@ -5652,7 +5602,7 @@ function renderObjetivos() {
   <div class="section-header">
     <div><div class="page-h1">🎯 ${t('page_objetivos','Objetivos')}</div><div class="page-sub">${t('obj_page_sub','Metas financieras y predicciones')}</div></div>
     <div class="section-actions">
-      <button class="btn btn-primary btn-sm" onclick="openModal('objetivoModal');resetObjForm()">+ ${t('btn_nuevo_objetivo','Nuevo objetivo')}</button>
+      <button class="btn btn-primary btn-sm" onclick="openModal('objetivoModal');resetObjForm()">${t('btn_nuevo_objetivo','+ Nuevo objetivo')}</button>
     </div>
   </div>
 
@@ -5817,7 +5767,7 @@ function renderPresupuestos() {
   <div class="section-header">
     <div><div class="page-h1">📊 ${t('page_presupuestos','Presupuestos')}</div><div class="page-sub">${monthLabel(m)} · ${t('pres_page_sub','Control de límites por categoría')}</div></div>
     <div class="section-actions">
-      <button class="btn btn-primary btn-sm" onclick="openModal('presupuestoModal');resetPresForm()">+ ${t('btn_nuevo_presupuesto','Nuevo presupuesto')}</button>
+      <button class="btn btn-primary btn-sm" onclick="openModal('presupuestoModal');resetPresForm()">${t('btn_nuevo_presupuesto','+ Nuevo presupuesto')}</button>
     </div>
   </div>
 
@@ -11932,7 +11882,7 @@ function renderPatrimonio() {
           <div class="card-title">🏠 ${t('activos_fisicos','Activos Físicos')}</div>
           <div class="card-subtitle">${activeAssets.length} ${t('activos','activos')} · ${eur(assetsVal)}</div>
         </div>
-        <button class="btn btn-primary btn-sm" onclick="openModal('assetModal');resetAssetForm()">+ ${t('btn_nuevo_activo','Añadir activo')}</button>
+        <button class="btn btn-primary btn-sm" onclick="openModal('assetModal');resetAssetForm()">${t('btn_nuevo_activo','+ Añadir activo')}</button>
       </div>
       <div style="flex:1;overflow-y:auto">
         ${assetsListHtml}
@@ -12635,7 +12585,7 @@ function animateCounter(el, target) {
 
 // ─── BOTTOM NAV SYNC ───────────────────────────────────────────
 function syncBottomNav(page) {
-  const map = { dashboard:'bn-dashboard', gastos:'bn-gastos', analisis:'bn-analisis', configuracion:'bn-config' }
+  const map = { dashboard:'bn-dashboard', analisis:'bn-analisis', billing:'bn-billing', configuracion:'bn-config' }
   document.querySelectorAll('.bottom-nav-item').forEach(el => el.classList.remove('active'))
   const id = map[page]
   if (id) { const el = document.getElementById(id); if (el) el.classList.add('active') }

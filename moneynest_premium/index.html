@@ -168,20 +168,16 @@
 <!-- SIDEBAR OVERLAY -->
 <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
 
-<!-- BOTTOM NAV (mobile) -->
+<!-- BOTTOM NAV (mobile) — 4 items: Dashboard, Análisis, Facturación, Config -->
 <nav class="bottom-nav" id="bottomNav" aria-label="Navegación principal">
   <div class="bottom-nav-item" onclick="goTo('dashboard');closeSidebar()" id="bn-dashboard">
     <span class="bn-icon">🏠</span><span data-i18n="bn_inicio">Inicio</span>
   </div>
-  <div class="bottom-nav-item" onclick="goTo('gastos');closeSidebar()" id="bn-gastos">
-    <span class="bn-icon">💸</span><span data-i18n="bn_gastos">Gastos</span>
-    <span class="bottom-nav-badge" id="bn-alert-badge" style="display:none"></span>
-  </div>
-  <div class="bottom-nav-item bottom-nav-add" onclick="openQuickAdd()" id="bn-add" title="Añadir rápido">
-    <span class="bn-icon" style="font-size:1.6rem">＋</span>
-  </div>
   <div class="bottom-nav-item" onclick="goTo('analisis');closeSidebar()" id="bn-analisis">
     <span class="bn-icon">📊</span><span data-i18n="bn_analisis">Análisis</span>
+  </div>
+  <div class="bottom-nav-item" onclick="goTo('billing');closeSidebar()" id="bn-billing">
+    <span class="bn-icon">💳</span><span data-i18n="nav_billing">Facturación</span>
   </div>
   <div class="bottom-nav-item" onclick="goTo('configuracion');closeSidebar()" id="bn-config">
     <span class="bn-icon">⚙️</span><span data-i18n="bn_config">Config</span>

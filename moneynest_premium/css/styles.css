@@ -996,6 +996,8 @@ textarea{resize:vertical;min-height:70px}
   .sidebar.open{transform:translateX(0)}
   .main{min-width:0}
   .hamburger{display:flex}
+  /* En mobile, ocultar en el sidebar los items que ya están en el bottom nav */
+  #nav-dashboard, #nav-analisis, #nav-billing, #nav-configuracion { display:none; }
   .kpi-grid-5{grid-template-columns:repeat(2,1fr)}
   .kpi-grid-4{grid-template-columns:repeat(2,1fr)}
   .kpi-grid-3{grid-template-columns:repeat(2,1fr)}
