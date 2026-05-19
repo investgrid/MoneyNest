@@ -58,33 +58,35 @@ function updateSidebarLogo() {
   }
   const b = BADGES[state]
 
-  // 3. Badge como elemento separado debajo del logo — no interfiere con el SVG
+  // 3. Badge position:absolute en la esquina inferior izquierda del logo
   const badgeEl = b ? `<span style="
-      display:inline-flex;
-      align-items:center;
-      gap:3px;
+      position:absolute;
+      bottom:-4px;
+      left:0px;
       background:${b.bg};
       color:${b.color};
-      font-size:8px;
+      font-size:8.5px;
       font-weight:800;
       padding:2px 7px 2px 5px;
       border-radius:999px;
+      display:inline-flex;
+      align-items:center;
+      gap:3px;
       white-space:nowrap;
       pointer-events:none;
-      box-shadow:0 1px 6px rgba(0,0,0,0.25);
+      box-shadow:0 2px 8px rgba(0,0,0,0.3);
       letter-spacing:0.05em;
       line-height:1;
-      margin-top:2px;
-      align-self:flex-start;
-    "><span style="font-size:10px;line-height:1">${b.icon}</span>${b.label}</span>` : ''
+      z-index:10;
+    "><span style="font-size:11px;line-height:1">${b.icon}</span>${b.label}</span>` : ''
 
-  // 4. Layout vertical: SVG arriba, badge abajo a la izquierda — nada superpuesto
+  // 4. Wrapper con el SVG del logo + badge superpuesto
   el.innerHTML = `<span style="
-    display:flex;
-    flex-direction:column;
-    align-items:flex-start;
-    justify-content:center;
-    height:58px;
+    position:relative;
+    display:inline-block;
+    width:160px;
+    height:44px;
+    line-height:0;
     flex-shrink:0;
   ">${getCurrentLogo()}${badgeEl}</span>`
 }
@@ -3973,23 +3975,7 @@ function goTo(page) {
   closeSidebar()
   destroyAllCharts()
   syncBottomNav(page)
-
-  // Poner la clase ANTES del render para que el contenido nuevo aparezca ya animándose
-  const content = document.getElementById('content')
-  if (content) {
-    content.classList.remove('mn-page-enter')
-    content.style.opacity = '0'
-  }
   render()
-  if (content) {
-    // Un rAF garantiza que el navegador haya procesado el nuevo HTML antes de animar
-    requestAnimationFrame(() => {
-      content.style.opacity = ''
-      content.classList.add('mn-page-enter')
-      setTimeout(() => content.classList.remove('mn-page-enter'), 220)
-    })
-  }
-
   _updateSidebarLang()
   updateDocTitle()
   // Dynamic billing background
@@ -9699,30 +9685,34 @@ function _obRightHTML(step) {
     ? `<button class="ob-back-btn" onclick="obPrev()">${t('ob_atras')}</button>`
     : ''
 
-  // ── STEP 1: Auth (register / login / Google) ─────────────────
+  // ── STEP 1: Auth (register / login) ──────────────────────────
   if (step === 1) {
     const isLogin = obData._authMode === 'login'
     return `
-    <div class="ob-step-pill"><div class="ob-step-pill-dot"></div>Paso 1 de ${OB_TOTAL}</div>
-    <div class="ob-headline">${isLogin ? 'Bienvenido<br><span class="ob-headline-accent">de nuevo</span>' : 'Crea tu<br><span class="ob-headline-accent">cuenta gratis</span>'}</div>
-    <p class="ob-lead">${isLogin ? 'Inicia sesión para continuar con tus datos.' : 'Sin tarjeta. Sin compromisos. 24h de prueba incluidas.'}</p>
+    <div class="ob-step-pill"><div class="ob-step-pill-dot"></div>${t('ob_paso','Paso')} 1 ${t('ob_de','de')} ${OB_TOTAL}</div>
+    <div class="ob-headline">${isLogin
+      ? `${t('ob_auth_login_h1','Bienvenido')}<br><span class="ob-headline-accent">${t('ob_auth_login_h2','de nuevo')}</span>`
+      : `${t('ob_auth_reg_h1','Crea tu')}<br><span class="ob-headline-accent">${t('ob_auth_reg_h2','cuenta gratis')}</span>`}</div>
+    <p class="ob-lead">${isLogin
+      ? t('ob_auth_login_lead','Inicia sesión para continuar con tus datos.')
+      : t('ob_auth_reg_lead','Sin tarjeta. Sin compromisos. 24h de prueba incluidas.')}</p>
 
     <div class="ob-fields">
       <div class="ob-field-wrap">
-        <label class="ob-field-label">Correo electrónico</label>
+        <label class="ob-field-label">${t('auth_email','Correo electrónico')}</label>
         <div class="ob-input-wrap">
           <span class="ob-input-icon">✉️</span>
-          <input class="ob-field-input" id="obEmail" type="email" placeholder="tu@email.com"
+          <input class="ob-field-input" id="obEmail" type="email" placeholder="${t('placeholder_email','tu@email.com')}"
             value="${obData.email}" autocomplete="email"
             oninput="obData.email=this.value"
             onkeydown="if(event.key==='Enter')document.getElementById('obPassword')?.focus()">
         </div>
       </div>
       <div class="ob-field-wrap">
-        <label class="ob-field-label">Contraseña${isLogin ? '' : ' <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text2)">(mín. 8 caracteres)</span>'}</label>
+        <label class="ob-field-label">${t('auth_password','Contraseña')}${isLogin ? '' : ` <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text2)">(${t('ob_pw_min','mín. 8 caracteres')})</span>`}</label>
         <div class="ob-input-wrap">
           <span class="ob-input-icon">🔑</span>
-          <input class="ob-field-input" id="obPassword" type="password" placeholder="${isLogin ? '••••••••' : 'Mínimo 8 caracteres'}"
+          <input class="ob-field-input" id="obPassword" type="password" placeholder="${isLogin ? '••••••••' : t('ob_pw_placeholder','Mínimo 8 caracteres')}"
             value="${obData.password}" autocomplete="${isLogin ? 'current-password' : 'new-password'}"
             oninput="obData.password=this.value;${isLogin ? '' : '_obCheckPwStrength(this.value)'}"
             onkeydown="if(event.key==='Enter')${isLogin ? 'obNext()' : "document.getElementById('obPassword2')?.focus()"}">
@@ -9736,13 +9726,13 @@ function _obRightHTML(step) {
       </div>
       ${isLogin ? `
       <div style="text-align:right;margin-top:-6px">
-        <button style="background:none;border:none;font-size:.75rem;color:rgba(255,255,255,0.4);cursor:pointer;font-family:inherit;padding:0" onclick="_obForgotPassword()">¿Olvidaste tu contraseña?</button>
+        <button style="background:none;border:none;font-size:.75rem;color:rgba(255,255,255,0.4);cursor:pointer;font-family:inherit;padding:0" onclick="_obForgotPassword()">${t('auth_olvide_contrasena','¿Olvidaste tu contraseña?')}</button>
       </div>` : `
       <div class="ob-field-wrap">
-        <label class="ob-field-label">Confirmar contraseña</label>
+        <label class="ob-field-label">${t('auth_confirmar_password','Confirmar contraseña')}</label>
         <div class="ob-input-wrap">
           <span class="ob-input-icon">🔑</span>
-          <input class="ob-field-input" id="obPassword2" type="password" placeholder="Repite la contraseña"
+          <input class="ob-field-input" id="obPassword2" type="password" placeholder="${t('ob_pw_repeat','Repite la contraseña')}"
             value="${obData.password2 || ''}" autocomplete="new-password"
             oninput="obData.password2=this.value"
             onkeydown="if(event.key==='Enter')obNext()">
@@ -9754,22 +9744,22 @@ function _obRightHTML(step) {
 
     <div class="ob-actions-row" style="margin-top:16px">
       <button class="ob-next-btn" onclick="obNext()">
-        ${isLogin ? 'Entrar' : 'Crear cuenta'}
+        ${isLogin ? t('btn_entrar','Entrar') : t('ob_auth_reg_cta','Crear cuenta')}
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="display:inline;vertical-align:middle"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
     </div>
 
     <div style="text-align:center;margin-top:14px">
-      <span style="font-size:.78rem;color:rgba(255,255,255,0.35)">${isLogin ? '¿No tienes cuenta?' : '¿Ya tienes cuenta?'} </span>
+      <span style="font-size:.78rem;color:rgba(255,255,255,0.35)">${isLogin ? t('ob_no_tienes_cuenta','¿No tienes cuenta?') : t('auth_ya_tienes','¿Ya tienes cuenta?')} </span>
       <button style="background:none;border:none;font-size:.78rem;color:#00D4AA;font-weight:700;cursor:pointer;font-family:inherit;padding:0" onclick="_obToggleAuthMode()">
-        ${isLogin ? 'Crear cuenta →' : 'Iniciar sesión →'}
+        ${isLogin ? t('ob_auth_reg_cta','Crear cuenta →') : t('auth_iniciar_sesion_link','Iniciar sesión →')}
       </button>
     </div>`
   }
 
   // ── STEP 2: Name ─────────────────────────────────────────────
   if (step === 2) return `
-    <div class="ob-step-pill"><div class="ob-step-pill-dot"></div>Paso 2 de ${OB_TOTAL}</div>
+    <div class="ob-step-pill"><div class="ob-step-pill-dot"></div>${t('ob_paso','Paso')} 2 ${t('ob_de','de')} ${OB_TOTAL}</div>
     <div class="ob-headline">${t('ob_s1_h1')}<br>${t('ob_s1_h2')}</div>
     <p class="ob-lead">${t('ob_s1_lead')}</p>
     <div class="ob-name-wrap">
@@ -9789,7 +9779,7 @@ function _obRightHTML(step) {
 
   // ── STEP 3: Appearance — 3 cards in a row ───────────────────
   if (step === 3) return `
-    <div class="ob-step-pill"><div class="ob-step-pill-dot"></div>Paso 3 de ${OB_TOTAL}</div>
+    <div class="ob-step-pill"><div class="ob-step-pill-dot"></div>${t('ob_paso','Paso')} 3 ${t('ob_de','de')} ${OB_TOTAL}</div>
     <div class="ob-headline">${t('ob_s2_h1')}<br>${t('ob_s2_h2')}</div>
     <p class="ob-lead">${t('ob_s2_lead')}</p>
     <div class="ob-theme-cards ob-theme-cards--3col" id="obThemeCards">
@@ -9823,8 +9813,8 @@ function _obRightHTML(step) {
 
   // ── STEP 4: Plan selector ─────────────────────────────────────
   if (step === 4) return `
-    <div class="ob-step-pill"><div class="ob-step-pill-dot"></div>Paso 4 de ${OB_TOTAL}</div>
-    <div class="ob-headline">Elige tu<br><span class="ob-headline-accent">plan</span></div>
+    <div class="ob-step-pill"><div class="ob-step-pill-dot"></div>${t('ob_paso','Paso')} 4 ${t('ob_de','de')} ${OB_TOTAL}</div>
+    <div class="ob-headline">${t('ob_plan_h1','Elige tu')}<br><span class="ob-headline-accent">${t('ob_plan_h2','plan')}</span></div>
     <p class="ob-lead">Sin permanencia. Cambia cuando quieras.</p>
     <div class="ob-plan-cards" id="obPlanCards">
 
@@ -9901,7 +9891,7 @@ function _obRightHTML(step) {
   // ── STEP 5: Start mode ───────────────────────────────────────
   const nombre = obData.nombre || 'Usuario'
   return `
-    <div class="ob-step-pill"><div class="ob-step-pill-dot"></div>Paso 5 de ${OB_TOTAL}</div>
+    <div class="ob-step-pill"><div class="ob-step-pill-dot"></div>${t('ob_paso','Paso')} 5 ${t('ob_de','de')} ${OB_TOTAL}</div>
     <div class="ob-headline">${t('ob_s3_h1')}<br>${t('ob_s3_h2')}</div>
     <p class="ob-lead">${t('ob_s3_lead')}</p>
     <div class="ob-options" id="obOptions">
