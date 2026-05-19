@@ -58,37 +58,33 @@ function updateSidebarLogo() {
   }
   const b = BADGES[state]
 
-  // 3. Badge: position:absolute DENTRO del wrapper, esquina inferior-derecha
-  //    right:0 bottom:0 → se superpone encima del SVG en esa esquina
+  // 3. Badge como elemento separado debajo del logo — no interfiere con el SVG
   const badgeEl = b ? `<span style="
-      position:absolute;
-      bottom:0px;
-      right:0px;
-      background:${b.bg};
-      color:${b.color};
-      font-size:8.8px;
-      font-weight:800;
-      padding:3px 8px 3px 5px;
-      border-radius:999px;
       display:inline-flex;
       align-items:center;
       gap:3px;
+      background:${b.bg};
+      color:${b.color};
+      font-size:8px;
+      font-weight:800;
+      padding:2px 7px 2px 5px;
+      border-radius:999px;
       white-space:nowrap;
       pointer-events:none;
-      box-shadow:0 2px 8px rgba(0,0,0,0.3);
+      box-shadow:0 1px 6px rgba(0,0,0,0.25);
       letter-spacing:0.05em;
       line-height:1;
-      z-index:10;
-    "><span style="font-size:11px;line-height:1">${b.icon}</span>${b.label}</span>` : ''
+      margin-top:2px;
+      align-self:flex-start;
+    "><span style="font-size:10px;line-height:1">${b.icon}</span>${b.label}</span>` : ''
 
-  // 4. Wrapper: mismo tamaño que el SVG (160×44px), position:relative
-  //    El badge flota encima sin desplazar nada
+  // 4. Layout vertical: SVG arriba, badge abajo a la izquierda — nada superpuesto
   el.innerHTML = `<span style="
-    position:relative;
-    display:inline-block;
-    width:160px;
-    height:44px;
-    line-height:0;
+    display:flex;
+    flex-direction:column;
+    align-items:flex-start;
+    justify-content:center;
+    height:58px;
     flex-shrink:0;
   ">${getCurrentLogo()}${badgeEl}</span>`
 }
@@ -6457,15 +6453,34 @@ function renderLineEvo(canvasId, type) {
   const months = getMonths(6)
   const color = type==='ingreso' ? '#10B981' : '#F43F5E'
   const fn = type==='ingreso' ? calcIngresosMes : calcGastosMes
+  const vals = months.map(fn)
   charts[canvasId] = new Chart(ctx, {
     type: 'line',
     data: {
       labels: months.map(monthLabel),
-      datasets: [{ data: months.map(fn), borderColor: color, backgroundColor: color+'20', fill:true, tension:0.4, pointRadius:3, pointBackgroundColor:color, borderWidth:2 }]
+      datasets: [{
+        data: vals,
+        borderColor: color,
+        backgroundColor: c => {
+          try {
+            const h2 = c.chart.chartArea?.bottom || 200
+            const r = parseInt(color.slice(1,3),16), g2 = parseInt(color.slice(3,5),16), b = parseInt(color.slice(5,7),16)
+            const gr = c.chart.ctx.createLinearGradient(0,0,0,h2)
+            gr.addColorStop(0, `rgba(${r},${g2},${b},0.18)`)
+            gr.addColorStop(1, `rgba(${r},${g2},${b},0)`)
+            return gr
+          } catch { return color + '18' }
+        },
+        fill: true, tension: 0.42,
+        pointRadius: 4, pointHoverRadius: 6,
+        pointBackgroundColor: color,
+        pointBorderColor: 'transparent',
+        borderWidth: 2.5
+      }]
     },
     options: { ...chartDefaults(), scales: {
-      x: { grid:{color:gridColor()}, ticks:{color:labelColor(),font:{size:11}} },
-      y: { grid:{color:gridColor()}, ticks:{color:labelColor(),font:{size:11},callback:v=>eur(v)} }
+      x: { grid:{color:'transparent'}, border:{color:'transparent'}, ticks:{color:labelColor(),font:{size:11}} },
+      y: { grid:{color:gridColor()}, border:{color:'transparent'}, ticks:{color:labelColor(),font:{size:11},callback:v=>eur(v)} }
     }}
   })
 }
