@@ -11,6 +11,11 @@ const DM_FORMAT   = 'moneynest';
 const DM_VERSION  = '3.0';
 const DM_EXT      = '.moneynest';
 
+function _dm(key, fallback) {
+  if (typeof window.t === 'function') { const v = window.t(key); return (v && v !== key) ? v : fallback; }
+  return fallback;
+}
+
 // ── Toast Stack ────────────────────────────────────────────────
 let _toastStack = null;
 
@@ -23,11 +28,15 @@ function _getToastStack() {
   return _toastStack;
 }
 
+function _dmEsc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
 function dmToast(msg, type = 'success') {
   const stack = _getToastStack();
   const el = document.createElement('div');
   el.className = `dm-toast dm-toast--${type}`;
-  el.innerHTML = `<div class="dm-toast-dot"></div><span class="dm-toast-msg">${msg}</span>`;
+  el.innerHTML = `<div class="dm-toast-dot"></div><span class="dm-toast-msg">${_dmEsc(msg)}</span>`;
   stack.appendChild(el);
 
   // Auto-remove
@@ -325,11 +334,10 @@ window.dmExportMoneynest = function() {
     a.download = `MoneyNest_${_today()}${DM_EXT}`;
     a.click();
     URL.revokeObjectURL(a.href);
-    dmToast('✅ Archivo .moneynest exportado correctamente', 'success');
-    // Show brief success in panel body
+    dmToast(_dm('dm_exportado_moneynest', '✅ Archivo .moneynest exportado correctamente'), 'success');
     _showExportSuccess('MoneyNest_' + _today() + DM_EXT);
   } catch(e) {
-    dmToast('❌ Error al exportar: ' + e.message, 'error');
+    dmToast(_dm('dm_error_exportar', '❌ Error al exportar') + ': ' + e.message, 'error');
   }
 };
 
@@ -342,34 +350,34 @@ window.dmExportJSON = function() {
     a.download = `MoneyNest_backup_${_today()}.json`;
     a.click();
     URL.revokeObjectURL(a.href);
-    dmToast('📦 JSON exportado', 'success');
+    dmToast(_dm('dm_json_exportado', '📦 JSON exportado'), 'success');
   } catch(e) {
-    dmToast('❌ Error al exportar JSON', 'error');
+    dmToast(_dm('dm_error_exportar_json', '❌ Error al exportar JSON'), 'error');
   }
 };
 
 window.dmExportPDF = function() {
   const plan = (typeof window.MNAuth !== 'undefined') ? window.MNAuth.getUser().plan : 'trial';
   if (plan !== 'local' && plan !== 'pro') {
-    dmToast('🔒 El PDF requiere Plan Local o Pro', 'warn');
+    dmToast(_dm('dm_pdf_requiere_plan', '🔒 El PDF requiere Plan Local o Pro'), 'warn');
     if (window.MNAuthUI) MNAuthUI.showAuthModal('plan');
     return;
   }
   closeDmPanel('dm-export-panel');
   if (typeof exportarPDF === 'function') exportarPDF();
-  else dmToast('PDF no disponible en este momento', 'warn');
+  else dmToast(_dm('dm_pdf_no_disponible', 'PDF no disponible en este momento'), 'warn');
 };
 
 window.dmExportExcel = function() {
   const plan = (typeof window.MNAuth !== 'undefined') ? window.MNAuth.getUser().plan : 'trial';
   if (plan !== 'local' && plan !== 'pro') {
-    dmToast('🔒 El Excel requiere Plan Local o Pro', 'warn');
+    dmToast(_dm('dm_excel_requiere_plan', '🔒 El Excel requiere Plan Local o Pro'), 'warn');
     if (window.MNAuthUI) MNAuthUI.showAuthModal('plan');
     return;
   }
   closeDmPanel('dm-export-panel');
   if (typeof exportarExcel === 'function') exportarExcel();
-  else dmToast('Excel no disponible en este momento', 'warn');
+  else dmToast(_dm('dm_excel_no_disponible', 'Excel no disponible en este momento'), 'warn');
 };
 
 window.dmSectionExport = function(section) {
@@ -383,7 +391,7 @@ window.dmSectionExport = function(section) {
     presupuestos:() => typeof exportarPresupuestos=== 'function' && exportarPresupuestos(),
   };
   if (fnMap[section]) fnMap[section]();
-  else dmToast('Función no disponible', 'warn');
+  else dmToast(_dm('dm_funcion_no_disponible', 'Función no disponible'), 'warn');
 };
 
 function _showExportSuccess(filename) {
@@ -393,8 +401,8 @@ function _showExportSuccess(filename) {
   success.className = 'dm-export-success';
   success.innerHTML = `
     <div class="dm-success-ring">✓</div>
-    <div class="dm-success-title">¡Exportado correctamente!</div>
-    <div class="dm-success-desc">${filename}<br>se ha descargado en tu dispositivo.</div>
+    <div class="dm-success-title">${_dm('dm_exportado_ok','¡Exportado correctamente!')}</div>
+    <div class="dm-success-desc">${filename}<br>${_dm('dm_descargado_desc','se ha descargado en tu dispositivo.')}</div>
   `;
   body.insertBefore(success, body.firstChild);
   setTimeout(() => {
@@ -502,7 +510,7 @@ function _processFile(file) {
   // Validate extension
   const name = file.name.toLowerCase();
   if (!name.endsWith('.moneynest') && !name.endsWith('.json')) {
-    _showImportError('Tipo de archivo no soportado. Usa archivos .moneynest o .json');
+    _showImportError(_dm('dm_tipo_no_soportado', 'Tipo de archivo no soportado. Usa archivos .moneynest o .json'));
     return;
   }
 
@@ -552,12 +560,12 @@ function _processFile(file) {
         }, 400);
       } catch(err) {
         if (progressRow) progressRow.style.display = 'none';
-        _showImportError('No se pudo leer el archivo. ¿Está el JSON bien formado?');
+        _showImportError(_dm('dm_error_json_malformed', 'No se pudo leer el archivo. ¿Está el JSON bien formado?'));
       }
     }, 200);
   };
   reader.onerror = () => {
-    _showImportError('Error al leer el archivo.');
+    _showImportError(_dm('dm_error_leer_archivo', 'Error al leer el archivo.'));
     if (progressRow) progressRow.style.display = 'none';
   };
   reader.readAsText(file);
@@ -709,7 +717,7 @@ function _clearRows(ids) {
 window.dmConfirmImport = function() {
   const { validation, option } = _importState;
   if (!validation?.ok || !validation.data) {
-    dmToast('No hay datos válidos para importar', 'error');
+    dmToast(_dm('dm_no_datos_validos', 'No hay datos válidos para importar'), 'error');
     return;
   }
 
@@ -718,8 +726,8 @@ window.dmConfirmImport = function() {
   // Extra confirm for destructive actions
   if (option === 'replace' || option === 'new') {
     const confirmMsg = option === 'replace'
-      ? '¿Reemplazar todos tus datos actuales? Esta acción no se puede deshacer.'
-      : '¿Crear nueva sesión con los datos importados? Tu sesión actual se perderá.';
+      ? _dm('dm_confirm_replace', '¿Reemplazar todos tus datos actuales? Esta acción no se puede deshacer.')
+      : _dm('dm_confirm_new', '¿Crear nueva sesión con los datos importados? Tu sesión actual se perderá.');
 
     if (!confirm(confirmMsg)) return;
   }
@@ -731,27 +739,27 @@ window.dmConfirmImport = function() {
       window.S = Object.assign(base, data);
       if (typeof save === 'function') save();
       if (typeof render === 'function') render();
-      dmToast('✅ Datos importados y reemplazados correctamente', 'success');
+      dmToast(_dm('dm_importado_replace', '✅ Datos importados y reemplazados correctamente'), 'success');
 
     } else if (option === 'merge') {
       const current = (typeof S !== 'undefined') ? JSON.parse(JSON.stringify(S)) : {};
       window.S = _mergeData(current, data);
       if (typeof save === 'function') save();
       if (typeof render === 'function') render();
-      dmToast('🔀 Datos fusionados correctamente', 'success');
+      dmToast(_dm('dm_importado_merge', '🔀 Datos fusionados correctamente'), 'success');
 
     } else if (option === 'new') {
       const base = (typeof defaultState === 'function') ? defaultState() : {};
       window.S = Object.assign(base, data);
       if (typeof save === 'function') save();
       if (typeof render === 'function') render();
-      dmToast('✨ Nueva sesión creada con los datos importados', 'success');
+      dmToast(_dm('dm_importado_new', '✨ Nueva sesión creada con los datos importados'), 'success');
     }
 
     closeDmPanel('dm-import-panel');
 
   } catch(e) {
-    dmToast('❌ Error al importar datos: ' + e.message, 'error');
+    dmToast(_dm('dm_error_importar', '❌ Error al importar datos') + ': ' + e.message, 'error');
     console.error('[MoneyNest DM] Import error:', e);
   }
 };
@@ -776,7 +784,7 @@ window.dmSaveLocal = async function() {
       icon.innerHTML = ICONS.check;
       icon.querySelector('svg').style.color = 'var(--accent)';
     }
-    dmToast('💾 Datos guardados localmente', 'success');
+    dmToast(_dm('dm_datos_guardados', '💾 Datos guardados localmente'), 'success');
 
     setTimeout(() => {
       if (icon) icon.innerHTML = ICONS.save;
@@ -785,7 +793,7 @@ window.dmSaveLocal = async function() {
   } catch(e) {
     if (icon) icon.innerHTML = ICONS.save;
     if (btn) btn.classList.remove('saving');
-    dmToast('Error al guardar', 'error');
+    dmToast(_dm('dm_error_guardar', 'Error al guardar'), 'error');
   }
 };
 
@@ -798,7 +806,7 @@ window.openDmPanel = function(id) {
   if (id === 'dm-import-panel') {
     const plan = (typeof window.MNAuth !== 'undefined') ? window.MNAuth.getUser().plan : 'trial';
     if (plan === 'trial') {
-      dmToast('🔒 Importar datos requiere Plan Local o Pro', 'warn');
+      dmToast(_dm('dm_importar_requiere_plan', '🔒 Importar datos requiere Plan Local o Pro'), 'warn');
       if (window.MNAuthUI) MNAuthUI.showAuthModal('plan');
       return;
     }
@@ -901,13 +909,13 @@ function _updateTrialPill() {
   pill.style.color = color;
   pill.style.background = bg;
   pill.style.border = `1px solid ${border}`;
-  pill.innerHTML = `<span style="font-size:.9rem">${urgent?'🚨':warn?'⚠️':'⏳'}</span> <span>Trial: <strong style="color:#fff">${label}</strong></span> <span style="font-size:.68rem;padding:2px 8px;border-radius:99px;background:${color};color:#0A0E17;font-weight:800">Desbloquear →</span>`;
+  pill.innerHTML = `<span style="font-size:.9rem">${urgent?'🚨':warn?'⚠️':'⏳'}</span> <span>Trial: <strong style="color:#fff">${label}</strong></span> <span style="font-size:.68rem;padding:2px 8px;border-radius:99px;background:${color};color:#0A0E17;font-weight:800">${_dm('dm_pill_desbloquear','Desbloquear →')}</span>`;
 
   // Lock import button visually during trial
   const importBtn = document.getElementById('dm-import-topbtn');
   if (importBtn) {
     importBtn.style.opacity = '0.45';
-    importBtn.title = '🔒 Importar requiere Plan Local o Pro';
+    importBtn.title = _dm('dm_importar_requiere_plan','🔒 Importar requiere Plan Local o Pro');
   }
 }
 

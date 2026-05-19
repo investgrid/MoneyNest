@@ -705,3 +705,22 @@ input, select, textarea {
   margin: 0 auto 14px;
   line-height: 1.55;
 }
+
+/* ─── LIGHT MODE OVERRIDES ────────────────────────────────────── */
+[data-theme="light"] .toast {
+  background: var(--card, #fff);
+  border-color: var(--border2, rgba(0,0,0,.12));
+  color: var(--text, #0F172A);
+  box-shadow: 0 8px 32px rgba(0,0,0,.12);
+}
+[data-theme="light"] .skeleton {
+  background: linear-gradient(90deg, var(--bg2,#E2E8F0) 25%, rgba(0,0,0,.04) 50%, var(--bg2,#E2E8F0) 75%);
+}
+[data-theme="light"] .autosave-banner {
+  background: var(--card2, #F8FAFC);
+  border-color: var(--border, rgba(0,0,0,.08));
+  color: var(--text2, #475569);
+}
+/* Ensure text in empty states is readable in light mode */
+[data-theme="light"] .empty-title { color: var(--text, #0F172A); }
+[data-theme="light"] .empty-sub   { color: var(--text2, #475569); }

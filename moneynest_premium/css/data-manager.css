@@ -855,3 +855,52 @@
   .dm-toast { max-width: 100%; }
   .dm-preview-stats { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ─── LIGHT MODE OVERRIDES ────────────────────────────────────── */
+[data-theme="light"] .dm-panel {
+  background: var(--card, #fff);
+  border-left-color: var(--border, rgba(0,0,0,.08));
+}
+[data-theme="light"] .dm-panel-title { color: var(--text, #0F172A); }
+[data-theme="light"] .dm-export-card {
+  background: var(--card2, #F8FAFC);
+  border-color: var(--border2, rgba(0,0,0,.12));
+  color: var(--text, #0F172A);
+}
+[data-theme="light"] .dm-export-card:hover {
+  border-color: var(--accent, #00D4AA);
+  background: rgba(0,212,170,.04);
+}
+[data-theme="light"] .dm-export-card-title { color: var(--text, #0F172A); }
+[data-theme="light"] .dm-export-card-sub { color: var(--text2, #475569); }
+[data-theme="light"] .dm-file-info {
+  background: var(--card2, #F8FAFC);
+  border-color: var(--border, rgba(0,0,0,.08));
+}
+[data-theme="light"] .dm-file-name { color: var(--text, #0F172A); }
+[data-theme="light"] .dm-file-meta { color: var(--text2, #475569); }
+[data-theme="light"] .dm-validation-row { color: var(--text2, #475569); }
+[data-theme="light"] .dm-preview-stat {
+  background: var(--card2, #F8FAFC);
+  border-color: var(--border, rgba(0,0,0,.08));
+  color: var(--text, #0F172A);
+}
+[data-theme="light"] .dm-option-card {
+  background: var(--card2, #F8FAFC);
+  border-color: var(--border2, rgba(0,0,0,.12));
+  color: var(--text, #0F172A);
+}
+[data-theme="light"] .dm-option-card:hover { border-color: var(--accent, #00D4AA); }
+[data-theme="light"] .dm-option-title { color: var(--text, #0F172A); }
+[data-theme="light"] .dm-option-desc { color: var(--text2, #475569); }
+[data-theme="light"] .dm-overlay { background: rgba(241,245,249,0.85); }
+[data-theme="light"] .dm-section-title { color: var(--text2, #475569); }
+[data-theme="light"] .tb-btn {
+  background: var(--card2, #F8FAFC);
+  border-color: var(--border, rgba(0,0,0,.08));
+  color: var(--text2, #475569);
+}
+[data-theme="light"] .tb-btn:hover {
+  border-color: var(--accent, #00D4AA);
+  color: var(--text, #0F172A);
+}

@@ -1,6 +1,11 @@
 window.MNPayment = (() => {
   const ENDPOINT = 'https://jwddciqqhmfkbqhdrfre.supabase.co/functions/v1/create-payment-intent';
 
+  function _spt(key, fallback) {
+    if (typeof window.t === 'function') { const v = window.t(key); return (v && v !== key) ? v : fallback; }
+    return fallback;
+  }
+
   let _stripe   = null;
   let _elements = null;
   let _overlay  = null;
@@ -34,14 +39,14 @@ window.MNPayment = (() => {
 
           <!-- RIGHT: payment form -->
           <div class="mnpo-right" id="mnPoBody">
-            <div class="mnpo-right-title">Pago seguro</div>
-            <div class="mnpo-right-sub">Tu información está cifrada con SSL</div>
+            <div class="mnpo-right-title" id="mnPoRightTitle">${_spt('payment_title','Pago seguro')}</div>
+            <div class="mnpo-right-sub">${_spt('payment_ssl','Tu información está cifrada con SSL')}</div>
             <div class="mnpo-stripe-wrap">
               <div id="mnPoElement"></div>
             </div>
             <div class="mnpo-error" id="mnPoError" style="display:none"></div>
             <button class="mnpo-pay-btn" id="mnPoPayBtn">
-              <span id="mnPoPayBtnText">Confirmar pago</span>
+              <span id="mnPoPayBtnText">${_spt('payment_confirm','Confirmar pago')}</span>
               <span class="mnpo-pay-spinner" id="mnPoSpinner" style="display:none"></span>
             </button>
             <div class="mnpo-badges">
@@ -59,9 +64,9 @@ window.MNPayment = (() => {
           <div class="mnpo-success-ring">
             <svg width="30" height="30" viewBox="0 0 30 30" fill="none"><path d="M6 15l6 6 12-12" stroke="#041510" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </div>
-          <div class="mnpo-success-title" id="mnPoSuccessTitle">¡Plan activado!</div>
+          <div class="mnpo-success-title" id="mnPoSuccessTitle">${_spt('payment_success_title','¡Plan activado!')}</div>
           <div class="mnpo-success-sub" id="mnPoSuccessSub"></div>
-          <button class="mnpo-success-btn" id="mnPoSuccessBtn">Continuar →</button>
+          <button class="mnpo-success-btn" id="mnPoSuccessBtn">${_spt('payment_continue','Continuar →')}</button>
         </div>
 
       </div>
@@ -78,10 +83,14 @@ window.MNPayment = (() => {
   function _setPlanSummary(priceId) {
     const isLocal = priceId === MNStripeConfig.prices.local;
     const titleEl = document.getElementById('mnPoTitle');
-    if (titleEl) titleEl.textContent = isLocal ? 'Activar Local — 5€' : 'Activar Pro — 10€ primer año';
+    if (titleEl) titleEl.textContent = isLocal
+      ? _spt('payment_local_plan_title', 'Activar Local — 5€')
+      : _spt('payment_pro_plan_title',   'Activar Pro — 10€ primer año');
 
-    const rightTitleEl = document.querySelector('#mnPoBody .mnpo-right-title');
-    if (rightTitleEl) rightTitleEl.textContent = isLocal ? 'Activar Local — 5€' : 'Activar Pro — 10€ primer año';
+    const rightTitleEl = document.getElementById('mnPoRightTitle');
+    if (rightTitleEl) rightTitleEl.textContent = isLocal
+      ? _spt('payment_local_plan_title', 'Activar Local — 5€')
+      : _spt('payment_pro_plan_title',   'Activar Pro — 10€ primer año');
 
     document.getElementById('mnPoPlanSummary').innerHTML = isLocal ? `
       <div class="mnpo-left-inner mnpo-left-inner--local">
@@ -162,11 +171,11 @@ window.MNPayment = (() => {
     if (split) split.style.display = 'none';
     document.getElementById('mnPoSuccess').style.display = 'flex';
     document.getElementById('mnPoSuccessTitle').textContent = isLocal
-      ? '¡Plan Local activado!'
-      : '¡Pro activado!';
+      ? _spt('payment_success_local_title', '¡Plan Local activado!')
+      : _spt('payment_success_pro_title',   '¡Pro activado!');
     document.getElementById('mnPoSuccessSub').textContent = isLocal
-      ? 'Acceso ilimitado desbloqueado sin suscripción.'
-      : '7 días de prueba gratuita iniciados. Disfruta de MoneyNest Pro.';
+      ? _spt('payment_success_local_sub', 'Acceso ilimitado desbloqueado sin suscripción.')
+      : _spt('payment_success_pro_sub',   '7 días de prueba gratuita iniciados. Disfruta de MoneyNest Pro.');
 
     if (!isLocal) {
       // Store pro trial end date
@@ -224,7 +233,7 @@ window.MNPayment = (() => {
     });
 
     if (error) {
-      _showError(error.message ?? 'Error al procesar el pago. Inténtalo de nuevo.');
+      _showError(error.message ?? _spt('payment_error_generic', 'Error al procesar el pago. Inténtalo de nuevo.'));
       return;
     }
 
@@ -233,11 +242,22 @@ window.MNPayment = (() => {
 
   function _onPaymentSuccess(priceId, email) {
     const isLocal = priceId === MNStripeConfig.prices.local;
+    // Sync MNAuth (source of truth for plan state)
     if (isLocal) {
-      MNAuth.buyLocal(email);
+      if (window.MNAuth?.buyLocal) MNAuth.buyLocal(email);
     } else {
-      MNAuth.activatePro(email);
+      if (window.MNAuth?.activatePro) MNAuth.activatePro(email);
     }
+    // Sync MNBilling (source of truth for billing-ui)
+    if (window.MNBilling) {
+      if (isLocal) {
+        window.MNBilling.activateLocal(email);
+      } else {
+        window.MNBilling.activatePro(email);
+      }
+    }
+    // Refresh billing UI badges immediately
+    if (window.MNBillingUI?.refreshAll) window.MNBillingUI.refreshAll();
     if (typeof updateSidebarLogo === 'function') updateSidebarLogo();
     _showSuccess(priceId);
     document.dispatchEvent(new CustomEvent('mn:paymentSuccess', {
@@ -302,10 +322,20 @@ window.MNPayment = (() => {
               window.MNAuthUI.renderAuthBadge('authPlanBadge');
               window.MNAuthUI.renderTrialPill('trialPillContainer');
             }
-            // Refresh billing UI if currently on that page
-            if (typeof goTo === 'function' && typeof MNBillingUI !== 'undefined') {
-              goTo('billing');
+            // Sync MNBilling with confirmed server plan
+            if (window.MNBilling) {
+              const targetBillingPlan = plan === 'local' ? 'local_lifetime' : 'pro_annual';
+              const currentSub = window.MNBilling.getSub();
+              if (!currentSub || currentSub.plan !== targetBillingPlan) {
+                if (plan === 'local') {
+                  window.MNBilling.activateLocal();
+                } else {
+                  window.MNBilling.activatePro();
+                }
+              }
             }
+            // Refresh billing UI reactively
+            if (window.MNBillingUI?.refreshAll) window.MNBillingUI.refreshAll();
           }
           break;
         }
@@ -414,7 +444,7 @@ window.MNPayment = (() => {
       paymentElement.on('ready', () => _setLoading(false));
 
     } catch (err) {
-      _showError(err.message ?? 'No se pudo iniciar el pago. Inténtalo de nuevo.');
+      _showError(err.message ?? _spt('payment_error_init', 'No se pudo iniciar el pago. Inténtalo de nuevo.'));
     }
   }
 

@@ -2,14 +2,28 @@
 <html lang="es" data-theme="dark">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="MoneyNest">
-<meta name="theme-color" content="#0A0E17">
+<meta name="theme-color" content="#0A0E17" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#F1F5F9" media="(prefers-color-scheme: light)">
 <meta name="description" content="Tu gestor de finanzas personales. Ingresos, gastos, inversiones, deudas y patrimonio en un solo lugar.">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="application-name" content="MoneyNest">
+<!-- Open Graph -->
+<meta property="og:type"        content="website">
+<meta property="og:title"       content="MoneyNest — Personal Finance">
+<meta property="og:description" content="Tu gestor de finanzas personales. Ingresos, gastos, inversiones y patrimonio.">
+<meta property="og:image"       content="./assets/icon-with-text.png">
+<!-- Twitter Card -->
+<meta name="twitter:card"        content="summary_large_image">
+<meta name="twitter:title"       content="MoneyNest — Personal Finance">
+<meta name="twitter:description" content="Tu gestor de finanzas personales inteligente.">
+<meta name="twitter:image"       content="./assets/icon-with-text.png">
+<!-- Security -->
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta http-equiv="X-Content-Type-Options" content="nosniff">
 <title>MoneyNest — Personal Finance</title>
 <!-- Favicon & Icons -->
 <link rel="icon" type="image/png" href="./assets/Favicon.png">
@@ -1244,6 +1258,7 @@
 <script src="js/data.js"></script>
 <script src="js/app.js"></script>
 <script src="js/i18n-patch.js"></script>
+<script src="js/app-i18n-patch.js"></script>
 <script src="js/mn-email.js"></script>
 <script src="components/auth-ui.js"></script>
 <script src="js/stripe-config.js"></script>

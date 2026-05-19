@@ -9589,15 +9589,29 @@ async function obNext() {
 
   if (obStep === OB_TOTAL) { finishOnboarding(); return }
 
-  // If user just chose a paid plan on step 4, open payment immediately
+  // If user just chose a paid plan on step 4, open payment first.
+  // Only advance to step 5 after successful payment (mn:paymentSuccess event).
   if (obStep === 4 && obData.plan !== 'trial') {
-    obStep++
-    obRender('forward')
     const email = obData.email || ''
-    if (obData.plan === 'local') {
-      setTimeout(() => MNPayment.open(window.MNStripeConfig?.prices?.local, email), 300)
-    } else if (obData.plan === 'pro') {
-      setTimeout(() => MNPayment.open(window.MNStripeConfig?.prices?.pro, email), 300)
+    const priceId = obData.plan === 'pro'
+      ? window.MNStripeConfig?.prices?.pro
+      : window.MNStripeConfig?.prices?.local
+
+    // Register a one-shot listener to advance after payment succeeds
+    const _onPaid = (e) => {
+      document.removeEventListener('mn:paymentSuccess', _onPaid)
+      obStep++
+      obRender('forward')
+    }
+    document.addEventListener('mn:paymentSuccess', _onPaid)
+
+    if (window.MNPayment && priceId) {
+      MNPayment.open(priceId, email)
+    } else {
+      // MNPayment not available — skip payment and advance anyway
+      document.removeEventListener('mn:paymentSuccess', _onPaid)
+      obStep++
+      obRender('forward')
     }
     return
   }

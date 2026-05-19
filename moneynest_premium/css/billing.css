@@ -2155,3 +2155,73 @@
   padding-left: 4px;
 }
 [data-theme="light"] .mn-price-row-plus { color: rgba(0,0,0,0.25); }
+
+/* ─── LIGHT MODE BILLING OVERRIDES ────────────────────────────── */
+[data-theme="light"] .billing-page { color: var(--text); }
+[data-theme="light"] .billing-section {
+  background: var(--card);
+  border-color: var(--border);
+}
+[data-theme="light"] .billing-section-title { color: var(--text); }
+[data-theme="light"] .billing-row { border-bottom-color: var(--border); }
+[data-theme="light"] .billing-row-label { color: var(--text2); }
+[data-theme="light"] .billing-row-value { color: var(--text); }
+
+/* Plan cards light */
+[data-theme="light"] .mn-plan-card {
+  background: var(--card);
+  border-color: var(--border2);
+}
+[data-theme="light"] .mn-plan-card__name { color: var(--text); }
+[data-theme="light"] .mn-plan-card__period { color: var(--text2); }
+[data-theme="light"] .mn-plan-card__features li { color: var(--text2); }
+
+/* Dual compare */
+[data-theme="light"] .mn-dual-card {
+  background: var(--card);
+  border-color: var(--border2);
+}
+[data-theme="light"] .mn-dual-card__name { color: var(--text); }
+[data-theme="light"] .mn-dual-card__tagline { color: var(--text2); }
+[data-theme="light"] .mn-dual-card__features .mn-feat--ok { color: var(--text); }
+[data-theme="light"] .mn-dual-card__features .mn-feat--no { color: var(--text3); }
+
+/* Pro hero */
+[data-theme="light"] .mn-pro-hero { background: linear-gradient(135deg,rgba(99,102,241,.06),rgba(0,212,170,.04)); }
+[data-theme="light"] .mn-pro-hero__title { color: var(--text); }
+[data-theme="light"] .mn-pro-hero__sub { color: var(--text2); }
+
+/* Sub stats */
+[data-theme="light"] .mn-sub-stat { background: var(--card2); border-color: var(--border); }
+[data-theme="light"] .mn-sub-stat__label { color: var(--text2); }
+[data-theme="light"] .mn-sub-stat__value { color: var(--text); }
+
+/* Payment overlay */
+[data-theme="light"] .mnpo-sheet {
+  background: var(--card);
+  border-color: var(--border2);
+}
+[data-theme="light"] .mnpo-right-title { color: var(--text); }
+[data-theme="light"] .mnpo-right-sub { color: var(--text2); }
+[data-theme="light"] .mnpo-success-title { color: var(--text); }
+[data-theme="light"] .mnpo-success-sub { color: var(--text2); }
+[data-theme="light"] .mnpo-left-inner--local,
+[data-theme="light"] .mnpo-left-inner--pro { background: var(--bg2); }
+[data-theme="light"] .mnpo-left-plan-name { color: var(--text); }
+
+/* Invoice rows */
+[data-theme="light"] .invoice-row { border-bottom-color: var(--border); }
+[data-theme="light"] .invoice-date, [data-theme="light"] .invoice-amount { color: var(--text); }
+[data-theme="light"] .invoice-status { color: var(--text2); }
+
+/* Lock overlay */
+[data-theme="light"] .lock-card {
+  background: var(--card);
+  border-color: var(--border2);
+}
+[data-theme="light"] .lock-title { color: var(--text); }
+[data-theme="light"] .lock-sub { color: var(--text2); }
+[data-theme="light"] .lock-feat { color: var(--text2); }
+
+/* Pro orbs: hide in light (too harsh) */
+[data-theme="light"] .pro-orb { opacity: 0.08; }

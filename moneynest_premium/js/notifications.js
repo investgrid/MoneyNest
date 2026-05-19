@@ -5,6 +5,8 @@
 ;(function () {
   'use strict';
 
+  function _nt(key, fb) { return (typeof window.t === 'function' ? window.t(key) || fb : fb); }
+
   const PREFS_KEY = 'mn_notif_prefs';
   const PERM_KEY  = 'mn_notif_permission';
 
@@ -36,13 +38,13 @@
       el.innerHTML = `
         <div style="background:var(--card,#0F172A);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:28px 24px;max-width:360px;width:calc(100vw - 40px);text-align:center;box-shadow:0 40px 100px rgba(0,0,0,.6)">
           <div style="font-size:2.5rem;margin-bottom:12px">🔔</div>
-          <div style="font-size:1rem;font-weight:700;color:var(--text,#fff);margin-bottom:8px">Notificaciones de MoneyNest</div>
+          <div style="font-size:1rem;font-weight:700;color:var(--text,#fff);margin-bottom:8px">${_nt('notif_modal_title','Notificaciones de MoneyNest')}</div>
           <div style="font-size:.82rem;color:rgba(255,255,255,.5);line-height:1.55;margin-bottom:20px">
-            MoneyNest puede avisarte cuando superes un presupuesto, tu trial esté por expirar, o una transacción recurrente se haya añadido.
+            ${_nt('notif_modal_desc','MoneyNest puede avisarte cuando superes un presupuesto, tu trial esté por expirar, o una transacción recurrente se haya añadido.')}
           </div>
           <div style="display:flex;gap:10px">
-            <button id="mnNotifDecline" style="flex:1;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,.1);background:transparent;color:rgba(255,255,255,.4);font-size:.82rem;cursor:pointer;font-family:inherit">Ahora no</button>
-            <button id="mnNotifAccept" style="flex:2;padding:10px;border-radius:10px;border:none;background:linear-gradient(135deg,#6366F1,#00D4AA);color:#fff;font-size:.82rem;font-weight:700;cursor:pointer;font-family:inherit">Activar notificaciones</button>
+            <button id="mnNotifDecline" style="flex:1;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,.1);background:transparent;color:rgba(255,255,255,.4);font-size:.82rem;cursor:pointer;font-family:inherit">${_nt('notif_ahora_no','Ahora no')}</button>
+            <button id="mnNotifAccept" style="flex:2;padding:10px;border-radius:10px;border:none;background:linear-gradient(135deg,#6366F1,#00D4AA);color:#fff;font-size:.82rem;font-weight:700;cursor:pointer;font-family:inherit">${_nt('notif_activar','Activar notificaciones')}</button>
           </div>
         </div>`;
       document.body.appendChild(el);
@@ -122,8 +124,8 @@
       const delay = Math.max(0, msLeft - 3600000);
       setTimeout(() => {
         sendNotification(
-          'Tu prueba de MoneyNest expira pronto ⏳',
-          'Desbloquea MoneyNest por 5€ y conserva todos tus datos.',
+          _nt('notif_trial_title', 'Tu prueba de MoneyNest expira pronto ⏳'),
+          _nt('notif_trial_body',  'Desbloquea MoneyNest por 5€ y conserva todos tus datos.'),
           null, 'trial-expiry'
         );
       }, delay);
@@ -137,9 +139,10 @@
     try {
       const s = JSON.parse(localStorage.getItem('mn_streak') || '{}');
       if ((s.streak || 0) >= 7) {
+        const streakLabel = _nt('notif_streak_title', '¡{n} días de racha! 🔥').replace('{n}', s.streak);
         sendNotification(
-          `¡${s.streak} días de racha! 🔥`,
-          '¡Sigue así! La constancia es la clave del éxito financiero.',
+          streakLabel,
+          _nt('notif_streak_body', '¡Sigue así! La constancia es la clave del éxito financiero.'),
           null,
           'streak'
         );
@@ -161,38 +164,37 @@
     let permBanner = '';
     if (perm === 'unsupported') {
       permBanner = `
-        <div style="font-size:.78rem;color:rgba(255,255,255,.4);margin-bottom:10px;padding:8px 12px;background:rgba(255,255,255,0.04);border-radius:8px">
-          ℹ️ Tu navegador no soporta notificaciones push.
+        <div style="font-size:.78rem;color:var(--text2,rgba(255,255,255,.4));margin-bottom:10px;padding:8px 12px;background:rgba(255,255,255,0.04);border-radius:8px">
+          ℹ️ ${_nt('notif_perm_unsupported','Tu navegador no soporta notificaciones push.')}
         </div>`;
     } else if (perm === 'denied') {
       permBanner = `
         <div style="font-size:.78rem;color:rgba(244,63,94,.8);margin-bottom:10px;padding:8px 12px;background:rgba(244,63,94,0.08);border-radius:8px">
-          🚫 Las notificaciones están bloqueadas en este navegador. Para activarlas, ve a la configuración del navegador y permite las notificaciones para este sitio.
+          🚫 ${_nt('notif_perm_denied','Las notificaciones están bloqueadas en este navegador. Para activarlas, ve a la configuración del navegador y permite las notificaciones para este sitio.')}
         </div>`;
     } else if (perm === 'default') {
       permBanner = `
         <div style="font-size:.78rem;color:rgba(245,158,11,.8);margin-bottom:10px;padding:8px 12px;background:rgba(245,158,11,0.08);border-radius:8px;display:flex;align-items:center;justify-content:space-between;gap:10px">
-          <span>⚠️ Los permisos de notificación no están activados.</span>
-          <button onclick="MNNotifications.requestPermission()" style="flex-shrink:0;font-size:.72rem;color:#F59E0B;background:none;border:1px solid rgba(245,158,11,.4);border-radius:6px;padding:3px 10px;cursor:pointer;font-family:inherit;white-space:nowrap">Activar</button>
+          <span>⚠️ ${_nt('notif_perm_default','Los permisos de notificación no están activados.')}</span>
+          <button onclick="MNNotifications.requestPermission()" style="flex-shrink:0;font-size:.72rem;color:#F59E0B;background:none;border:1px solid rgba(245,158,11,.4);border-radius:6px;padding:3px 10px;cursor:pointer;font-family:inherit;white-space:nowrap">${_nt('notif_activar','Activar')}</button>
         </div>`;
     } else {
-      // granted
       permBanner = `
         <div style="font-size:.78rem;color:rgba(16,185,129,.9);margin-bottom:10px;padding:8px 12px;background:rgba(16,185,129,0.08);border-radius:8px">
-          ✅ Activas — MoneyNest puede enviarte notificaciones.
+          ✅ ${_nt('notif_perm_granted','Activas — MoneyNest puede enviarte notificaciones.')}
         </div>`;
     }
 
     el.innerHTML = `
       <div style="padding:16px 0">
-        <div style="font-size:.85rem;font-weight:700;color:var(--text,#fff);margin-bottom:12px">🔔 Notificaciones</div>
+        <div style="font-size:.85rem;font-weight:700;color:var(--text,#fff);margin-bottom:12px">🔔 ${_nt('notif_titulo','Notificaciones')}</div>
         ${permBanner}
-        ${_toggle('Alertas de presupuesto', 'budget', prefs.budget)}
-        ${_toggle('Recordatorios de racha', 'streak', prefs.streak)}
-        ${_toggle('Transacciones recurrentes', 'recurring', prefs.recurring)}
-        ${_toggle('Aviso expiración trial', 'trial', prefs.trial)}
-        <button onclick="MNNotifications._sendTest()" style="margin-top:12px;padding:8px 16px;border-radius:9px;border:1px solid rgba(255,255,255,.1);background:transparent;color:rgba(255,255,255,.5);font-size:.78rem;cursor:pointer;font-family:inherit">
-          Enviar notificación de prueba
+        ${_toggle(_nt('notif_pref_budget','Alertas de presupuesto'), 'budget', prefs.budget)}
+        ${_toggle(_nt('notif_pref_streak','Recordatorios de racha'), 'streak', prefs.streak)}
+        ${_toggle(_nt('notif_pref_recurring','Transacciones recurrentes'), 'recurring', prefs.recurring)}
+        ${_toggle(_nt('notif_pref_trial','Aviso expiración trial'), 'trial', prefs.trial)}
+        <button onclick="MNNotifications._sendTest()" style="margin-top:12px;padding:8px 16px;border-radius:9px;border:1px solid var(--border2,rgba(255,255,255,.1));background:transparent;color:var(--text2,rgba(255,255,255,.5));font-size:.78rem;cursor:pointer;font-family:inherit">
+          ${_nt('notif_test_btn','Enviar notificación de prueba')}
         </button>
       </div>
     `;
@@ -221,8 +223,8 @@
     if (Notification.permission !== 'granted') { requestPermission(); return; }
     // Force send even if visible
     try {
-      new Notification('MoneyNest — Prueba ✅', {
-        body: '¡Las notificaciones funcionan correctamente!',
+      new Notification(_nt('notif_test_title','MoneyNest — Prueba ✅'), {
+        body: _nt('notif_test_body','¡Las notificaciones funcionan correctamente!'),
         icon: './assets/icon-192.png',
         tag:  'test',
       });

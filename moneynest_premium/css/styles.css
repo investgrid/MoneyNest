@@ -3303,3 +3303,67 @@ ize:.92rem;font-weight:700;color:var(--text);margin-bottom:5px;line-height:1.3}
 
 @keyframes mnFadeIn{from{opacity:0}to{opacity:1}}
 @keyframes mnSpin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+
+/* ─── LIGHT MODE SUPPLEMENTAL OVERRIDES ────────────────────────── */
+
+/* Input backgrounds — dark tokens don't auto-apply */
+[data-theme="light"] input,
+[data-theme="light"] select,
+[data-theme="light"] textarea {
+  background: rgba(0,0,0,.04);
+  border-color: rgba(0,0,0,.12);
+  color: var(--text);
+}
+[data-theme="light"] input:focus,
+[data-theme="light"] select:focus,
+[data-theme="light"] textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+/* Onboarding plan cards light fix */
+[data-theme="light"] .ob-pc-price-plus { color: rgba(0,0,0,.25); }
+[data-theme="light"] .ob-pc-check { border-color: rgba(0,0,0,.15); }
+
+/* Tables */
+[data-theme="light"] table thead th { background: var(--bg2); color: var(--text2); }
+[data-theme="light"] table tbody tr { border-bottom-color: var(--border); }
+
+/* Modals */
+[data-theme="light"] .modal-content {
+  background: var(--card);
+  border-color: var(--border2);
+  box-shadow: 0 24px 80px rgba(0,0,0,.18);
+}
+
+/* Confirmación modal */
+[data-theme="light"] .confirm-modal-body {
+  background: var(--card);
+}
+
+/* Topbar */
+[data-theme="light"] .topbar { background: var(--card); border-bottom-color: var(--border); }
+
+/* Sidebar */
+[data-theme="light"] .sidebar { background: var(--bg2); border-right-color: var(--border); }
+[data-theme="light"] .nav-item:hover { background: rgba(0,0,0,.04); }
+[data-theme="light"] .nav-item.active { background: rgba(0,150,115,.08); }
+
+/* KPI delta (ensure readable green/red on light) */
+[data-theme="light"] .kpi-delta.up { background: rgba(16,185,129,.1); color: #059669; }
+[data-theme="light"] .kpi-delta.down { background: rgba(244,63,94,.1); color: #E11D48; }
+
+/* Mission bar */
+[data-theme="light"] #misionBar { background: var(--card); border-color: var(--border); }
+
+/* Will-change on animated elements for GPU acceleration */
+.sidebar, .modal-content, .confirm-modal, .topbar,
+.mn-auth-modal-header, .billing-page, #mnPaymentOverlay .mnpo-sheet {
+  will-change: transform;
+}
+.kpi-card, .card, .inv-card, .debt-card, .goal-card {
+  will-change: transform;
+}
+.progress-bar, .mn-auth-progress-bar, .mn-pro-trial-bar__fill {
+  will-change: width;
+}

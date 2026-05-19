@@ -174,14 +174,16 @@
   }
 
   // ─── Sync status indicator ────────────────────────────────────────
+  function _st(key, fb) { return (typeof window.t === 'function' ? window.t(key) || fb : fb); }
+
   function showSyncIndicator(state) {
     const el = document.getElementById('mn-sync-status');
     if (!el) return;
     const map = {
-      syncing: { text: '⟳ Sincronizando…', cls: 'syncing' },
-      synced:  { text: '✓ Sincronizado',   cls: 'synced'  },
-      offline: { text: '⊘ Sin conexión',   cls: 'offline' },
-      error:   { text: '⚠ Error sync',     cls: 'error'   },
+      syncing: { text: _st('sync_sincronizando', '⟳ Sincronizando…'), cls: 'syncing' },
+      synced:  { text: _st('sync_sincronizado',  '✓ Sincronizado'),   cls: 'synced'  },
+      offline: { text: _st('sync_sin_conexion',  '⊘ Sin conexión'),   cls: 'offline' },
+      error:   { text: _st('sync_error',         '⚠ Error sync'),     cls: 'error'   },
     };
     const cfg = map[state] || map.synced;
     el.textContent = cfg.text;

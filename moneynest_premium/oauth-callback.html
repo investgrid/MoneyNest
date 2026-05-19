@@ -2,7 +2,10 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>MoneyNest</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta http-equiv="X-Content-Type-Options" content="nosniff">
+<title>MoneyNest — Autenticación</title>
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
   body{background:#060B14;display:flex;align-items:center;justify-content:center;min-height:100vh;flex-direction:column;gap:16px;font-family:-apple-system,sans-serif}
@@ -34,7 +37,7 @@
     window.close();
     // If window.close() is blocked, show a message
     setTimeout(() => {
-      document.querySelector('p').textContent = 'Puedes cerrar esta ventana.';
+      document.querySelector('p').textContent = 'Puedes cerrar esta ventana.'; // Static fallback text — not in critical i18n path
       document.querySelector('.spinner').style.display = 'none';
     }, 800);
   }, 300);

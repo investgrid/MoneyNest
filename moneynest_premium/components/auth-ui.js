@@ -35,6 +35,17 @@ function _t(key, fallback) {
   return fallback;
 }
 
+// ─── HTML escape helper — prevents XSS in innerHTML contexts ─────
+function _escHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 // ─── Modal mode ──────────────────────────────────────────────────
 // 'plan' | 'login' | 'register' | 'verify-otp' | 'forgot' | 'update-password'
 let _modalMode = 'plan';
@@ -91,8 +102,8 @@ function renderAuthBadge(containerId = 'authPlanBadge') {
       color:${cfg.color};font-size:.7rem;font-weight:700;
       text-transform:uppercase;letter-spacing:.08em;
       padding:4px 10px;border-radius:99px;cursor:pointer;transition:all .18s;"
-      onclick="MNAuthUI.showAuthModal()" title="${_t('auth_ver_plan','Ver mi plan')}">
-      ${cfg.icon} ${cfg.label}
+      onclick="MNAuthUI.showAuthModal()" title="${_escHtml(_t('auth_ver_plan','Ver mi plan'))}">
+      ${_escHtml(cfg.icon)} ${_escHtml(cfg.label)}
     </div>`;
 }
 
@@ -452,7 +463,7 @@ function _buildTrialView(user) {
       </div>
     </div>
 
-    ${isLoggedIn ? `<div class="mn-auth-session-chip">✅ ${_t('auth_sesion_activa','Sesión activa')}: <strong>${email}</strong></div>` : ''}
+    ${isLoggedIn ? `<div class="mn-auth-session-chip">✅ ${_t('auth_sesion_activa','Sesión activa')}: <strong>${_escHtml(email)}</strong></div>` : ''}
 
     <div class="mn-auth-cta-box">
       <div class="mn-auth-cta-label">🔒 ${_t('auth_que_pasa','¿Qué pasa cuando expire?')}</div>
@@ -521,7 +532,7 @@ function _buildLocalView(user) {
       <span class="mn-status-icon">✅</span>
       <div>
         <div class="mn-status-title">${_t('auth_acceso_desbloqueado','Acceso desbloqueado')}</div>
-        <div class="mn-status-desc">${email ? `${_t('auth_cuenta','Cuenta')}: ${email}` : _t('auth_datos_locales','Tus datos se guardan en este dispositivo.')}</div>
+        <div class="mn-status-desc">${email ? `${_t('auth_cuenta','Cuenta')}: ${_escHtml(email)}` : _t('auth_datos_locales','Tus datos se guardan en este dispositivo.')}</div>
       </div>
     </div>
 
@@ -572,7 +583,7 @@ function _buildProView(user) {
       </div>
     </div>
 
-    ${email ? `<div class="mn-auth-session-chip">${_t('auth_cuenta','Cuenta')}: <strong>${email}</strong></div>` : ''}
+    ${email ? `<div class="mn-auth-session-chip">${_t('auth_cuenta','Cuenta')}: <strong>${_escHtml(email)}</strong></div>` : ''}
 
     <div class="mn-auth-features-grid">
       <div class="mn-auth-fg">☁️ ${_t('auth_feat_cloud','Cloud sync')}</div>
@@ -764,7 +775,7 @@ async function _handleRegister() {
   if (pass !== pass2) { _showMsg(msg, '⚠ ' + _t('auth_error_pw_no_coincide','Las contraseñas no coinciden.'), 'error'); return; }
   // Turnstile check — only if configured (sitekey present)
   if (window._MN_TURNSTILE_SITE_KEY && !_turnstileToken) {
-    _showMsg(msg, '⚠ Completa la verificación anti-bot.', 'error'); return;
+    _showMsg(msg, '⚠ ' + _t('auth_error_captcha', 'Completa la verificación anti-bot.'), 'error'); return;
   }
 
   _setBtnLoading(btn, true, _t('auth_creando','Creando cuenta…'));
@@ -915,8 +926,8 @@ function _fieldPasswordStrength(id, label, autocomplete) {
 }
 
 function _modalFooter(user) {
-  const id = (user.id || '').slice(0, 14);
-  return `<div class="mn-auth-footer">ID: <code>${id}…</code>${user.email ? ` · ${user.email}` : ''}</div>`;
+  const id = _escHtml((user.id || '').slice(0, 14));
+  return `<div class="mn-auth-footer">ID: <code>${id}…</code>${user.email ? ` · ${_escHtml(user.email)}` : ''}</div>`;
 }
 
 function _switchMode(mode) {
@@ -983,12 +994,12 @@ function _toast(msg) {
 function _planBadgeConfig(user) {
   const hoursLeft  = _auth.trialHoursLeft ? _auth.trialHoursLeft() : 0;
   const isLoggedIn = window.MNSupabaseAuth?.isLoggedIn() ?? false;
-  const suffix     = isLoggedIn ? '' : ' · sin sesión';
+  const suffix     = isLoggedIn ? '' : ' · ' + _t('auth_sin_sesion', 'sin sesión');
   const configs = {
     trial:        { icon:'⏳', label:`Trial · ${Math.ceil(hoursLeft)}h${suffix}`, color:C.indigo,  bg:'rgba(99,102,241,.1)',  border:'rgba(99,102,241,.25)' },
     locked_local: { icon:'🔒', label:_t('auth_bloqueado','Bloqueado'),             color:C.red,     bg:'rgba(244,63,94,.1)',   border:'rgba(244,63,94,.25)'  },
     local:        { icon:'💾', label:_t('auth_plan_local_badge','Local'),           color:C.accent,  bg:'rgba(0,212,170,.1)',   border:'rgba(0,212,170,.25)'  },
-    pro:          { icon:'⚡', label:'Pro',                                         color:C.accent,  bg:'rgba(0,212,170,.12)',  border:'rgba(0,212,170,.3)'   },
+    pro:          { icon:'⚡', label:_t('auth_plan_pro_badge', 'Pro'),              color:C.accent,  bg:'rgba(0,212,170,.12)',  border:'rgba(0,212,170,.3)'   },
   };
   return configs[user.plan] || configs.trial;
 }
@@ -1233,7 +1244,24 @@ function _injectGlobalStyles() {
       border-color:rgba(0,0,0,.12);
       color:#0F172A;
     }
-    [data-theme="light"] .mn-auth-trial-box { background:rgba(99,102,241,.06); }
+    [data-theme="light"] .mn-auth-input:focus { border-color:${C.accent}; }
+    [data-theme="light"] .mn-auth-trial-box { background:rgba(99,102,241,.06); border-color:rgba(99,102,241,.18); }
+    [data-theme="light"] .mn-auth-cta-box { background:rgba(0,212,170,.04); border-color:rgba(0,212,170,.2); }
+    [data-theme="light"] .mn-auth-alert-box { background:rgba(244,63,94,.05); }
+    [data-theme="light"] .mn-auth-price-card { background:linear-gradient(135deg,rgba(0,212,170,.07),rgba(0,212,170,.02)); }
+    [data-theme="light"] .mn-auth-status-box.mn-status-ok { background:rgba(0,212,170,.05); }
+    [data-theme="light"] .mn-auth-status-box.mn-status-pro { background:rgba(0,212,170,.07); }
+    [data-theme="light"] .mn-auth-upgrade-box { background:linear-gradient(135deg,rgba(99,102,241,.05),rgba(99,102,241,.02)); }
+    [data-theme="light"] .mn-auth-session-chip { background:rgba(0,212,170,.04); }
+    [data-theme="light"] .mn-auth-trial-reminder { background:rgba(245,158,11,.05); }
+    [data-theme="light"] .mn-btn-secondary { background:rgba(0,0,0,.03); border-color:rgba(0,0,0,.1)!important; color:#0F172A; }
+    [data-theme="light"] .mn-btn-ghost { border-color:rgba(0,0,0,.12)!important; color:#475569; }
+    [data-theme="light"] .mn-auth-close-btn { background:rgba(0,0,0,.05); border-color:rgba(0,0,0,.08); color:#64748B; }
+    [data-theme="light"] .mn-auth-close-btn:hover { background:rgba(0,0,0,.1); color:#0F172A; }
+    [data-theme="light"] .mn-auth-fg { background:rgba(0,212,170,.04); border-color:rgba(0,212,170,.1); color:#0F172A; }
+    [data-theme="light"] .mn-auth-divider { border-color:rgba(0,0,0,.08); }
+    [data-theme="light"] .mn-auth-trial-note { background:rgba(99,102,241,.04); border-color:rgba(99,102,241,.12); }
+    [data-theme="light"] .mn-pw-bar-track { background:rgba(0,0,0,.06); }
   `;
   document.head.appendChild(style);
 }
@@ -1265,11 +1293,12 @@ window._mnCheckPwStrength = function(pw, barId) {
   if (/[A-Z]/.test(pw))         score++;
   if (/[0-9]/.test(pw))         score++;
   if (/[^A-Za-z0-9]/.test(pw)) score++;
+  const _tw = (k, fb) => (typeof window.t === 'function' ? window.t(k) || fb : fb);
   const levels = [
-    { pct:'25%',  color:'#F43F5E', text:'Muy débil' },
-    { pct:'50%',  color:'#F59E0B', text:'Débil' },
-    { pct:'75%',  color:'#6366F1', text:'Buena' },
-    { pct:'100%', color:'#00D4AA', text:'Fuerte ✓' },
+    { pct:'25%',  color:'#F43F5E', text: _tw('auth_pw_muy_debil',  'Muy débil') },
+    { pct:'50%',  color:'#F59E0B', text: _tw('auth_pw_debil',      'Débil')     },
+    { pct:'75%',  color:'#6366F1', text: _tw('auth_pw_buena',      'Buena')     },
+    { pct:'100%', color:'#00D4AA', text: _tw('auth_pw_fuerte',     'Fuerte ✓')  },
   ];
   const lv = levels[Math.max(0, score - 1)];
   fill.style.width      = lv.pct;

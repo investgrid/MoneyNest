@@ -158,16 +158,21 @@ function _syncWithMNAuth() {
   // Map MNAuth plan to billing plan
   const planMap = {
     trial:        'free_trial',
-    locked_local: 'free_trial',
+    locked_local: 'free_trial',  // expired trial — _computeState will mark it expired_trial
     local:        'local_lifetime',
     pro:          'pro_annual',
   };
 
   const mappedPlan = planMap[authUser.plan] || 'free_trial';
-  if (mappedPlan !== sub.plan) {
+  const planChanged = mappedPlan !== sub.plan;
+  const isAuthLocked = authUser.plan === 'locked_local';
+
+  if (planChanged || isAuthLocked) {
     sub.plan = mappedPlan;
-    sub.state = _computeState(sub);
     if (authUser.trialEndsAt) sub.expiresAt = authUser.trialEndsAt;
+    // If auth says locked, force expiresAt to past so _computeState returns expired_trial
+    if (isAuthLocked) sub.expiresAt = Date.now() - 1;
+    sub.state = _computeState(sub);
     saveSub(sub);
   }
 }
