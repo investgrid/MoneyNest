@@ -3952,10 +3952,25 @@ function goTo(page) {
   closeSidebar()
   destroyAllCharts()
   syncBottomNav(page)
-  render()
+
+  // Page transition: fade+slide out → render → fade+slide in
+  const content = document.getElementById('content')
+  if (content && !content.classList.contains('mn-page-exit')) {
+    content.classList.add('mn-page-exit')
+    setTimeout(() => {
+      content.classList.remove('mn-page-exit')
+      render()
+      content.classList.add('mn-page-enter')
+      // Remove class after animation completes
+      setTimeout(() => content.classList.remove('mn-page-enter'), 200)
+    }, 80)
+  } else {
+    render()
+  }
+
   _updateSidebarLang()
   updateDocTitle()
-  // Dynamic billing background: apply only on billing, clean up on all other pages
+  // Dynamic billing background
   if (window.MNBillingUI) {
     if (page === 'billing') {
       setTimeout(() => window.MNBillingUI.initDynamicBg(), 0)
@@ -4118,14 +4133,14 @@ function renderDashboard() {
         <div style="width:28px;height:28px;background:var(--green-dim);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.82rem;flex-shrink:0">📥</div>
         <div>
           <div style="font-size:.6rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.06em">${yr}</div>
-          <div style="font-size:.95rem;font-weight:800;color:var(--green)">${eur(ingYTD)}</div>
+          <div style="font-size:.95rem;font-weight:800;color:var(--green)" data-animate-ytd="${eur(ingYTD)}">${eur(ingYTD)}</div>
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:9px;padding:9px 14px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm)">
         <div style="width:28px;height:28px;background:var(--red-dim);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.82rem;flex-shrink:0">📤</div>
         <div>
           <div style="font-size:.6rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.06em">${yr}</div>
-          <div style="font-size:.95rem;font-weight:800;color:var(--red)">${eur(gasYTD)}</div>
+          <div style="font-size:.95rem;font-weight:800;color:var(--red)" data-animate-ytd="${eur(gasYTD)}">${eur(gasYTD)}</div>
         </div>
       </div>
     </div>
@@ -4142,7 +4157,7 @@ function renderDashboard() {
     <div class="patrimonio-hero" style="margin-bottom:0">
       <div class="patrimonio-label">${t('patrimonio_neto')}</div>
       <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap">
-        <div class="patrimonio-num">${eur(pat)}</div>
+        <div class="patrimonio-num" data-animate="${eur(pat)}">${eur(pat)}</div>
         ${patDelta !== null ? `<span class="kpi-delta ${deltaClass(patDelta)}" style="font-size:.82rem">${deltaIcon(patDelta)} ${pct(Math.abs(patDelta))} vs. mes ant.</span>` : ''}
       </div>
       <div class="patrimonio-stats" style="margin-top:12px">
@@ -4177,21 +4192,21 @@ function renderDashboard() {
     <div class="kpi-card">
       <div class="kpi-icon" style="background:var(--green-dim)">💰</div>
       <div class="kpi-label">${t('ingresos_mes')}</div>
-      <div class="kpi-value" data-target="${eur(ing)}">${eur(ing)}</div>
+      <div class="kpi-value" data-animate="${eur(ing)}">${eur(ing)}</div>
       ${ingP ? `<span class="kpi-delta ${deltaClass(ing-ingP)}">${deltaIcon(ing-ingP)} ${pct(Math.abs(ingP?((ing-ingP)/ingP*100):0))} vs. ant.</span>` : '<span class="kpi-delta neu">Primer mes</span>'}
       <div class="kpi-sub" style="margin-top:5px">${S.ingresos.filter(i=>i.status!=='pending'&&(i.fecha||'').startsWith(m)).length} entradas</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-icon" style="background:var(--red-dim)">💳</div>
       <div class="kpi-label">${t('gastos_mes')}</div>
-      <div class="kpi-value" data-target="${eur(gas)}">${eur(gas)}</div>
+      <div class="kpi-value" data-animate="${eur(gas)}">${eur(gas)}</div>
       ${gasP ? `<span class="kpi-delta ${gas>gasP?'down':'up'}">${gas>gasP?'↑':'↓'} ${pct(Math.abs(gasP?((gas-gasP)/gasP*100):0))} vs. ant.</span>` : '<span class="kpi-delta neu">Primer mes</span>'}
       <div class="kpi-sub" style="margin-top:5px">${S.gastos.filter(g=>g.tipo!==TX_TYPES.GOAL_TRANSFER&&(g.fecha||'').startsWith(m)).length} salidas</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-icon" style="background:${cf>=0?'var(--accent-dim)':'var(--red-dim)'}">${cf>=0?'📊':'⚠️'}</div>
       <div class="kpi-label">${t('cash_flow')}</div>
-      <div class="kpi-value" style="color:${cf>=0?'var(--accent)':'var(--red)'}">${cf>=0?'+':''}${eur(cf)}</div>
+      <div class="kpi-value" style="color:${cf>=0?'var(--accent)':'var(--red)'}" data-animate="${eur(cf)}">${cf>=0?'+':''}${eur(cf)}</div>
       <span class="kpi-delta ${cf>=0?'up':'down'}">${cf>=0?'Superávit':'Déficit'} · ${monthLabel(m)}</span>
       <div class="kpi-sub" style="margin-top:5px">Ahorro: <strong style="color:${calcSavingsRate(m)>=20?'var(--green)':'var(--gold)'}">${pct(Math.max(0,calcSavingsRate(m)))}</strong></div>
     </div>
@@ -4458,7 +4473,8 @@ function renderIngresos() {
         : 'Añade tu primer ingreso con el botón + Nuevo ingreso'
       const clearBtn = (hasAny && (_ingSearch||_ingCatFilter||_ingMesFilter))
         ? `<button class="btn btn-ghost btn-sm" onclick="_ingSearch='';_ingCatFilter='';_ingMesFilter='';_gTimePeriod='all';renderIngresos()">🔍 Ver todos los ingresos</button>` : ''
-      return `<tr><td colspan="7"><div class="empty"><div class="empty-icon">💰</div><div class="empty-title">${emptyTitle}</div><div class="empty-sub">${emptySub}</div>${clearBtn}</div></td></tr>`
+      const _es = window.mnEmptyStates
+      return `<tr><td colspan="7">${_es ? _es.ingresos(hasAny, hasAny && (_ingSearch||_ingCatFilter||_ingMesFilter)) : `<div class="empty"><div class="empty-icon">💰</div><div class="empty-title">${emptyTitle}</div><div class="empty-sub">${emptySub}</div>${clearBtn}</div>`}</td></tr>`
     })()
 
   const ingPeriodLabel = _ingMesFilter ? monthLabel(_ingMesFilter) : 'Todos'
@@ -4617,7 +4633,7 @@ function renderGastos() {
         <button class="btn-edit" onclick="editarGasto('${g.id}')">${t('btn_editar')}</button>
         <button class="btn-del" onclick="borrarGasto('${g.id}')">${t('btn_eliminar')}</button>
       </div></td>
-    </tr>`).join('') || `<tr><td colspan="7"><div class="empty"><div class="empty-icon">💳</div><div class="empty-title">${t('sin_resultados')}</div><div class="empty-sub">${t('ajusta_aniade')}</div></div></td></tr>`
+    </tr>`).join('') || `<tr><td colspan="7">${window.mnEmptyStates ? window.mnEmptyStates.gastos(false, !!(_gasSearch||_gasCatFilter)) : `<div class="empty"><div class="empty-icon">💳</div><div class="empty-title">${t('sin_resultados')}</div><div class="empty-sub">${t('ajusta_aniade')}</div></div>`}</td></tr>`
 
   document.getElementById('content').innerHTML = `
   <div class="section-header">
@@ -4783,13 +4799,7 @@ function renderInversiones() {
         <button class="btn-del" onclick="borrarInversion('${inv.id}')">${t('btn_eliminar')}</button>
       </div>
     </div>`
-  }).join('') || `<div class="empty" style="grid-column:1/-1">
-    <div class="empty-icon">📈</div>
-    <div class="empty-title">${_invFiltro!=='todas'||_invCat?'Sin resultados':'Tu cartera está vacía'}</div>
-    <div class="empty-sub">${_invFiltro!=='todas'||_invCat?'Prueba con otros filtros o términos distintos':'Registra ETFs, acciones o criptos para hacer seguimiento del rendimiento'}</div>
-    
-    ${_invFiltro==='todas'&&!_invCat?`<button class="btn btn-primary btn-sm" onclick="openModal('inversionModal');resetInvForm()">+ Nueva inversión</button>`:''}
-  </div>`
+  }).join('') || (window.mnEmptyStates ? window.mnEmptyStates.inversiones(_invFiltro!=='todas'||!!_invCat) : `<div class="empty" style="grid-column:1/-1"><div class="empty-icon">📈</div><div class="empty-title">${_invFiltro!=='todas'||_invCat?'Sin resultados':'Tu cartera está vacía'}</div></div>`)
 
   document.getElementById('content').innerHTML = `
   <div class="section-header">
@@ -5023,13 +5033,7 @@ function renderDeudas() {
         <button class="btn-del" onclick="borrarDeuda('${d.id}')">${t('btn_eliminar')}</button>
       </div>
     </div>`
-  }).join('') || `<div class="empty" style="grid-column:1/-1">
-    <div class="empty-icon">📉</div>
-    <div class="empty-title">${_deudaSearch||_deudaCatFilter?'Sin resultados':'Sin deudas registradas'}</div>
-    <div class="empty-sub">${_deudaSearch||_deudaCatFilter?'Prueba con otros filtros o términos distintos':'Añade hipotecas, préstamos o tarjetas para controlar exactamente lo que debes'}</div>
-    
-    ${!_deudaSearch&&!_deudaCatFilter?'<button class="btn btn-primary btn-sm" onclick="openModal(\'deudaModal\');resetDeudaForm()">+ Nueva deuda</button>':''}
-  </div>`
+  }).join('') || (window.mnEmptyStates ? window.mnEmptyStates.deudas(!!(_deudaSearch||_deudaCatFilter)) : `<div class="empty" style="grid-column:1/-1"><div class="empty-icon">📉</div><div class="empty-title">${_deudaSearch||_deudaCatFilter?'Sin resultados':'Sin deudas registradas'}</div></div>`)
 
   document.getElementById('content').innerHTML = `
   <div class="section-header">
@@ -5449,13 +5453,7 @@ function renderObjetivos() {
       </div>
       </div>
     </div>`
-  }).join('') || `<div class="empty" style="grid-column:1/-1">
-    <div class="empty-icon">🎯</div>
-    <div class="empty-title">${_objSearch||_objCatFilter?'Sin resultados':'Define tu próxima meta'}</div>
-    <div class="empty-sub">${_objSearch||_objCatFilter?'Prueba con otros filtros o términos distintos':'Vacaciones, fondo de emergencia, un coche… MoneyNest calculará cuándo lo alcanzarás'}</div>
-    
-    ${!_objSearch&&!_objCatFilter?'<button class="btn btn-primary btn-sm" onclick="openModal(\'objetivoModal\');resetObjForm()">+ Crear mi primer objetivo</button>':''}
-  </div>`
+  }).join('') || (window.mnEmptyStates ? window.mnEmptyStates.objetivos(!!(_objSearch||_objCatFilter)) : `<div class="empty" style="grid-column:1/-1"><div class="empty-icon">🎯</div><div class="empty-title">${_objSearch||_objCatFilter?'Sin resultados':'Define tu próxima meta'}</div></div>`)
 
   // KPIs
   const totalMeta = S.objetivos.reduce((a,o)=>a+(Number(o.objetivo)||0),0)
@@ -6001,22 +5999,59 @@ const CHART_COLORS = ['#00D4AA','#6366F1','#F59E0B','#F43F5E','#10B981','#8B5CF6
 function chartDefaults() {
   return {
     responsive: true, maintainAspectRatio: false,
-    plugins: { legend: { display: false }, tooltip: {
-      backgroundColor: tooltipBg(),
-      borderColor: 'rgba(128,128,128,0.15)', borderWidth: 1,
-      titleColor: tooltipText(), bodyColor: '#94A3B8',
-      padding: 10, cornerRadius: 8
-    }}
+    animation: { duration: 700, easing: 'easeOutQuart' },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: tooltipBg(),
+        borderColor: S.theme === 'light' ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.1)',
+        borderWidth: 1,
+        titleColor: tooltipText(),
+        bodyColor: S.theme === 'light' ? '#475569' : '#94A3B8',
+        padding: { x: 14, y: 10 },
+        cornerRadius: 10,
+        titleFont: { size: 11, weight: '700' },
+        bodyFont: { size: 12, weight: '600' },
+        displayColors: true,
+        boxWidth: 8,
+        boxHeight: 8,
+        boxPadding: 4,
+        caretSize: 5,
+        callbacks: {}
+      }
+    }
   }
 }
 function destroyChart(id) {
   if (charts[id]) { try { charts[id].destroy() } catch(e){} delete charts[id] }
 }
 function destroyAllCharts() { Object.keys(charts).forEach(k=>destroyChart(k)) }
-function gridColor()  { return S.theme==='light' ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.05)' }
-function labelColor() { return S.theme==='light' ? '#64748B' : '#64748B' }
-function tooltipBg()  { return S.theme==='light' ? 'rgba(255,255,255,0.98)' : 'rgba(17,24,39,0.95)' }
+function gridColor()  { return S.theme==='light' ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.04)' }
+function labelColor() { return S.theme==='light' ? '#94A3B8' : '#64748B' }
+function tooltipBg()  { return S.theme==='light' ? 'rgba(255,255,255,0.98)' : 'rgba(15,20,35,0.95)' }
 function tooltipText(){ return S.theme==='light' ? '#0F172A' : '#E8EFF7' }
+
+// ── Gradient helper ─────────────────────────────────────────────
+function _chartGradient(ctx2, color, alphaTop = 0.22, alphaBot = 0.0, height = 220) {
+  try {
+    const g = ctx2.chart.ctx.createLinearGradient(0, 0, 0, height)
+    g.addColorStop(0, color.replace(')', `,${alphaTop})`).replace('rgb', 'rgba'))
+    g.addColorStop(1, color.replace(')', `,${alphaBot})`).replace('rgb', 'rgba'))
+    return g
+  } catch { return color + '18' }
+}
+function _hexGradient(canvas, hex, alphaTop = 0.22, alphaBot = 0.0) {
+  try {
+    const h = canvas.height || 220
+    const g = canvas.getContext('2d').createLinearGradient(0, 0, 0, h)
+    const r = parseInt(hex.slice(1,3),16)
+    const gr = parseInt(hex.slice(3,5),16)
+    const b = parseInt(hex.slice(5,7),16)
+    g.addColorStop(0, `rgba(${r},${gr},${b},${alphaTop})`)
+    g.addColorStop(1, `rgba(${r},${gr},${b},${alphaBot})`)
+    return g
+  } catch { return hex + '20' }
+}
 
 function renderChartPatrimonio() {
   const ctx = document.getElementById('chartPatrimonio')
@@ -6040,26 +6075,42 @@ function renderChartPatrimonio() {
         data: vals,
         borderColor: '#00D4AA',
         backgroundColor: (c) => {
-          const gradient = c.chart.ctx.createLinearGradient(0, 0, 0, 200)
-          gradient.addColorStop(0, 'rgba(0,212,170,0.15)')
-          gradient.addColorStop(1, 'rgba(0,212,170,0)')
-          return gradient
+          try {
+            const h = c.chart.chartArea?.bottom || 220
+            const g = c.chart.ctx.createLinearGradient(0, 0, 0, h)
+            g.addColorStop(0, 'rgba(0,212,170,0.25)')
+            g.addColorStop(0.6, 'rgba(0,212,170,0.06)')
+            g.addColorStop(1, 'rgba(0,212,170,0)')
+            return g
+          } catch { return 'rgba(0,212,170,0.12)' }
         },
-        fill: true, tension: 0.4,
-        pointRadius: nonNullVals.length <= 1 ? 5 : 3,
+        fill: true, tension: 0.42,
+        pointRadius: nonNullVals.length <= 1 ? 6 : 4,
+        pointHoverRadius: 7,
         pointBackgroundColor: '#00D4AA',
-        pointBorderColor: '#fff',
-        pointBorderWidth: 1,
-        borderWidth: 2, spanGaps: true
+        pointBorderColor: S.theme === 'light' ? '#fff' : '#0A0E17',
+        pointBorderWidth: 2,
+        borderWidth: 2.5, spanGaps: true
       }]
     },
-    options: { ...chartDefaults(), scales: {
-      x: { grid: { color: 'transparent' }, ticks: { color: labelColor(), font: { size: 11 } } },
-      y: { grid: { color: gridColor() }, ticks: { color: labelColor(), font: { size: 11 }, callback: v => eur(v) },
-        suggestedMin: minVal - yPad,
-        suggestedMax: maxVal + yPad
+    options: { ...chartDefaults(),
+      plugins: { ...chartDefaults().plugins,
+        tooltip: { ...chartDefaults().plugins.tooltip,
+          callbacks: {
+            title: (items) => items[0].label,
+            label: (c) => ' Patrimonio: ' + eur(c.raw),
+          }
+        }
+      },
+      scales: {
+        x: { grid: { color: 'transparent' }, ticks: { color: labelColor(), font: { size: 11 } }, border: { color: 'transparent' } },
+        y: { grid: { color: gridColor(), drawBorder: false }, ticks: { color: labelColor(), font: { size: 11 }, callback: v => eur(v) },
+          suggestedMin: minVal - yPad,
+          suggestedMax: maxVal + yPad,
+          border: { color: 'transparent' }
+        }
       }
-    }}
+    }
   })
 }
 
@@ -6069,38 +6120,50 @@ function renderChartCashFlow() {
   destroyChart('cashflow')
   const months = getMonths(6)
   const cfData = months.map(m => calcCashFlow(m))
+  const lastPositive = cfData[cfData.length - 1] >= 0
   charts['cashflow'] = new Chart(ctx, {
     type: 'line',
     data: {
       labels: months.map(monthLabel),
       datasets: [{
         data: cfData,
-        borderColor: cfData[cfData.length-1] >= 0 ? '#00D4AA' : '#F43F5E',
-        backgroundColor: (ctx2) => {
-          const gradient = ctx2.chart.ctx.createLinearGradient(0,0,0,200)
-          gradient.addColorStop(0,'rgba(0,212,170,0.15)')
-          gradient.addColorStop(1,'rgba(0,212,170,0)')
-          return gradient
+        borderColor: lastPositive ? '#00D4AA' : '#F43F5E',
+        backgroundColor: (c) => {
+          try {
+            const h = c.chart.chartArea?.bottom || 200
+            const g = c.chart.ctx.createLinearGradient(0, 0, 0, h)
+            if (lastPositive) {
+              g.addColorStop(0, 'rgba(0,212,170,0.2)')
+              g.addColorStop(1, 'rgba(0,212,170,0)')
+            } else {
+              g.addColorStop(0, 'rgba(244,63,94,0.18)')
+              g.addColorStop(1, 'rgba(244,63,94,0)')
+            }
+            return g
+          } catch { return lastPositive ? 'rgba(0,212,170,0.1)' : 'rgba(244,63,94,0.1)' }
         },
-        fill: true, tension: 0.4, pointRadius: 4,
+        fill: true, tension: 0.42, pointRadius: 4, pointHoverRadius: 6,
         pointBackgroundColor: cfData.map(v => v >= 0 ? '#00D4AA' : '#F43F5E'),
-        pointBorderColor: 'transparent',
-        borderWidth: 2, spanGaps: true,
-        segment: {
-          borderColor: ctx2 => cfData[ctx2.p0DataIndex] >= 0 ? '#00D4AA' : '#F43F5E'
-        }
+        pointBorderColor: S.theme === 'light' ? '#fff' : '#0A0E17',
+        pointBorderWidth: 2,
+        borderWidth: 2.5, spanGaps: true,
+        segment: { borderColor: c => cfData[c.p0DataIndex] >= 0 ? '#00D4AA' : '#F43F5E' }
       }]
     },
     options: { ...chartDefaults(),
       plugins: { ...chartDefaults().plugins,
         tooltip: { ...chartDefaults().plugins.tooltip,
-          callbacks: { label: ctx2 => (ctx2.raw >= 0 ? '+' : '') + eur(ctx2.raw) }
+          callbacks: {
+            title: (i) => i[0].label,
+            label: (c) => ' Cashflow: ' + (c.raw >= 0 ? '+' : '') + eur(c.raw)
+          }
         }
       },
       scales: {
-        x: { grid:{color:gridColor()}, ticks:{color:labelColor(),font:{size:11}} },
-        y: { grid:{color:gridColor()}, ticks:{color:labelColor(),font:{size:11},callback:v=>(v>=0?'+':'')+eur(v)},
-          afterDataLimits: scale => { const max = Math.max(Math.abs(scale.min),Math.abs(scale.max)); scale.min=-max; scale.max=max }
+        x: { grid: { color: 'transparent' }, ticks: { color: labelColor(), font: { size: 11 } }, border: { color: 'transparent' } },
+        y: { grid: { color: gridColor() }, border: { color: 'transparent' },
+          ticks: { color: labelColor(), font: { size: 11 }, callback: v => (v >= 0 ? '+' : '') + eur(v) },
+          afterDataLimits: scale => { const m = Math.max(Math.abs(scale.min), Math.abs(scale.max)); scale.min = -m; scale.max = m }
         }
       }
     }
@@ -6116,24 +6179,43 @@ function renderChartIngVsGas() {
   const gasData = months.map(m => calcGastosMes(m))
   const allVals = [...ingData, ...gasData].filter(v => v > 0)
   const maxVal = allVals.length ? Math.max(...allVals) : 100
+  const _mkGrad = (c, hex, a1, a2) => {
+    try {
+      const h2 = c.chart.chartArea?.bottom || 220
+      const g = c.chart.ctx.createLinearGradient(0, 0, 0, h2)
+      const [r2, g2, b2] = [parseInt(hex.slice(1,3),16),parseInt(hex.slice(3,5),16),parseInt(hex.slice(5,7),16)]
+      g.addColorStop(0, `rgba(${r2},${g2},${b2},${a1})`); g.addColorStop(1, `rgba(${r2},${g2},${b2},${a2})`)
+      return g
+    } catch { return hex + '18' }
+  }
   charts['ingvsgas'] = new Chart(ctx, {
     type: 'line',
     data: {
       labels: months.map(monthLabel),
       datasets: [
-        { label: t('nav_ingresos'), data: ingData, borderColor: '#10B981', backgroundColor: 'rgba(16,185,129,0.08)', fill: true, tension: 0.4, pointRadius: 4, pointBackgroundColor: '#10B981', pointBorderColor: 'transparent', borderWidth: 2, spanGaps: true },
-        { label: t('nav_gastos'),   data: gasData, borderColor: '#F43F5E', backgroundColor: 'rgba(244,63,94,0.05)',  fill: true, tension: 0.4, pointRadius: 4, pointBackgroundColor: '#F43F5E', pointBorderColor: 'transparent', borderWidth: 2, spanGaps: true }
+        { label: t('nav_ingresos'), data: ingData, borderColor: '#10B981',
+          backgroundColor: c => _mkGrad(c, '#10B981', 0.18, 0),
+          fill: true, tension: 0.42, pointRadius: 4, pointHoverRadius: 6,
+          pointBackgroundColor: '#10B981', pointBorderColor: S.theme==='light'?'#fff':'#0A0E17', pointBorderWidth: 2, borderWidth: 2.5, spanGaps: true },
+        { label: t('nav_gastos'), data: gasData, borderColor: '#F43F5E',
+          backgroundColor: c => _mkGrad(c, '#F43F5E', 0.12, 0),
+          fill: true, tension: 0.42, pointRadius: 4, pointHoverRadius: 6,
+          pointBackgroundColor: '#F43F5E', pointBorderColor: S.theme==='light'?'#fff':'#0A0E17', pointBorderWidth: 2, borderWidth: 2.5, spanGaps: true }
       ]
     },
     options: { ...chartDefaults(),
       plugins: { ...chartDefaults().plugins,
-        legend: { display: true, labels: { color: labelColor(), boxWidth: 10, font: { size: 10 } } },
-        tooltip: { ...chartDefaults().plugins.tooltip, callbacks: { label: c => c.dataset.label + ': ' + eur(c.raw) } }
+        legend: { display: true, labels: { color: labelColor(), boxWidth: 8, boxHeight: 8, padding: 16, font: { size: 11, weight: '600' } } },
+        tooltip: { ...chartDefaults().plugins.tooltip,
+          callbacks: { title: i => i[0].label, label: c => ' ' + c.dataset.label + ': ' + eur(c.raw) }
+        }
       },
       scales: {
-        x: { grid: { color: 'transparent' }, ticks: { color: labelColor(), font: { size: 11 } } },
-        y: { grid: { color: gridColor() }, ticks: { color: labelColor(), font: { size: 11 }, callback: v => eur(v) },
-          suggestedMin: 0, suggestedMax: maxVal > 0 ? maxVal * 1.15 : 100 }
+        x: { grid: { color: 'transparent' }, ticks: { color: labelColor(), font: { size: 11 } }, border: { color: 'transparent' } },
+        y: { grid: { color: gridColor() }, border: { color: 'transparent' },
+          ticks: { color: labelColor(), font: { size: 11 }, callback: v => eur(v) },
+          suggestedMin: 0, suggestedMax: maxVal > 0 ? maxVal * 1.15 : 100
+        }
       }
     }
   })
@@ -6152,17 +6234,34 @@ function renderChartDonut() {
   charts['donut'] = new Chart(ctx, {
     type: 'doughnut',
     data: {
-      labels: entries.map(e=>e[0]),
-      datasets: [{ data: entries.map(e=>e[1]), backgroundColor: CHART_COLORS, borderWidth: 0, hoverOffset: 4 }]
+      labels: entries.map(e => e[0]),
+      datasets: [{
+        data: entries.map(e => e[1]),
+        backgroundColor: CHART_COLORS,
+        borderWidth: 2,
+        borderColor: S.theme === 'light' ? '#F8FAFC' : '#111827',
+        hoverOffset: 8,
+        hoverBorderWidth: 0,
+      }]
     },
-    options: { ...chartDefaults(), cutout: '70%' }
+    options: { ...chartDefaults(),
+      cutout: '72%',
+      plugins: { ...chartDefaults().plugins,
+        tooltip: { ...chartDefaults().plugins.tooltip,
+          callbacks: {
+            title: i => i[0].label,
+            label: c => ' ' + eur(c.raw) + '  (' + pct(total ? c.raw / total * 100 : 0, 1) + ')'
+          }
+        }
+      }
+    }
   })
   if (legendEl) {
-    legendEl.innerHTML = entries.map((e,i)=>`
+    legendEl.innerHTML = entries.map((e, i) => `
       <div class="legend-item">
-        <div class="legend-dot" style="background:${CHART_COLORS[i]}"></div>
-        <span class="legend-label">${e[0]}</span>
-        <span class="legend-val">${pct(total?e[1]/total*100:0,0)}</span>
+        <div class="legend-dot" style="background:${CHART_COLORS[i]};border-radius:3px;width:10px;height:10px;flex-shrink:0"></div>
+        <span class="legend-label" style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e[0]}</span>
+        <span class="legend-val" style="font-weight:700;color:var(--text)">${pct(total ? e[1] / total * 100 : 0, 0)}</span>
       </div>`).join('')
   }
 }
@@ -8330,6 +8429,54 @@ function projectWealth(months) {
 // ─── PÁGINAS NUEVAS: ANÁLISIS & HERRAMIENTAS ─────────────────
 // ════════════════════════════════════════════════════════════════
 
+function _renderDayOfWeekHeatmap() {
+  // Agrupa gastos de los últimos 3 meses por día de semana
+  const months3 = getMonths(3)
+  const dayTotals  = Array(7).fill(0)  // 0=Dom, 1=Lun... 6=Sáb
+  const dayCounts  = Array(7).fill(0)
+  S.gastos.filter(g => {
+    if (g.tipo === TX_TYPES.GOAL_TRANSFER) return false
+    return months3.some(m => (g.fecha || '').startsWith(m))
+  }).forEach(g => {
+    if (!g.fecha) return
+    const dow = new Date(g.fecha + 'T12:00:00').getDay()
+    dayTotals[dow] += Number(g.importe) || 0
+    dayCounts[dow]++
+  })
+
+  const labels = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
+  // Reorder Mon-Sun
+  const order = [1, 2, 3, 4, 5, 6, 0]
+  const vals   = order.map(i => dayTotals[i])
+  const maxVal = Math.max(...vals, 1)
+
+  const bars = order.map((i, idx) => {
+    const val  = dayTotals[i]
+    const pct2 = (val / maxVal * 100).toFixed(1)
+    const isWeekend = i === 0 || i === 6
+    const color = val === maxVal ? 'var(--red)' : isWeekend ? 'var(--gold)' : 'var(--accent)'
+    return `
+      <div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:1">
+        <div style="font-size:.68rem;font-weight:700;color:var(--text2)">${labels[i]}</div>
+        <div style="width:100%;background:var(--border);border-radius:4px;height:60px;position:relative;overflow:hidden">
+          <div style="position:absolute;bottom:0;left:0;right:0;background:${color};border-radius:4px;height:${pct2}%;opacity:0.8;transition:height .6s ease"></div>
+        </div>
+        <div style="font-size:.65rem;color:${val>0?'var(--text)':'var(--text3)'};font-weight:${val===maxVal?'800':'600'}">${val>0?eur(val).replace(' €',''):'—'}</div>
+      </div>`
+  }).join('')
+
+  const total3m = vals.reduce((a,v)=>a+v,0)
+  if (total3m === 0) return `<div class="empty" style="padding:20px"><div class="empty-icon">📅</div><div class="empty-title" style="font-size:.85rem">Sin datos suficientes</div></div>`
+
+  return `
+    <div style="padding:4px 0 8px">
+      <div style="display:flex;gap:6px;align-items:flex-end;padding:0 4px">${bars}</div>
+      <div style="margin-top:10px;font-size:.72rem;color:var(--text2);text-align:center">
+        Gasto total 3 meses: <strong style="color:var(--text)">${eur(total3m)}</strong>
+      </div>
+    </div>`
+}
+
 function renderAnalisis() {
   const m   = currentMonth()
   const rev = generateMonthlyReview(m)
@@ -8458,6 +8605,22 @@ function renderAnalisis() {
       <div class="kpi-label">Ganancias realizadas</div>
       <div class="kpi-value sm" style="color:${gananciaRealizada>=0?'var(--green)':'var(--red)'}">${gananciaRealizada>=0?'+':''}${eur(gananciaRealizada)}</div>
       <div class="kpi-sub">ROI medio: ${roiMedio?pct(roiMedio):'—'}</div>
+    </div>
+  </div>
+
+  <!-- Cashflow 12 meses (barras) + Heatmap gastos -->
+  <div class="grid-2" style="margin-bottom:16px">
+    <div class="card">
+      <div class="card-header">
+        <div><div class="card-title">📊 Cashflow mensual</div><div class="card-subtitle">Últimos 12 meses · verde = superávit</div></div>
+      </div>
+      <div class="chart-container" style="height:160px"><canvas id="chartCashflowBars"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <div><div class="card-title">🗓 Gastos por día de semana</div><div class="card-subtitle">Patrón de los últimos 3 meses</div></div>
+      </div>
+      ${_renderDayOfWeekHeatmap()}
     </div>
   </div>
 
@@ -8700,6 +8863,43 @@ function renderAnalisis() {
 
   // Charts
   setTimeout(()=>{
+    // Cashflow barras 12 meses
+    const cfBarsCtx = document.getElementById('chartCashflowBars')
+    if (cfBarsCtx) {
+      destroyChart('cfBars')
+      const m12 = getMonths(12)
+      const cfVals = m12.map(mo => calcIngresosMes(mo) - calcGastosMes(mo))
+      charts['cfBars'] = new Chart(cfBarsCtx, {
+        type: 'bar',
+        data: {
+          labels: m12.map(mo => monthLabel(mo).slice(0,3)),
+          datasets: [{
+            data: cfVals,
+            backgroundColor: cfVals.map(v => v >= 0 ? 'rgba(0,212,170,0.75)' : 'rgba(244,63,94,0.75)'),
+            borderColor: cfVals.map(v => v >= 0 ? '#00D4AA' : '#F43F5E'),
+            borderWidth: 1,
+            borderRadius: 5,
+            categoryPercentage: 0.7,
+            barPercentage: 0.85,
+          }]
+        },
+        options: { ...chartDefaults(),
+          plugins: { ...chartDefaults().plugins,
+            tooltip: { ...chartDefaults().plugins.tooltip,
+              callbacks: { label: c => ' ' + (c.raw >= 0 ? '+' : '') + eur(c.raw) }
+            }
+          },
+          scales: {
+            x: { grid: { color: 'transparent' }, ticks: { color: labelColor(), font: { size: 10 } }, border: { color: 'transparent' } },
+            y: { grid: { color: gridColor() }, border: { color: 'transparent' },
+              ticks: { color: labelColor(), font: { size: 10 }, callback: v => (v >= 0 ? '+' : '') + eur(v) },
+              afterDataLimits: s => { const mx = Math.max(Math.abs(s.min), Math.abs(s.max)); s.min = -mx * 1.1; s.max = mx * 1.1 }
+            }
+          }
+        }
+      })
+    }
+
     const patCtx = document.getElementById('chartAnalisisPatrimonio')
     if(patCtx){
       destroyChart('analisisPat')
@@ -8790,8 +8990,76 @@ function renderDebtAdvisor() {
     </div>`
   }).join('')
 
+  // Calcular proyección de saldo para ambas estrategias (pago moderado)
+  const modPay = calcDebtStrategy(pendienteTotal, interesMedio, 1.0).monthlyPayment
+  const _simDebtEvolution = (ordered, monthly) => {
+    let saldos = ordered.map(d => Number(d.importeTotal) - Number(d.importePagado || 0))
+    const series = [saldos.reduce((a, v) => a + v, 0)]
+    let extraFromPaid = 0
+    for (let i = 0; i < 60; i++) {  // max 60 meses
+      let payment = monthly + extraFromPaid
+      extraFromPaid = 0
+      saldos = saldos.map(s => {
+        if (s <= 0) return 0
+        const paid = Math.min(payment, s)
+        payment -= paid
+        const remaining = s - paid
+        if (remaining <= 0) extraFromPaid += (paid - s + remaining) // excess goes to next
+        return Math.max(0, remaining)
+      })
+      const total = saldos.reduce((a, v) => a + v, 0)
+      series.push(Math.round(total))
+      if (total <= 0) break
+    }
+    return series
+  }
+  const snowSeries  = _simDebtEvolution(snowball,  modPay)
+  const avalSeries  = _simDebtEvolution(avalanche, modPay)
+  const maxMonths   = Math.max(snowSeries.length, avalSeries.length)
+  const chartLabels = Array.from({ length: maxMonths }, (_, i) => i === 0 ? 'Hoy' : `M${i}`)
+
+  // Fecha estimada de libertad financiera (moderado)
+  const snowMonths = snowSeries.findIndex(v => v <= 0) || snowSeries.length
+  const avalMonths = avalSeries.findIndex(v => v <= 0) || avalSeries.length
+  const freeDate = (months) => {
+    const d = new Date(); d.setMonth(d.getMonth() + months)
+    return d.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })
+  }
+
+  // Ahorro de intereses (avalancha vs bola de nieve)
+  const interestDiff = interesMedio > 0
+    ? Math.round(pendienteTotal * (interesMedio / 100 / 12) * Math.max(0, snowMonths - avalMonths))
+    : 0
+
   return `
-  <div style="display:flex;gap:8px;margin-bottom:14px">${stratHtml}</div>
+  <!-- Estrategias de pago -->
+  <div style="display:flex;gap:8px;margin-bottom:16px">${stratHtml}</div>
+
+  <!-- Comparativa visual: libertad financiera -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+    <div style="padding:14px;border-radius:12px;background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.2);text-align:center">
+      <div style="font-size:.7rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">❄️ Bola de nieve</div>
+      <div style="font-size:1.15rem;font-weight:800;color:var(--text)">${fmtMonths(snowMonths)}</div>
+      <div style="font-size:.7rem;color:var(--text2);margin-top:3px">${snowMonths > 0 ? freeDate(snowMonths) : '—'}</div>
+    </div>
+    <div style="padding:14px;border-radius:12px;background:rgba(0,212,170,.08);border:1px solid rgba(0,212,170,.2);text-align:center">
+      <div style="font-size:.7rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">🌊 Avalancha</div>
+      <div style="font-size:1.15rem;font-weight:800;color:var(--accent)">${fmtMonths(avalMonths)}</div>
+      <div style="font-size:.7rem;color:var(--text2);margin-top:3px">${avalMonths > 0 ? freeDate(avalMonths) : '—'}</div>
+    </div>
+  </div>
+
+  ${interestDiff > 0 ? `<div style="padding:10px 14px;border-radius:10px;background:var(--green-dim);border:1px solid rgba(16,185,129,.2);font-size:.78rem;color:var(--text2);margin-bottom:14px">
+    💡 Con <strong style="color:var(--text)">Avalancha</strong> ahorras aprox. <strong style="color:var(--green)">${eur(interestDiff)}</strong> en intereses frente a Bola de nieve.
+  </div>` : ''}
+
+  <!-- Gráfico evolución saldo -->
+  <div style="margin-bottom:14px">
+    <div style="font-size:.78rem;font-weight:700;color:var(--text2);margin-bottom:6px">📉 Evolución del saldo total</div>
+    <div class="chart-container" style="height:140px"><canvas id="chartDebtEvolution"></canvas></div>
+  </div>
+
+  <!-- Orden de pago -->
   <div class="tabs" style="margin-bottom:12px">
     <div class="tab active" id="tab-snowball" onclick="switchDebtTab('snowball')">❄️ Bola de nieve</div>
     <div class="tab" id="tab-avalanche" onclick="switchDebtTab('avalanche')">🌊 Avalancha</div>
@@ -8808,6 +9076,8 @@ function renderDebtAdvisor() {
     </div>
     ${makeList(avalanche)}
   </div>
+
+  <!-- Calculadora personalizada -->
   <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
     <div style="font-size:.78rem;color:var(--text2);font-weight:600;margin-bottom:8px">🧮 Calculadora personalizada</div>
     <div style="display:flex;gap:8px;align-items:center">
@@ -8816,6 +9086,44 @@ function renderDebtAdvisor() {
     </div>
     <div id="debtFreeResult" style="margin-top:8px;font-size:.82rem;color:var(--text2)"></div>
   </div>`
+
+  // Render chart after DOM exists
+  setTimeout(() => {
+    const dCtx = document.getElementById('chartDebtEvolution')
+    if (!dCtx) return
+    destroyChart('debtEvolution')
+    const maxL = Math.max(snowSeries.length, avalSeries.length)
+    const labels = Array.from({ length: maxL }, (_, i) => i === 0 ? 'Hoy' : `M${i}`)
+    charts['debtEvolution'] = new Chart(dCtx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          { label: '❄️ Bola de nieve', data: snowSeries.concat(Array(maxL - snowSeries.length).fill(0)),
+            borderColor: '#6366F1', backgroundColor: 'rgba(99,102,241,0.06)', fill: true, tension: 0.3,
+            pointRadius: 0, pointHoverRadius: 4, borderWidth: 2 },
+          { label: '🌊 Avalancha',     data: avalSeries.concat(Array(maxL - avalSeries.length).fill(0)),
+            borderColor: '#00D4AA', backgroundColor: 'rgba(0,212,170,0.06)', fill: true, tension: 0.3,
+            pointRadius: 0, pointHoverRadius: 4, borderWidth: 2 },
+        ]
+      },
+      options: { ...chartDefaults(),
+        plugins: { ...chartDefaults().plugins,
+          legend: { display: true, labels: { color: labelColor(), boxWidth: 8, font: { size: 10, weight: '700' } } },
+          tooltip: { ...chartDefaults().plugins.tooltip,
+            callbacks: { label: c => ' ' + c.dataset.label + ': ' + eur(c.raw) }
+          }
+        },
+        scales: {
+          x: { grid: { color: 'transparent' }, ticks: { color: labelColor(), font: { size: 9 }, maxTicksLimit: 8 }, border: { color: 'transparent' } },
+          y: { grid: { color: gridColor() }, border: { color: 'transparent' },
+            ticks: { color: labelColor(), font: { size: 9 }, callback: v => eur(v) },
+            suggestedMin: 0
+          }
+        }
+      }
+    })
+  }, 80)
 }
 
 function switchDebtTab(tab) {
@@ -11646,6 +11954,35 @@ function render() {
     document.getElementById('content').innerHTML = ''
     renderFn()
     if (currentPage === 'analisis') setTimeout(renderProjectionChart, 80)
+    // KPI counter animations — dashboard only
+    if (currentPage === 'dashboard' && window.MNKPIAnimator) {
+      requestAnimationFrame(() => {
+        window.MNKPIAnimator.runDashboardAnimations()
+        // Animate health score ring + number
+        const scoreEl = document.getElementById('healthScoreNum')
+        const ringEl  = document.getElementById('healthRingFill')
+        if (scoreEl && ringEl) {
+          const target      = parseInt(scoreEl.getAttribute('data-score') || '0') || 0
+          const arcLen      = parseFloat(ringEl.getAttribute('stroke-dasharray')) || 100
+          const finalOffset = parseFloat(ringEl.getAttribute('data-final-offset') || ringEl.style.strokeDashoffset) || arcLen
+          if (target > 0) {
+            let start = null
+            scoreEl.textContent = '0'
+            ringEl.style.strokeDashoffset = arcLen
+            const duration = 1000
+            requestAnimationFrame(function anim(ts) {
+              if (!start) start = ts
+              const p = Math.min((ts - start) / duration, 1)
+              const ease = 1 - Math.pow(2, -10 * p)
+              scoreEl.textContent = Math.round(target * ease)
+              ringEl.style.strokeDashoffset = arcLen - (arcLen - finalOffset) * ease
+              if (p < 1) requestAnimationFrame(anim)
+              else { scoreEl.textContent = target; ringEl.style.strokeDashoffset = finalOffset }
+            })
+          }
+        }
+      })
+    }
   }
 }
 
@@ -11763,37 +12100,62 @@ function renderHealthScore() {
   const factors = calcHealthFactors()
   const { label, color } = healthScoreLabel(score)
   const eom    = calcEOMBalance()
-  const r      = 22
-  const circum = 2 * Math.PI * r
-  const dashOff = score > 0 ? circum - (score / 100) * circum : circum
+
+  // Arco semicircular — más visual que círculo completo
+  const R = 32
+  const cx = 40, cy = 42
+  const startAngle = Math.PI          // 180° — empieza izquierda
+  const endAngle   = 2 * Math.PI      // 360° — termina derecha
+  const totalArc   = endAngle - startAngle  // π radianes
+  const arcLen     = R * totalArc           // longitud arco
+
+  // Track completo
+  const tx1 = cx + R * Math.cos(startAngle), ty1 = cy + R * Math.sin(startAngle)
+  const tx2 = cx + R * Math.cos(endAngle),   ty2 = cy + R * Math.sin(endAngle)
+
+  // Fill — proporción del score
+  const fillRatio = score > 0 ? score / 100 : 0
+  const fillEnd   = startAngle + totalArc * fillRatio
+  const fx2 = cx + R * Math.cos(fillEnd), fy2 = cy + R * Math.sin(fillEnd)
+  const largeFill = fillRatio > 0.5 ? 1 : 0
+
+  // Tick marks each 25 pts
+  const ticks = [0, 25, 50, 75, 100].map(v => {
+    const a = startAngle + (v / 100) * totalArc
+    const inner = R - 5, outer = R + 1
+    return `<line x1="${cx + inner*Math.cos(a)}" y1="${cy + inner*Math.sin(a)}" x2="${cx + outer*Math.cos(a)}" y2="${cy + outer*Math.sin(a)}" stroke="var(--border2)" stroke-width="1.5" stroke-linecap="round"/>`
+  }).join('')
 
   const factorDots = factors.map(f => `
     <div class="hsc-factor">
-      <div class="hsc-factor-dot" style="background:${f.ok ? 'var(--green)' : 'var(--red)'}"></div>
+      <div class="hsc-factor-dot" style="background:${f.ok ? 'var(--green)' : 'rgba(244,63,94,.8)'}"></div>
       <span>${f.label}</span>
     </div>`).join('')
 
   return `<div class="health-score-compact">
     <div class="hsc-ring-wrap">
-      <svg width="56" height="56" viewBox="0 0 56 56">
-        <circle cx="28" cy="28" r="${r}" fill="none" stroke="var(--border)" stroke-width="5"/>
-        <circle cx="28" cy="28" r="${r}" fill="none"
-          stroke="${color}" stroke-width="5"
-          stroke-linecap="round"
-          stroke-dasharray="${circum}"
-          stroke-dashoffset="${dashOff}"
-          id="healthRingFill" style="transition:stroke-dashoffset 1.2s cubic-bezier(0.4,0,0.2,1)"/>
+      <svg width="80" height="52" viewBox="0 0 80 52" style="overflow:visible">
+        <!-- track -->
+        <path d="M ${tx1} ${ty1} A ${R} ${R} 0 1 1 ${tx2} ${ty2}"
+          fill="none" stroke="var(--border)" stroke-width="6" stroke-linecap="round"/>
+        ${ticks}
+        <!-- fill -->
+        ${fillRatio > 0 ? `<path d="M ${tx1} ${ty1} A ${R} ${R} 0 ${largeFill} 1 ${fx2} ${fy2}"
+          fill="none" stroke="${color}" stroke-width="6" stroke-linecap="round"
+          id="healthRingFill"
+          style="stroke-dasharray:${arcLen};stroke-dashoffset:${arcLen};transition:stroke-dashoffset 1s cubic-bezier(0.4,0,0.2,1)"
+          data-final-offset="${arcLen * (1 - fillRatio)}"/>` : ''}
       </svg>
-      <div class="hsc-num" id="healthScoreNum">${score > 0 ? 0 : '—'}</div>
+      <div class="hsc-num" id="healthScoreNum" data-score="${score}" style="bottom:-2px">${score > 0 ? 0 : '—'}</div>
     </div>
     <div class="hsc-info">
       <div class="hsc-title">${t('salud_financiera')}</div>
-      <div class="hsc-label" style="color:${color}">${label}</div>
+      <div class="hsc-label" style="color:${color};font-weight:800">${label}</div>
       <div class="hsc-factors">${factorDots}</div>
     </div>
     <div class="hsc-eom">
       <div class="hsc-eom-label">${t('fin_de_mes')}</div>
-      <div class="hsc-eom-val" style="color:${eom>=0?'var(--accent)':'var(--red)'}">${eom>=0?'+':''}${eur(eom)}</div>
+      <div class="hsc-eom-val" data-animate="${eur(eom)}" style="color:${eom>=0?'var(--accent)':'var(--red)'}">${eom>=0?'+':''}${eur(eom)}</div>
       <div class="hsc-eom-sub">${eom>=0?t('estimado'):t('posible_deficit')}</div>
     </div>
   </div>`
