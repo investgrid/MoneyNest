@@ -120,9 +120,10 @@ function renderTrialPill(containerId = 'trialPillContainer') {
 function renderTrialBanner() {
   const user = _auth.getUser();
 
-  // Remove banner if plan is no longer trial
+  // Remove banner if plan is no longer trial or onboarding not yet completed
   const existing = document.getElementById('mn-trial-banner');
-  if (user.plan !== 'trial') {
+  const obSeen = localStorage.getItem('mn7_ob_seen') === 'true';
+  if (user.plan !== 'trial' || !obSeen) {
     if (existing) existing.remove();
     return;
   }
@@ -207,7 +208,6 @@ function _buildContent(user) {
 
   if (_modalMode === 'login')           return _buildLoginView();
   if (_modalMode === 'register')        return _buildRegisterView();
-  if (_modalMode === 'verify-otp')      return _buildVerifyOtpView();
   if (_modalMode === 'forgot')          return _buildForgotView();
   if (_modalMode === 'update-password') return _buildUpdatePasswordView();
 
@@ -617,12 +617,6 @@ function _attachListeners(user) {
   // Init Turnstile widget after DOM renders
   setTimeout(() => _initTurnstile(), 80);
 
-  // ── OTP verification ─────────────────────────────────────────
-  _on('mn-otp-submit-btn', () => _handleVerifyOtp());
-  _onKey('mn-otp-input',   'Enter', () => _handleVerifyOtp());
-  _on('mn-otp-resend',     () => _handleResendOtp());
-  _on('mn-otp-back',       () => _switchMode('register'));
-
   // ── Forgot password ──────────────────────────────────────────
   _on('mn-forgot-submit-btn', () => _handleForgot());
   _onKey('mn-forgot-email', 'Enter', () => _handleForgot());
@@ -796,69 +790,6 @@ async function _handleRegister() {
   } finally {
     _setBtnLoading(btn, false, _t('auth_crear_y_empezar','Crear cuenta y empezar →'));
     _modalLoading = false;
-  }
-}
-
-async function _handleVerifyOtp() {
-  if (_modalLoading) return;
-  const token = _val('mn-otp-input');
-  const msg   = document.getElementById('mn-otp-msg');
-  const btn   = document.getElementById('mn-otp-submit-btn');
-
-  if (!token || token.length !== 6) {
-    _showMsg(msg, '⚠ ' + _t('auth_error_codigo','Introduce el código de 6 dígitos.'), 'error'); return;
-  }
-  if (!_pendingEmail) {
-    _showMsg(msg, '⚠ ' + _t('auth_error_generico','Error. Vuelve a registrarte.'), 'error'); return;
-  }
-
-  _setBtnLoading(btn, true, _t('auth_verificando','Verificando…'));
-  _modalLoading = true;
-  try {
-    await window.MNSupabaseAuth.verifyEmailOtp(_pendingEmail, token);
-    _pendingEmail = '';
-    _toast('✅ ' + _t('auth_email_verificado','¡Email verificado! Bienvenido a MoneyNest.'));
-    closeAuthModal();
-    renderAuthBadge();
-    renderTrialPill();
-    if (typeof updateSidebarLogo === 'function') updateSidebarLogo();
-  } catch (err) {
-    const code = err?.code || '';
-    const map = {
-      rate_limited: _t('auth_error_rate','Demasiados intentos. Espera unos minutos.'),
-      otp_expired:  _t('auth_error_codigo_expirado','El código ha expirado. Solicita uno nuevo.'),
-    };
-    _showMsg(msg, '⚠ ' + (map[code] || _t('auth_error_codigo_invalido','Código incorrecto. Inténtalo de nuevo.')), 'error');
-  } finally {
-    _setBtnLoading(btn, false, _t('auth_verificar','Verificar y entrar'));
-    _modalLoading = false;
-  }
-}
-
-async function _handleResendOtp() {
-  if (!_pendingEmail) return;
-  const btn = document.getElementById('mn-otp-resend');
-  if (btn) { btn.disabled = true; btn.textContent = _t('auth_enviando','Enviando…'); }
-  try {
-    await window.MNSupabaseAuth.resendVerificationEmail(_pendingEmail);
-    _toast('✅ ' + _t('auth_codigo_reenviado','Nuevo código enviado. Revisa tu email.'));
-    // Cooldown 60s
-    let secs = 60;
-    const interval = setInterval(() => {
-      secs--;
-      const el = document.getElementById('mn-otp-resend');
-      if (!el) { clearInterval(interval); return; }
-      if (secs <= 0) {
-        clearInterval(interval);
-        el.disabled = false;
-        el.textContent = _t('auth_reenviar','Reenviar código');
-      } else {
-        el.textContent = `${_t('auth_reenviar','Reenviar código')} (${secs}s)`;
-      }
-    }, 1000);
-  } catch (err) {
-    _toast('⚠ ' + (err?.message || _t('auth_error_generico','Error al reenviar.')));
-    if (btn) { btn.disabled = false; btn.textContent = _t('auth_reenviar','Reenviar código'); }
   }
 }
 

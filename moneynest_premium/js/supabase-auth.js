@@ -70,19 +70,23 @@
 
       if (event === 'SIGNED_OUT') {
         _profile = null;
-        // Clear local auth state but preserve financial data
+        localStorage.removeItem('mn_session_id');
         if (window.MNAuth) {
           window.MNAuth.patchUser({ email: null, supabaseId: null });
         }
       }
 
       if (event === 'PASSWORD_RECOVERY') {
-        // User clicked reset link — show password update UI
         _triggerPasswordRecoveryUI();
       }
 
       if (_onAuthChange) _onAuthChange(event, session);
     });
+
+    // Start single-session watchdog (every 90s)
+    if (_session) {
+      setInterval(_startSessionWatchdog, 90_000);
+    }
   }
 
 
@@ -138,8 +142,41 @@
     }
 
     _rl.reset(`signin:${email}`);
-    if (data.user) await _syncProfileToLocal(data.user);
+    if (data.user) {
+      await _syncProfileToLocal(data.user);
+      // Single-session enforcement: write a new session_id to profiles.
+      // Any other tab/device polling will detect the mismatch and sign out.
+      const newSessionId = crypto.randomUUID ? crypto.randomUUID() : `sid_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+      try {
+        await sb.from('profiles').update({ session_id: newSessionId }).eq('id', data.user.id);
+        localStorage.setItem('mn_session_id', newSessionId);
+      } catch (_) {}
+    }
     return data;
+  }
+
+  // ── Single-session watchdog ──────────────────────────────────
+  // Polls every 90s; signs out if server session_id differs from local.
+  async function _startSessionWatchdog() {
+    if (!_session) return;
+    const localId = localStorage.getItem('mn_session_id');
+    if (!localId) return;
+    try {
+      const { data } = await sb
+        .from('profiles')
+        .select('session_id')
+        .eq('id', _session.user.id)
+        .maybeSingle();
+      if (data && data.session_id && data.session_id !== localId) {
+        // Another device logged in — force sign out here
+        await signOut();
+        localStorage.removeItem('mn_session_id');
+        if (window.MNAuthUI) window.MNAuthUI.showAuthModal('login');
+        if (typeof window.toast === 'function') {
+          window.toast('⚠ Sesión cerrada: se ha iniciado sesión en otro dispositivo.', 'warn');
+        }
+      }
+    } catch (_) {}
   }
 
   async function signOut() {

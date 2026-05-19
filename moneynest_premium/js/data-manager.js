@@ -800,11 +800,11 @@ function injectTopbarButtons() {
   group.innerHTML = `
     <button class="tb-btn tb-btn--import" onclick="openDmPanel('dm-import-panel')" title="Importar datos">
       ${ICONS.upload}
-      <span class="tb-btn-label">⬇ Importar</span>
+      <span class="tb-btn-label">Importar</span>
     </button>
     <button class="tb-btn tb-btn--export" onclick="openDmPanel('dm-export-panel')" title="Exportar datos">
       ${ICONS.download}
-      <span class="tb-btn-label">⬆ Exportar</span>
+      <span class="tb-btn-label">Exportar</span>
     </button>
     <button class="tb-btn tb-btn--save" id="dm-save-btn" onclick="dmSaveLocal()" title="Guardar datos localmente">
       <span id="dm-save-icon">${ICONS.save}</span>
@@ -830,7 +830,7 @@ function injectPanelHTML() {
         <div class="dm-panel-title">
           <div class="dm-panel-icon dm-panel-icon--export">${ICONS.download}</div>
           <div>
-            <div class="dm-panel-name">⬆ Exportar datos</div>
+            <div class="dm-panel-name">Exportar datos</div>
             <div class="dm-panel-sub">Descarga tus datos en el formato que prefieras</div>
           </div>
         </div>
@@ -847,7 +847,7 @@ function injectPanelHTML() {
         <div class="dm-panel-title">
           <div class="dm-panel-icon dm-panel-icon--import">${ICONS.upload}</div>
           <div>
-            <div class="dm-panel-name">⬇ Importar datos</div>
+            <div class="dm-panel-name">Importar datos</div>
             <div class="dm-panel-sub">Restaura o fusiona un archivo .moneynest o .json</div>
           </div>
         </div>
@@ -860,8 +860,7 @@ function injectPanelHTML() {
         <button class="dm-btn-cancel" onclick="closeDmPanel('dm-import-panel')">Cancelar</button>
         <button class="dm-btn-main dm-btn-main--import" id="dm-import-confirm-btn"
                 onclick="dmConfirmImport()" disabled>
-          ${ICONS.download}
-          ⬇ Importar ahora
+          Importar ahora
         </button>
       </div>
     </div>
