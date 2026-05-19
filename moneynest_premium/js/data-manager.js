@@ -859,7 +859,40 @@ function injectTopbarButtons() {
     </button>
   `;
 
+  // Trial pill — solo visible en plan trial
+  const trialPill = document.createElement('div');
+  trialPill.id = 'dm-trial-pill';
+  trialPill.style.cssText = 'display:none;align-items:center;gap:8px;padding:5px 12px 5px 10px;border-radius:99px;background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.3);font-size:.72rem;font-weight:700;color:#A5B4FC;cursor:pointer;transition:all .18s;white-space:nowrap';
+  trialPill.onclick = () => { if(window.MNAuthUI) MNAuthUI.showAuthModal('plan'); };
+  right.insertBefore(trialPill, right.firstChild);
+  _updateTrialPill();
+  // Update every 60s
+  setInterval(_updateTrialPill, 60_000);
+
   right.appendChild(group);
+}
+
+function _updateTrialPill() {
+  const pill = document.getElementById('dm-trial-pill');
+  if (!pill) return;
+  if (!window.MNAuth) { pill.style.display = 'none'; return; }
+  const user = MNAuth.getUser();
+  if (user.plan !== 'trial' || !user.trialEndsAt) { pill.style.display = 'none'; return; }
+  const msLeft = Math.max(0, user.trialEndsAt - Date.now());
+  if (msLeft <= 0) { pill.style.display = 'none'; return; }
+  const h = Math.floor(msLeft / 3600000);
+  const m = Math.floor((msLeft % 3600000) / 60000);
+  const label = h > 0 ? `${h}h ${m}m` : `${m}m`;
+  const urgent = h < 2;
+  const warn = h < 6;
+  const color = urgent ? '#F43F5E' : warn ? '#F59E0B' : '#A5B4FC';
+  const bg = urgent ? 'rgba(244,63,94,.12)' : warn ? 'rgba(245,158,11,.1)' : 'rgba(99,102,241,.12)';
+  const border = urgent ? 'rgba(244,63,94,.35)' : warn ? 'rgba(245,158,11,.3)' : 'rgba(99,102,241,.3)';
+  pill.style.display = 'flex';
+  pill.style.color = color;
+  pill.style.background = bg;
+  pill.style.border = `1px solid ${border}`;
+  pill.innerHTML = `<span style="font-size:.9rem">${urgent?'🚨':warn?'⚠️':'⏳'}</span> <span>Trial: <strong style="color:#fff">${label}</strong></span> <span style="font-size:.68rem;padding:2px 8px;border-radius:99px;background:${color};color:#0A0E17;font-weight:800">Desbloquear →</span>`;
 }
 
 // ── Inject panel HTML ──────────────────────────────────────────
@@ -959,6 +992,7 @@ window.MoneyNestDM = {
   importPanel: () => openDmPanel('dm-import-panel'),
   exportPanel: () => openDmPanel('dm-export-panel'),
   toast: dmToast,
+  updateTrialPill: _updateTrialPill,
 };
 
 })();

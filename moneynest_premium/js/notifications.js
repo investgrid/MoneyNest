@@ -21,7 +21,8 @@
   async function requestPermission() {
     if (!('Notification' in window)) return false;
     if (Notification.permission === 'granted') return true;
-    if (localStorage.getItem(PERM_KEY) === 'denied') return false;
+    // Note: intentionally NOT checking localStorage PERM_KEY here so that
+    // a user who previously declined can retry from Settings.
 
     // Show friendly modal first
     await _showPermissionModal();
@@ -63,9 +64,8 @@
 
   // ─── Send notification ────────────────────────────────────────────
   function sendNotification(title, body, icon, tag) {
-    if (!('Notification' in window))              return;
-    if (Notification.permission !== 'granted')    return;
-    if (document.visibilityState === 'visible')   return; // in-app, skip
+    if (!('Notification' in window)) return;
+    if (Notification.permission !== 'granted') return;
     try {
       new Notification(title, {
         body,
@@ -112,20 +112,19 @@
     const prefs = getPrefs();
     if (!prefs.trial) return;
     try {
-      const raw = localStorage.getItem('mn_auth') || localStorage.getItem('mn_user');
+      const raw = localStorage.getItem('mn_user');
       if (!raw) return;
-      const auth = JSON.parse(raw);
-      const exp  = auth.trialExpiry || auth.trial_expiry;
+      const user = JSON.parse(raw);
+      const exp = user.trialEndsAt;
       if (!exp) return;
-      const msLeft = new Date(exp).getTime() - Date.now();
-      if (msLeft <= 0 || msLeft > 26 * 3600000) return; // only if < 26h away
-      const delay  = Math.max(0, msLeft - 3600000); // 1h before expiry
+      const msLeft = exp - Date.now();
+      if (msLeft <= 0 || msLeft > 26 * 3600000) return;
+      const delay = Math.max(0, msLeft - 3600000);
       setTimeout(() => {
         sendNotification(
-          'Tu prueba de MoneyNest expira pronto',
+          'Tu prueba de MoneyNest expira pronto ⏳',
           'Desbloquea MoneyNest por 5€ y conserva todos tus datos.',
-          null,
-          'trial-expiry'
+          null, 'trial-expiry'
         );
       }, delay);
     } catch {}
@@ -157,16 +156,37 @@
     const el = document.getElementById(containerId);
     if (!el) return;
     const prefs = getPrefs();
-    const perm  = Notification.permission;
+    const perm  = 'Notification' in window ? Notification.permission : 'unsupported';
+
+    let permBanner = '';
+    if (perm === 'unsupported') {
+      permBanner = `
+        <div style="font-size:.78rem;color:rgba(255,255,255,.4);margin-bottom:10px;padding:8px 12px;background:rgba(255,255,255,0.04);border-radius:8px">
+          ℹ️ Tu navegador no soporta notificaciones push.
+        </div>`;
+    } else if (perm === 'denied') {
+      permBanner = `
+        <div style="font-size:.78rem;color:rgba(244,63,94,.8);margin-bottom:10px;padding:8px 12px;background:rgba(244,63,94,0.08);border-radius:8px">
+          🚫 Las notificaciones están bloqueadas en este navegador. Para activarlas, ve a la configuración del navegador y permite las notificaciones para este sitio.
+        </div>`;
+    } else if (perm === 'default') {
+      permBanner = `
+        <div style="font-size:.78rem;color:rgba(245,158,11,.8);margin-bottom:10px;padding:8px 12px;background:rgba(245,158,11,0.08);border-radius:8px;display:flex;align-items:center;justify-content:space-between;gap:10px">
+          <span>⚠️ Los permisos de notificación no están activados.</span>
+          <button onclick="MNNotifications.requestPermission()" style="flex-shrink:0;font-size:.72rem;color:#F59E0B;background:none;border:1px solid rgba(245,158,11,.4);border-radius:6px;padding:3px 10px;cursor:pointer;font-family:inherit;white-space:nowrap">Activar</button>
+        </div>`;
+    } else {
+      // granted
+      permBanner = `
+        <div style="font-size:.78rem;color:rgba(16,185,129,.9);margin-bottom:10px;padding:8px 12px;background:rgba(16,185,129,0.08);border-radius:8px">
+          ✅ Activas — MoneyNest puede enviarte notificaciones.
+        </div>`;
+    }
 
     el.innerHTML = `
       <div style="padding:16px 0">
         <div style="font-size:.85rem;font-weight:700;color:var(--text,#fff);margin-bottom:12px">🔔 Notificaciones</div>
-        ${perm !== 'granted' ? `
-          <div style="font-size:.78rem;color:rgba(245,158,11,.8);margin-bottom:10px;padding:8px 12px;background:rgba(245,158,11,0.08);border-radius:8px">
-            ⚠️ Los permisos de notificación no están activados.
-            <button onclick="MNNotifications.requestPermission()" style="margin-left:8px;font-size:.72rem;color:#F59E0B;background:none;border:1px solid rgba(245,158,11,.4);border-radius:6px;padding:2px 8px;cursor:pointer;font-family:inherit">Activar</button>
-          </div>` : ''}
+        ${permBanner}
         ${_toggle('Alertas de presupuesto', 'budget', prefs.budget)}
         ${_toggle('Recordatorios de racha', 'streak', prefs.streak)}
         ${_toggle('Transacciones recurrentes', 'recurring', prefs.recurring)}

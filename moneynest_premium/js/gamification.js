@@ -10,17 +10,37 @@
 
   // ─── Achievement definitions ──────────────────────────────────────
   const ACHIEVEMENTS = [
-    { id:'primer_ingreso',    emoji:'💰', nombre:'Primer ingreso',       desc:'Añade tu primer ingreso',                 trigger:'ingreso_added'   },
-    { id:'primer_gasto',      emoji:'📝', nombre:'Primer gasto',         desc:'Registra tu primer gasto',                trigger:'gasto_added'     },
-    { id:'primera_deuda',     emoji:'🎯', nombre:'Deuda registrada',     desc:'Registra tu primera deuda',               trigger:'deuda_added'     },
-    { id:'primera_inversion', emoji:'📈', nombre:'Inversor',             desc:'Crea tu primera inversión',               trigger:'inversion_added' },
-    { id:'primer_objetivo',   emoji:'🌟', nombre:'Soñador',              desc:'Crea tu primer objetivo de ahorro',       trigger:'objetivo_added'  },
-    { id:'sin_deudas',        emoji:'🏆', nombre:'Libre de deudas',      desc:'Todas tus deudas en cero',                trigger:'deuda_updated'   },
-    { id:'ahorrador_3meses',  emoji:'🌱', nombre:'Ahorrador constante',  desc:'3 meses seguidos con ahorro positivo',    trigger:'data_check'      },
-    { id:'streak_7',          emoji:'🔥', nombre:'Una semana seguida',   desc:'7 días de racha de uso',                  trigger:'streak'          },
-    { id:'streak_30',         emoji:'💎', nombre:'Un mes de racha',      desc:'30 días de racha de uso',                 trigger:'streak'          },
-    { id:'exportador',        emoji:'📄', nombre:'Documentado',          desc:'Primera exportación PDF o Excel',         trigger:'export_done'     },
-    { id:'personalizado',     emoji:'✨', nombre:'A tu manera',          desc:'Primera categoría personalizada creada',  trigger:'cat_created'     },
+    // ── Primeros pasos ──
+    { id:'primer_ingreso',      emoji:'💰', cat:'inicio',    nombre:'Primer ingreso',         desc:'Añade tu primer ingreso',                        trigger:'ingreso_added'    },
+    { id:'primer_gasto',        emoji:'📝', cat:'inicio',    nombre:'Primer gasto',           desc:'Registra tu primer gasto',                       trigger:'gasto_added'      },
+    { id:'primera_deuda',       emoji:'🎯', cat:'inicio',    nombre:'Deuda registrada',       desc:'Registra tu primera deuda',                      trigger:'deuda_added'      },
+    { id:'primera_inversion',   emoji:'📈', cat:'inicio',    nombre:'Inversor',               desc:'Crea tu primera inversión',                      trigger:'inversion_added'  },
+    { id:'primer_objetivo',     emoji:'🌟', cat:'inicio',    nombre:'Soñador',                desc:'Crea tu primer objetivo de ahorro',              trigger:'objetivo_added'   },
+    { id:'primer_presupuesto',  emoji:'📋', cat:'inicio',    nombre:'Planificador',           desc:'Crea tu primer presupuesto',                     trigger:'presupuesto_added'},
+    // ── Constancia ──
+    { id:'streak_7',            emoji:'🔥', cat:'constancia',nombre:'Una semana seguida',     desc:'7 días de racha de uso',                         trigger:'streak'           },
+    { id:'streak_30',           emoji:'💎', cat:'constancia',nombre:'Un mes de racha',        desc:'30 días de racha de uso',                        trigger:'streak'           },
+    { id:'streak_100',          emoji:'👑', cat:'constancia',nombre:'Centenario',             desc:'100 días de racha — eres imparable',             trigger:'streak'           },
+    { id:'ahorrador_3meses',    emoji:'🌱', cat:'constancia',nombre:'Ahorrador constante',    desc:'3 meses seguidos con ahorro positivo',           trigger:'data_check'       },
+    { id:'ahorrador_6meses',    emoji:'🌳', cat:'constancia',nombre:'Raíces profundas',       desc:'6 meses seguidos con ahorro positivo',           trigger:'data_check'       },
+    // ── Volumen ──
+    { id:'diez_ingresos',       emoji:'💵', cat:'volumen',   nombre:'Flujo constante',        desc:'10 ingresos registrados',                        trigger:'ingreso_added'    },
+    { id:'cincuenta_gastos',    emoji:'🧾', cat:'volumen',   nombre:'Detallista',             desc:'50 gastos registrados',                          trigger:'gasto_added'      },
+    { id:'cinco_inversiones',   emoji:'🏦', cat:'volumen',   nombre:'Cartera diversificada',  desc:'5 inversiones activas',                          trigger:'inversion_added'  },
+    { id:'cinco_objetivos',     emoji:'🎯', cat:'volumen',   nombre:'Ambicioso',              desc:'5 objetivos de ahorro creados',                  trigger:'objetivo_added'   },
+    // ── Logros financieros ──
+    { id:'sin_deudas',          emoji:'🏆', cat:'finanzas',  nombre:'Libre de deudas',        desc:'Todas tus deudas en cero',                       trigger:'deuda_updated'    },
+    { id:'objetivo_completado', emoji:'✅', cat:'finanzas',  nombre:'Meta alcanzada',         desc:'Completa tu primer objetivo de ahorro',          trigger:'objetivo_done'    },
+    { id:'saldo_positivo',      emoji:'📊', cat:'finanzas',  nombre:'En positivo',            desc:'Cash flow positivo este mes',                    trigger:'data_check'       },
+    { id:'ahorro_1000',         emoji:'💶', cat:'finanzas',  nombre:'Mil euros ahorrados',    desc:'Acumula 1.000€ en objetivos completados',        trigger:'data_check'       },
+    // ── Exportar y personalizar ──
+    { id:'exportador',          emoji:'📄', cat:'pro',       nombre:'Documentado',            desc:'Primera exportación PDF o Excel',                trigger:'export_done'      },
+    { id:'personalizado',       emoji:'✨', cat:'pro',       nombre:'A tu manera',            desc:'Primera categoría personalizada creada',         trigger:'cat_created'      },
+    { id:'tres_cuentas',        emoji:'🏛️', cat:'pro',       nombre:'Multibanco',             desc:'3 o más cuentas bancarias gestionadas',          trigger:'data_check'       },
+    // ── Especiales ──
+    { id:'madrugador',          emoji:'🌅', cat:'especial',  nombre:'Madrugador',             desc:'Añade una transacción antes de las 7am',         trigger:'ingreso_added'    },
+    { id:'nocturno',            emoji:'🌙', cat:'especial',  nombre:'Noctámbulo',             desc:'Añade una transacción después de las 23h',       trigger:'gasto_added'      },
+    { id:'fin_de_semana',       emoji:'🎉', cat:'especial',  nombre:'Fin de semana activo',   desc:'Usa la app un sábado o domingo',                 trigger:'data_check'       },
   ];
 
   // ─── Storage ──────────────────────────────────────────────────────
@@ -56,6 +76,7 @@
       const raw = localStorage.getItem('mn_data');
       const data = raw ? JSON.parse(raw) : {};
 
+      // Primeros pasos
       if (trigger === 'ingreso_added' && (data.ingresos||[]).length >= 1) unlock('primer_ingreso');
       if (trigger === 'gasto_added'   && (data.gastos||[]).length   >= 1) unlock('primer_gasto');
       if (trigger === 'deuda_added'   && (data.deudas||[]).length   >= 1) unlock('primera_deuda');
@@ -63,6 +84,8 @@
       if (trigger === 'objetivo_added'  && (data.objetivos||[]).length   >= 1) unlock('primer_objetivo');
       if (trigger === 'export_done') unlock('exportador');
       if (trigger === 'cat_created')  unlock('personalizado');
+      if (trigger === 'presupuesto_added') unlock('primer_presupuesto');
+      if (trigger === 'objetivo_done') unlock('objetivo_completado');
 
       if (trigger === 'deuda_updated') {
         const deudas = data.deudas || [];
@@ -71,33 +94,72 @@
         }
       }
 
-      if (trigger === 'data_check') _checkAhorrador3Meses(data);
+      // Volumen
+      if (trigger === 'ingreso_added') {
+        if ((data.ingresos||[]).length >= 10) unlock('diez_ingresos');
+        const h = new Date().getHours();
+        if (h < 7) unlock('madrugador');
+      }
+      if (trigger === 'gasto_added') {
+        if ((data.gastos||[]).length >= 50) unlock('cincuenta_gastos');
+        const h = new Date().getHours();
+        if (h >= 23) unlock('nocturno');
+      }
+      if (trigger === 'inversion_added') {
+        if ((data.inversiones||[]).filter(i=>!i.cerrada).length >= 5) unlock('cinco_inversiones');
+      }
+      if (trigger === 'objetivo_added') {
+        if ((data.objetivos||[]).length >= 5) unlock('cinco_objetivos');
+      }
+
+      if (trigger === 'data_check') _checkFinancial(data);
       if (trigger === 'streak')     _checkStreakAchievements();
     } catch(e) {
       console.warn('[MNGamification] checkAchievement error:', e);
     }
   }
 
-  function _checkAhorrador3Meses(data) {
-    // Positive cash flow for last 3 months
-    const gastos  = data.gastos  || [];
+  function _checkFinancial(data) {
+    const gastos   = data.gastos   || [];
     const ingresos = data.ingresos || [];
-    const now   = new Date();
+    const now      = new Date();
+
+    // Ahorrador constante — count last N months with positive cash flow
     let positive = 0;
-    for (let i = 1; i <= 3; i++) {
-      const d    = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const mo   = d.toISOString().slice(0, 7);
-      const ing  = ingresos.filter(x => (x.fecha||'').startsWith(mo)).reduce((a,x)=>a+(Number(x.importe)||0),0);
-      const gas  = gastos.filter(x => (x.fecha||'').startsWith(mo)).reduce((a,x)=>a+(Number(x.importe)||0),0);
+    for (let i = 1; i <= 6; i++) {
+      const d   = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const mo  = d.toISOString().slice(0, 7);
+      const ing = ingresos.filter(x => (x.fecha||'').startsWith(mo)).reduce((a,x)=>a+(Number(x.importe)||0),0);
+      const gas = gastos.filter(x => (x.fecha||'').startsWith(mo)).reduce((a,x)=>a+(Number(x.importe)||0),0);
       if (ing > gas) positive++;
     }
     if (positive >= 3) unlock('ahorrador_3meses');
+    if (positive >= 6) unlock('ahorrador_6meses');
+
+    // Ahorro_1000 — total en objetivos completados
+    const totalAhorrado = (data.objetivos||[]).filter(o=>o.completado).reduce((a,o)=>a+(Number(o.meta)||0),0);
+    if (totalAhorrado >= 1000) unlock('ahorro_1000');
+
+    // Cash flow positivo este mes
+    const thisMo  = now.toISOString().slice(0, 7);
+    const ingMes  = ingresos.filter(x => (x.fecha||'').startsWith(thisMo)).reduce((a,x)=>a+(Number(x.importe)||0),0);
+    const gasMes  = gastos.filter(x => (x.fecha||'').startsWith(thisMo)).reduce((a,x)=>a+(Number(x.importe)||0),0);
+    const cashFlow = ingMes - gasMes;
+    if (cashFlow > 0) unlock('saldo_positivo');
+
+    // Multibanco
+    if ((data.cuentas||[]).length >= 3) unlock('tres_cuentas');
+
+    // Fin de semana activo
+    const day = new Date().getDay();
+    if (day === 0 || day === 6) unlock('fin_de_semana');
   }
 
   function _checkStreakAchievements() {
     const s = _getStreak();
-    if (s.streak >= 7)  unlock('streak_7');
-    if (s.streak >= 30) unlock('streak_30');
+    if (s.streak >= 7)   unlock('streak_7');
+    if (s.streak >= 30)  unlock('streak_30');
+    if (s.streak >= 100) unlock('streak_100');
   }
 
   // ─── Toast premium ───────────────────────────────────────────────
@@ -176,6 +238,15 @@
   }
 
   // ─── Achievements panel ──────────────────────────────────────────
+  const CAT_META = {
+    inicio:    { label: 'Primeros pasos', icon: '🚀', color: '#6366F1' },
+    constancia:{ label: 'Constancia',     icon: '🔥', color: '#F59E0B' },
+    volumen:   { label: 'Volumen',         icon: '📦', color: '#10B981' },
+    finanzas:  { label: 'Logros financieros', icon: '💰', color: '#00D4AA' },
+    pro:       { label: 'Pro',             icon: '⚡', color: '#A855F7' },
+    especial:  { label: 'Especiales',      icon: '✨', color: '#F472B6' },
+  };
+
   function renderAchievementsPanel(containerId) {
     const el = document.getElementById(containerId);
     if (!el) return;
@@ -183,7 +254,15 @@
     const unlocked = Object.keys(store.unlocked).length;
     const pct      = Math.round(unlocked / ACHIEVEMENTS.length * 100);
 
-    const cards = ACHIEVEMENTS.map(a => {
+    // Group by category
+    const groups = {};
+    for (const a of ACHIEVEMENTS) {
+      const cat = a.cat || 'especial';
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push(a);
+    }
+
+    function renderCard(a) {
       const done = !!store.unlocked[a.id];
       const dateStr = done
         ? new Date(store.unlocked[a.id].unlockedAt).toLocaleDateString('es-ES', { day:'numeric', month:'short' })
@@ -200,10 +279,27 @@
           <div style="font-size:.68rem;color:rgba(255,255,255,.35);margin-top:3px">${a.desc}</div>
           ${done ? `<div style="font-size:.65rem;color:#00D4AA;margin-top:6px;font-weight:600">✓ ${dateStr}</div>` : ''}
         </div>`;
+    }
+
+    const groupsHtml = Object.entries(CAT_META).map(([catKey, meta]) => {
+      const items = groups[catKey];
+      if (!items || items.length === 0) return '';
+      const doneCount = items.filter(a => !!store.unlocked[a.id]).length;
+      return `
+        <div style="margin-bottom:20px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+            <span style="font-size:1rem">${meta.icon}</span>
+            <span style="font-size:.78rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:${meta.color}">${meta.label}</span>
+            <span style="font-size:.68rem;color:rgba(255,255,255,.3);margin-left:auto">${doneCount}/${items.length}</span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px">
+            ${items.map(renderCard).join('')}
+          </div>
+        </div>`;
     }).join('');
 
     el.innerHTML = `
-      <div style="margin-bottom:16px">
+      <div style="margin-bottom:20px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
           <span style="font-size:.85rem;font-weight:700;color:var(--text,#fff)">${unlocked} / ${ACHIEVEMENTS.length} logros</span>
           <span style="font-size:.8rem;color:#00D4AA;font-weight:700">${pct}%</span>
@@ -212,7 +308,7 @@
           <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#00D4AA,#6366F1);border-radius:inherit;transition:width .5s ease"></div>
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px">${cards}</div>
+      ${groupsHtml}
     `;
   }
 
@@ -268,6 +364,8 @@
     if ((data.deudas||[]).length   >= 1)    checkAchievement('deuda_added');
     if ((data.inversiones||[]).length >= 1) checkAchievement('inversion_added');
     if ((data.objetivos||[]).length   >= 1) checkAchievement('objetivo_added');
+    if (Object.keys(data.presupuestos||{}).length >= 1) checkAchievement('presupuesto_added');
+    if ((data.objetivos||[]).some(o=>o.completado)) checkAchievement('objetivo_done');
     checkAchievement('deuda_updated');
     checkAchievement('data_check');
   });

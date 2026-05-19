@@ -7319,8 +7319,12 @@ function mnCerrarSesion() {
 
 function borrarTodo() {
   confirmar(t('confirm_borrar_todo'), ()=>{
-    // Full state reset — always use fresh defaultState
+    // Preserve user identity — only clear financial data
+    const _savedNombre = S.usuario?.nombre || ''
+    const _savedEmail  = S.usuario?.email  || ''
     S = defaultState()
+    S.usuario.nombre = _savedNombre
+    if (_savedEmail) S.usuario.email = _savedEmail
     S.ingresos = []; S.gastos = []; S.inversiones = []; S.deudas = []
     S.objetivos = []; S.presupuestos = {}; S.assets = []; S.patrimonio_hist = []
     S.clientes = []; S.proveedores = []; S.devengos = []
