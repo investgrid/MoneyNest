@@ -533,6 +533,8 @@
       insight_sin_inversiones: 'No tienes inversiones activas. Con ingresos regulares, considera un fondo indexado.',
       // Deudas calc personalizado
       calc_desc: '¿Cuánto puedes destinar a pagar deudas? Calcula tu fecha exacta de libertad financiera.',
+      calc_desc_v2: '¿En cuánto tiempo quieres estar libre de deudas?',
+      ver_configuracion: 'Ver en Configuración',
       puedo_pagar: 'Puedo pagar',
       al_mes: 'al mes', a_la_semana: 'a la semana', al_dia: 'al día',
       cuota_insuficiente: 'La cuota no cubre los intereses. Necesitas al menos',
@@ -964,6 +966,8 @@
       insight_sin_inversiones: 'No active investments. With regular income, consider an index fund.',
       // Debts calc personalised
       calc_desc: 'How much can you put towards paying off debt? Calculate your exact debt-free date.',
+      calc_desc_v2: 'How quickly do you want to be debt-free?',
+      ver_configuracion: 'View in Settings',
       puedo_pagar: 'I can pay',
       al_mes: 'per month', a_la_semana: 'per week', al_dia: 'per day',
       cuota_insuficiente: "The payment doesn't cover the interest. You need at least",

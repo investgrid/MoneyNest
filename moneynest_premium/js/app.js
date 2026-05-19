@@ -5249,18 +5249,17 @@ function renderDeudas() {
     <!-- Calculadora personalizada -->
     <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
       <div style="font-size:.82rem;font-weight:700;color:var(--text);margin-bottom:10px">🧮 ${t('calc_personalizada','Calculadora personalizada')}</div>
-      <div style="font-size:.75rem;color:var(--text2);margin-bottom:10px">${t('calc_desc','¿Cuánto puedes destinar a pagar deudas? Calcula tu fecha exacta de libertad financiera.')}</div>
+      <div style="font-size:.75rem;color:var(--text2);margin-bottom:10px">${t('calc_desc_v2','¿En cuánto tiempo quieres estar libre de deudas?')}</div>
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">
-        <span style="font-size:.82rem;color:var(--text2)">${t('puedo_pagar','Puedo pagar')}</span>
-        <input type="number" id="libertadN" min="1" placeholder="200"
-          style="width:88px;padding:7px 10px;background:var(--bg2);border:1.5px solid var(--border2);border-radius:8px;color:var(--text);font-size:.95rem;font-weight:700;text-align:center"
+        <span style="font-size:.82rem;color:var(--text2)">${t('quiero_libre_en','Libre en')}</span>
+        <input type="number" id="libertadN" min="1" max="600" placeholder="24"
+          style="width:72px;padding:7px 10px;background:var(--bg2);border:1.5px solid var(--border2);border-radius:8px;color:var(--text);font-size:.95rem;font-weight:700;text-align:center"
           oninput="calcLibertad3Cards()"
           onkeydown="if(event.key==='Enter')calcLibertad3Cards()">
         <select id="libertadUnit" style="padding:7px 12px;background:var(--bg2);border:1.5px solid var(--border2);border-radius:8px;color:var(--text);font-size:.82rem;font-weight:600;cursor:pointer"
           onchange="calcLibertad3Cards()">
-          <option value="mes">${t('al_mes','al mes')}</option>
-          <option value="semana">${t('a_la_semana','a la semana')}</option>
-          <option value="dia">${t('al_dia','al día')}</option>
+          <option value="meses">${t('meses','meses')}</option>
+          <option value="anos">${t('anios','años')}</option>
         </select>
       </div>
       <div id="libertad3Cards"></div>
@@ -5407,9 +5406,9 @@ function renderChartDeudaProyeccion(totalPendiente, mensualPago) {
 }
 
 /**
- * Calculador de deuda mejorado:
- * El usuario introduce cuánto puede pagar/mes → se calcula cuándo estará libre,
- * con desglose diario y semanal, y puede aplicar esa cuota como estrategia activa.
+ * Calculador de deuda:
+ * El usuario da cuántos meses/años quiere tardar → se calcula cuánto pagar /mes, /semana, /día.
+ * Botón "Confirmar estrategia" aplica la cuota y actualiza la libertad financiera.
  */
 function calcLibertad3Cards() {
   const input = document.getElementById('libertadN')
@@ -5419,7 +5418,7 @@ function calcLibertad3Cards() {
 
   const n = parseFloat(input?.value)
   if (!n || n <= 0) {
-    box.innerHTML = `<div class="mn-insight mn-insight--alert"><span class="mn-insight-icon">⚠️</span><div class="mn-insight-body">${t('err_importe_valido','Introduce un importe válido.')}</div></div>`
+    box.innerHTML = `<div class="mn-insight mn-insight--alert"><span class="mn-insight-icon">⚠️</span><div class="mn-insight-body">${t('err_periodo_invalido','Introduce un período válido.')}</div></div>`
     return
   }
 
@@ -5430,86 +5429,66 @@ function calcLibertad3Cards() {
   }
 
   const intMed = S.deudas.length ? S.deudas.reduce((a,d) => a+(Number(d.interes)||0),0)/S.deudas.length : 0
+  const meses  = unit === 'anos' ? Math.round(n * 12) : Math.round(n)
+  if (meses < 1) { box.innerHTML = ''; return }
 
-  // Convertir a mensual si viene en otra unidad
+  // Cuota mensual con fórmula de amortización
   let mensual
-  if (unit === 'semana')  mensual = n * 52 / 12
-  else if (unit === 'dia') mensual = n * 365 / 12
-  else mensual = n  // /mes por defecto
-
-  // Calcular meses con fórmula financiera
-  let meses
   if (intMed > 0) {
     const r = intMed / 100 / 12
-    if (mensual <= r * pend) {
-      // No cubre ni los intereses
-      box.innerHTML = `<div class="mn-insight mn-insight--alert"><span class="mn-insight-icon">🚨</span><div class="mn-insight-body">${t('cuota_insuficiente','La cuota no cubre los intereses. Necesitas al menos')} <strong>${eur(r * pend + 1)}/mes</strong>.</div></div>`
-      return
-    }
-    meses = Math.ceil(Math.log(mensual / (mensual - r * pend)) / Math.log(1 + r))
-    if (!isFinite(meses) || meses <= 0) meses = Math.ceil(pend / mensual)
+    mensual = (pend * r * Math.pow(1+r, meses)) / (Math.pow(1+r, meses) - 1)
   } else {
-    meses = Math.ceil(pend / mensual)
+    mensual = pend / meses
   }
+  if (!isFinite(mensual) || mensual <= 0) { box.innerHTML = ''; return }
 
   const semanal = mensual * 12 / 52
   const diario  = mensual * 12 / 365
+  const totalIntereses = Math.max(0, mensual * meses - pend)
 
   const fechaLibre = (() => {
-    const d = new Date(); d.setMonth(d.getMonth() + meses)
-    return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })
+    const fd = new Date(); fd.setMonth(fd.getMonth() + meses)
+    return fd.toLocaleDateString('es-ES', { day:'numeric', month:'long', year:'numeric' })
   })()
 
-  const totalIntereses = intMed > 0
-    ? Math.max(0, mensual * meses - pend).toFixed(0)
-    : 0
-
   box.innerHTML = `
-    <!-- Resultado principal -->
-    <div style="background:linear-gradient(135deg,rgba(0,212,170,0.08),rgba(0,212,170,0.03));border:1px solid rgba(0,212,170,0.25);border-radius:14px;padding:18px 20px;margin-bottom:12px">
-      <div style="font-size:.68rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">🏁 ${t('libertad_financiera','Fecha de libertad financiera')}</div>
-      <div style="font-size:1.3rem;font-weight:900;color:var(--accent);letter-spacing:-.03em">${fechaLibre}</div>
-      <div style="font-size:.75rem;color:var(--text2);margin-top:4px">${fmtMonths(meses)} · ${eur(pend)} ${t('pendiente_lbl','pendiente')}${intMed>0?` · ${eur(totalIntereses)} ${t('en_intereses','en intereses')}`:''}</div>
+    <!-- Resultado -->
+    <div style="background:rgba(0,212,170,0.06);border:1px solid rgba(0,212,170,0.2);border-radius:12px;padding:14px 16px;margin-bottom:10px">
+      <div style="font-size:.65rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px">🏁 ${t('libertad_financiera','Libertad financiera')}</div>
+      <div style="font-size:1.15rem;font-weight:900;color:var(--accent)">${fechaLibre}</div>
+      <div style="font-size:.72rem;color:var(--text2);margin-top:3px">${fmtMonths(meses)}${intMed>0?` · ${eur(totalIntereses)} ${t('en_intereses','en intereses')}`:''}</div>
     </div>
 
-    <!-- Desglose de cuotas -->
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px">
+    <!-- Desglose /mes /semana /día -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px">
       ${[
-        { label: t('mes_lbl','/mes'), amount: mensual, icon: '📅', color: '#00D4AA', unit: 'mes' },
-        { label: t('semana_lbl','/semana'), amount: semanal, icon: '🗓', color: '#6366F1', unit: 'semana' },
-        { label: t('dia_lbl','/día'), amount: diario, icon: '☀️', color: '#F59E0B', unit: 'dia' },
-      ].map(c => `
-        <div style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:12px 10px;text-align:center;cursor:pointer;transition:border-color .15s"
-          onclick="calcLibertad3Cards._setUnit('${c.unit}')"
-          onmouseover="this.style.borderColor='${c.color}'" onmouseout="this.style.borderColor='var(--border)'">
-          <div style="font-size:1rem;margin-bottom:4px">${c.icon}</div>
-          <div style="font-size:1rem;font-weight:900;color:${c.color};letter-spacing:-.03em">${eur(c.amount)}</div>
-          <div style="font-size:.65rem;color:var(--text3);font-weight:600">${c.label}</div>
-        </div>`
-      ).join('')}
+        { label:t('al_mes','/mes'),    amount:mensual, color:'#00D4AA' },
+        { label:t('a_la_semana','/sem'),amount:semanal,color:'#6366F1' },
+        { label:t('al_dia','/día'),   amount:diario,  color:'#F59E0B' },
+      ].map(c=>`
+        <div style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:11px 8px;text-align:center">
+          <div style="font-size:.95rem;font-weight:900;color:${c.color};letter-spacing:-.03em">${eur(c.amount)}</div>
+          <div style="font-size:.62rem;color:var(--text3);margin-top:2px;font-weight:600">${c.label}</div>
+        </div>`).join('')}
     </div>
 
-    <!-- Botón aplicar como estrategia activa -->
-    <button onclick="calcLibertad3Cards._apply(${mensual})"
-      style="width:100%;padding:10px;border-radius:10px;border:none;background:linear-gradient(135deg,var(--accent),#00A882);color:#0A0E17;font-size:.85rem;font-weight:800;cursor:pointer;font-family:inherit;letter-spacing:-.01em">
-      ✓ ${t('aplicar_como_estrategia','Aplicar como estrategia activa')}
+    <!-- Confirmar estrategia -->
+    <button onclick="calcLibertad3Cards._apply(${mensual.toFixed(2)})"
+      style="width:100%;padding:10px;border-radius:10px;border:none;background:linear-gradient(135deg,var(--accent),#00A882);color:#0A0E17;font-size:.84rem;font-weight:800;cursor:pointer;font-family:inherit">
+      ✓ ${t('aplicar_como_estrategia','Confirmar estrategia')}
     </button>
-    ${intMed>0?`<div style="font-size:.68rem;color:var(--text3);text-align:center;margin-top:6px">* ${t('incluye_interes','Incluye interés medio del')} ${pct(intMed)}/año</div>`:''}
+    ${intMed>0?`<div style="font-size:.65rem;color:var(--text3);text-align:center;margin-top:5px">* ${t('incluye_interes','Incluye interés medio del')} ${pct(intMed)}/año</div>`:''}
   `
 }
 
-calcLibertad3Cards._setUnit = function(unit) {
-  const sel = document.getElementById('libertadUnit')
-  if (sel) sel.value = unit
-}
-
-calcLibertad3Cards._apply = function(cuotaMensual) {
-  // Guardar la cuota como estrategia personalizada
+calcLibertad3Cards._apply = function(cuotaStr) {
+  const cuotaMensual = parseFloat(cuotaStr)
   window._deudaCustomPago = cuotaMensual
-  if (typeof toast === 'function') toast(`✅ ${t('estrategia_aplicada','Estrategia aplicada')}: ${eur(cuotaMensual)}/mes`)
-  // Actualizar la proyección con la nueva cuota
+  toast(`✅ ${t('estrategia_aplicada','Estrategia aplicada')}: ${eur(cuotaMensual)}/${t('mes_lbl','mes')}`)
   const pend = S.deudas.reduce((a,d) => a + Math.max(0,(Number(d.importeTotal)||0)-(Number(d.importePagado)||0)), 0)
-  setTimeout(() => renderChartDeudaProyeccion(pend, cuotaMensual), 50)
+  // Actualizar la tarjeta de libertad financiera en el KPI
+  render()
+  setTimeout(() => renderChartDeudaProyeccion(pend, cuotaMensual), 60)
 }
 
 function calcDeudaPersonalizada() {
@@ -5532,13 +5511,19 @@ function calcDeudaPersonalizada() {
 }
 
 function switchDebtTab(tab) {
-  // Actualizar estrategia activa según tab seleccionado
-  // snowball = conservador (pagos desde pequeños), avalanche = agresivo (mayor interés primero)
-  if (tab === 'avalanche' && window._deudaStrat === 'conservador') window._deudaStrat = 'moderado'
-  // Refrescar proyección con la nueva ordenación
+  // Mostrar/ocultar listas
+  const snow = document.getElementById('debt-snowball')
+  const aval = document.getElementById('debt-avalanche')
+  if (snow) snow.style.display = tab === 'snowball'  ? 'block' : 'none'
+  if (aval) aval.style.display = tab === 'avalanche' ? 'block' : 'none'
+  // Actualizar tabs activos (cualquier container que los tenga)
+  document.querySelectorAll('#tab-snowball, #tab-avalanche').forEach(el => el.classList.remove('active'))
+  const activeTab = document.getElementById('tab-' + tab)
+  if (activeTab) activeTab.classList.add('active')
+  // Refrescar proyección
   const pend = S && S.deudas ? S.deudas.reduce((a,d) => a + Math.max(0,(Number(d.importeTotal)||0)-(Number(d.importePagado)||0)), 0) : 0
   const intM  = S && S.deudas ? S.deudas.reduce((a,d)=>a+(Number(d.interes)||0),0)/(S.deudas.length||1) : 0
-  const { monthlyPayment } = calcDebtStrategy(pend, intM, { conservador:0.6,moderado:1.0,agresivo:1.6 }[window._deudaStrat||'moderado'] || 1.0)
+  const { monthlyPayment } = calcDebtStrategy(pend, intM, { conservador:0.6, moderado:1.0, agresivo:1.6 }[window._deudaStrat||'moderado'] || 1.0)
   setTimeout(() => renderChartDeudaProyeccion(pend, window._deudaCustomPago || monthlyPayment), 40)
 
   const snow = document.getElementById('debt-snowball')
@@ -6144,19 +6129,17 @@ function renderConfiguracion() {
       <div class="card">
         <div class="card-header">
           <div>
-            <div class="card-title">🔍 ${t('cfg_demo_titulo')}</div>
-            <div class="card-subtitle">${isDemoMode() ? `<span style="color:var(--gold);font-weight:700">${t('cfg_demo_activo_lbl')}</span>` : t('cfg_demo_inactivo_lbl')}</div>
+            <div class="card-title">🔍 ${t('cfg_demo_titulo','Modo demo')}</div>
+            <div class="card-subtitle">${isDemoMode()
+              ? `<span style="color:var(--gold);font-weight:700">${t('cfg_demo_activo_lbl','● Activo')}</span>`
+              : t('cfg_demo_inactivo_lbl','Explorar la app con datos de ejemplo')}</div>
           </div>
-          ${isDemoMode() ? `<span style="font-size:.68rem;padding:3px 10px;background:var(--gold-dim);color:var(--gold);border-radius:99px;font-weight:700;letter-spacing:.04em">DEMO</span>` : ''}
+          ${isDemoMode() ? `<span style="font-size:.68rem;padding:3px 10px;background:var(--gold-dim);color:var(--gold);border-radius:99px;font-weight:700">DEMO</span>` : ''}
         </div>
-        <div style="font-size:.8rem;color:var(--text2);margin-bottom:12px;line-height:1.55">
-          ${isDemoMode() ? t('cfg_demo_desc_on') : t('cfg_demo_desc_off')}
-        </div>
-        <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
           ${isDemoMode()
-            ? `<button class="btn btn-danger btn-sm" onclick="confirmar(t('confirm_salir_demo'),()=>{clearDemoData()},{titulo:t('confirm_salir_demo_titulo'),icono:'🏁',btnLabel:t('confirm_salir_demo_btn')})">${t('cfg_demo_salir')}</button>
-               <button class="btn btn-ghost btn-sm" onclick="reloadDemoWithScenario()">${t('cfg_demo_recargar')}</button>`
-            : `<button class="btn btn-secondary btn-sm" onclick="activateDemoWithConfig()" style="background:var(--gold-dim);border-color:rgba(245,158,11,.2);color:var(--gold);font-weight:700">${t('cfg_demo_activar')}</button>`}
+            ? `<button class="btn btn-danger btn-sm" onclick="confirmar(t('confirm_salir_demo'),()=>{clearDemoData()},{titulo:t('confirm_salir_demo_titulo'),icono:'🏁',btnLabel:t('confirm_salir_demo_btn')})">${t('cfg_demo_salir','🏁 Desactivar demo')}</button>`
+            : `<button class="btn btn-secondary btn-sm" onclick="activateDemoWithConfig()" style="background:var(--gold-dim);border-color:rgba(245,158,11,.2);color:var(--gold);font-weight:700">${t('cfg_demo_activar','🚀 Activar modo demo')}</button>`}
         </div>
       </div>
 
@@ -9473,12 +9456,7 @@ function renderDebtAdvisor() {
   }, 80)
 }
 
-function switchDebtTab(tab) {
-  document.getElementById('debt-snowball').style.display  = tab==='snowball'  ? 'block':'none'
-  document.getElementById('debt-avalanche').style.display = tab==='avalanche' ? 'block':'none'
-  document.querySelectorAll('#debtAdvisorCard .tab').forEach(t=>t.classList.remove('active'))
-  document.getElementById('tab-'+tab).classList.add('active')
-}
+// switchDebtTab definida anteriormente (línea ~5513) — esta es un duplicado eliminado
 
 function calcDebtFree() {
   const monthly = parseFloat(document.getElementById('monthlyPayInput').value)
@@ -10592,14 +10570,14 @@ function loadDemoData(scenario, nombreOverride) {
     g.push([`${p}11`,'Lidl',                jitter(52,.1),   'Alimentación',  mi,'11','dc1'])
     g.push([`${p}12`,'Mercadona',           jitter(88,.1),   'Alimentación',  mi,'18','dc1'])
     g.push([`${p}13`,'Carrefour BIO',       jitter(34,.1),   'Alimentación',  mi,'21','dc1'])
-    g.push([`${p}14`,'Mercado local',       jitter(22,.15),  'Alimentación',  mi,'24','dc5'])
+    g.push([`${p}14`,'Mercado local',       jitter(22,.15),  'Alimentación',  mi,'24','dc4'])
     g.push([`${p}15`,'Mercadona',           jitter(70,.1),   'Alimentación',  mi,'28','dc1'])
     // Restaurantes
-    g.push([`${p}16`,'Café Avenida',        jitter(3,.2),    'Restaurantes',  mi,'03','dc5'])
+    g.push([`${p}16`,'Café Avenida',        jitter(3,.2),    'Restaurantes',  mi,'03','dc4'])
     g.push([`${p}17`,'Almuerzo trabajo',    jitter(14,.2),   'Restaurantes',  mi,'07','dc3'])
     g.push([`${p}18`,'Café Starbucks',      jitter(6,.2),    'Restaurantes',  mi,'09','dc3'])
     g.push([`${p}19`,'Restaurante italiano',jitter(48,.15),  'Restaurantes',  mi,'13','dc1'])
-    g.push([`${p}20`,'Café',                jitter(2,.2),    'Restaurantes',  mi,'16','dc5'])
+    g.push([`${p}20`,'Café',                jitter(2,.2),    'Restaurantes',  mi,'16','dc4'])
     g.push([`${p}21`,'Sushi box',           jitter(32,.15),  'Restaurantes',  mi,'20','dc1'])
     if (i % 2 === 0) g.push([`${p}22`,'Cena amigos',   jitter(65,.2),'Restaurantes',mi,'25','dc1'])
     // Transporte
@@ -10609,7 +10587,7 @@ function loadDemoData(scenario, nombreOverride) {
     // Salud
     g.push([`${p}26`,'Seguro médico',       jitter(65,.02),  'Salud',         mi,'02','dc1',true])
     g.push([`${p}27`,'Gym',                 jitter(45,.02),  'Salud',         mi,'01','dc1',true])
-    if (i % 2 === 0) g.push([`${p}28`,'Farmacia',      jitter(28,.2),'Salud',mi,'17','dc5'])
+    if (i % 2 === 0) g.push([`${p}28`,'Farmacia',      jitter(28,.2),'Salud',mi,'17','dc4'])
     // Educación
     if (i === 1) g.push([`${p}29`,'Udemy Pro anual', 200,  'Educación',  mi,'14','dc3'])
     if (i === 3) g.push([`${p}30`,'Máster online',   890,  'Educación',  mi,'10','dc2'])
@@ -10702,7 +10680,7 @@ function loadDemoData(scenario, nombreOverride) {
     { id:'da2', nombre:'Tesla Model 3 2022', tipo:'vehicle',  valor:28000,  valorCompra:42000,  fecha:d(mes(-18),'15'), status:'active',  depreciacion:true, depPct:8, notas:'Financiado parcialmente' },
     { id:'da3', nombre:'MacBook Pro M3 Max', tipo:'electronics',valor:2800, valorCompra:3200,   fecha:d(mes(-8),'10'),  status:'active',  depreciacion:true, depPct:20 },
     { id:'da4', nombre:'Colección arte NFT', tipo:'other',    valor:1200,   valorCompra:2400,   fecha:d(mes(-14),'05'), status:'active',  notas:'Cartera NFT blue chip' },
-    { id:'da5', nombre:'BMW 320d 2018',      tipo:'vehicle',  valor:0,      valorCompra:18000,  fecha:d(mes(-30),'01'), status:'sold',    fechaVenta:d(mes(-5),'22'), valorVenta:12000, notas:'Vendido' },
+    { id:'da5', nombre:'BMW 320d 2018',      tipo:'vehicle',  valor:12000,  valorCompra:18000,  fecha:d(mes(-30),'01'), status:'sold',    fechaVenta:d(mes(-5),'22'), valorVenta:12000, notas:'Vendido' },
   ]
 
   // ── PATRIMONIO HISTÓRICO — 12 meses con tendencia creciente ──
@@ -10757,11 +10735,12 @@ function _renderDemoFab() {
     fab.onclick = toggleDemoPanel
     document.body.appendChild(fab)
 
-    // Build panel
+    // Build panel — simple: solo modo real + configuración
     const panel = document.createElement('div')
     panel.id = 'demoPanelModal'
     panel.innerHTML = _buildDemoPanel()
     document.body.appendChild(panel)
+    panel.style.cssText += 'min-width:220px;max-width:260px;'
 
     // Close on outside click
     document.addEventListener('pointerdown', _demoOutsideClick, { capture: true })
@@ -10785,60 +10764,29 @@ function toggleDemoPanel() {
 }
 
 function _buildDemoPanel() {
-  if (isDemoMode()) {
-    return `
-      <div class="dpm-title">🟡 Modo demo activo</div>
-      <div class="dpm-sub">Explora la app con datos de ejemplo. Tus datos reales están intactos.</div>
-      <div class="dpm-sep"></div>
-      <div class="dpm-row">
-        <div class="dpm-label">Perfil del escenario</div>
-        <select class="dpm-select" id="dpmScenario" onchange="demoScenarioPreview(this.value)">
-          <option value="standard">👤 Perfil estándar — Asalariado con ahorro</option>
-          <option value="freelance">💼 Freelance — Ingresos variables</option>
-          <option value="family">👨‍👩‍👧 Familia — Dos ingresos, más gastos</option>
-          <option value="investor">📈 Inversor activo — Cartera diversificada</option>
-        </select>
-      </div>
-      <div class="dpm-actions">
-        <button class="dpm-btn-gold" onclick="reloadDemoWithScenario()">🔄 Recargar con este perfil</button>
-        <button class="dpm-btn-ghost" onclick="goTo('configuracion');toggleDemoPanel()">⚙️ Ver en Configuración</button>
-        <button class="dpm-btn-danger" onclick="toggleDemoPanel();confirmar('¿Salir del modo demo y borrar los datos de ejemplo?',()=>{clearDemoData()},{titulo:\'Salir del demo\',icono:\'🏁\',btnLabel:\'Salir del demo\'})">🏁 Salir al modo real</button>
-      </div>`
-  } else {
-    return `
-      <div class="dpm-title">🔍 Explorar con datos demo</div>
-      <div class="dpm-sub">Activa datos de ejemplo para ver todas las funciones sin introducir datos propios.</div>
-      <div class="dpm-sep"></div>
-      <div class="dpm-row">
-        <div class="dpm-label">Nombre del usuario demo</div>
-        <input class="dpm-input" id="dpmNombre" type="text" placeholder="Ej: María García" maxlength="30">
-      </div>
-      <div class="dpm-row">
-        <div class="dpm-label">Perfil del escenario</div>
-        <select class="dpm-select" id="dpmScenario">
-          <option value="standard">👤 Perfil estándar — Asalariado con ahorro</option>
-          <option value="freelance">💼 Freelance — Ingresos variables</option>
-          <option value="family">👨‍👩‍👧 Familia — Dos ingresos, más gastos</option>
-          <option value="investor">📈 Inversor activo — Cartera diversificada</option>
-        </select>
-      </div>
-      <div class="dpm-actions">
-        <button class="dpm-btn-gold" onclick="activateDemoWithConfig()">🚀 Activar modo demo</button>
-      </div>`
-  }
+  return `
+    <div class="dpm-title">🟡 ${t('demo_label','Modo demo')}</div>
+    <div class="dpm-sub" style="font-size:.78rem;color:var(--text2);margin:6px 0 12px;line-height:1.5">
+      ${t('demo_sublabel','Datos de ejemplo activos')}
+    </div>
+    <div class="dpm-actions" style="display:flex;flex-direction:column;gap:8px">
+      <button class="dpm-btn-danger" onclick="toggleDemoPanel();confirmar(t('confirm_salir_demo'),()=>{clearDemoData()},{titulo:t('confirm_salir_demo_titulo'),icono:'🏁',btnLabel:t('confirm_salir_demo_btn')})">
+        🏁 ${t('cfg_demo_salir','Ir al modo real')}
+      </button>
+      <button class="dpm-btn-ghost" onclick="goTo('configuracion');toggleDemoPanel()">
+        ⚙️ ${t('ver_configuracion','Ver en Configuración')}
+      </button>
+    </div>`
 }
 
 function demoScenarioPreview(val) { /* future: live preview */ }
 
 function activateDemoWithConfig() {
-  const nombre   = (document.getElementById('dpmNombre')?.value || '').trim() || 'Demo'
-  const scenario = document.getElementById('dpmScenario')?.value || 'standard'
-  toggleDemoPanel()
-  loadDemoData(scenario, nombre)
+  loadDemoData('standard', null)
   save()
   render()
   _renderDemoFab()
-  toast('✅ Modo demo activado — explora sin límites')
+  toast(t('toast_modo_demo','✅ Modo demo activado — explora sin límites'))
 }
 
 function reloadDemoWithScenario() {
