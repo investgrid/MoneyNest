@@ -5525,19 +5525,6 @@ function switchDebtTab(tab) {
   const intM  = S && S.deudas ? S.deudas.reduce((a,d)=>a+(Number(d.interes)||0),0)/(S.deudas.length||1) : 0
   const { monthlyPayment } = calcDebtStrategy(pend, intM, { conservador:0.6, moderado:1.0, agresivo:1.6 }[window._deudaStrat||'moderado'] || 1.0)
   setTimeout(() => renderChartDeudaProyeccion(pend, window._deudaCustomPago || monthlyPayment), 40)
-
-  const snow = document.getElementById('debt-snowball')
-  const aval = document.getElementById('debt-avalanche')
-  if (snow) snow.style.display = tab==='snowball' ? 'block' : 'none'
-  if (aval) aval.style.display = tab==='avalanche' ? 'block' : 'none'
-  document.querySelectorAll('#nav-deudas ~ * .tab, .tab').forEach(t=>{
-    if (t.id==='tab-'+tab) t.classList.add('active')
-    else if (t.id==='tab-snowball'||t.id==='tab-avalanche') t.classList.remove('active')
-  })
-  const tSnow = document.getElementById('tab-snowball')
-  const tAval = document.getElementById('tab-avalanche')
-  if (tSnow) tSnow.classList.toggle('active', tab==='snowball')
-  if (tAval) tAval.classList.toggle('active', tab==='avalanche')
 }
 
 function exportarDeudas() {
