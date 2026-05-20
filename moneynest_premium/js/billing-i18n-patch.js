@@ -1230,10 +1230,8 @@
       payment_local_plan_title: 'Ativar Local — 5 €', payment_pro_plan_title: 'Ativar Pro — 10 € primeiro ano',
     },
 
-    // ────────────────────────────────────────────────────────────
-    // CATALÀ (ca) — 7è idioma
-    // ────────────────────────────────────────────────────────────
-    ca: {
+    // Catalán eliminado — se mantienen 6 idiomas: es, en, fr, de, it, pt
+    _ca_removed: {
       billing_step_conectando:        'Connectant amb el servidor de pagaments…',
       billing_step_verificando:       'Verificant el mètode de pagament…',
       billing_step_procesando:        'Processant el pagament de 5,00 €…',

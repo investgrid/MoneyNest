@@ -4252,8 +4252,8 @@ function renderDash503020() {
   return `<div class="card" style="margin-bottom:14px">
     <div class="card-header">
       <div>
-        <div class="card-title">⚖️ Regla 50/30/20</div>
-        <div class="card-subtitle">Distribución óptima de tu dinero este mes</div>
+        <div class="card-title">⚖️ ${t('regla_503020','Regla 50/30/20')}</div>
+        <div class="card-subtitle">${t('distribucion_optima','Distribución óptima de tu dinero este mes')}</div>
       </div>
       <span style="font-size:1.2rem" title="${allOk?'¡Todo en orden!':'Hay categorías fuera del rango óptimo'}">${allOk?'✅':'⚠️'}</span>
     </div>
@@ -4314,7 +4314,7 @@ function renderSubscriptionDetector() {
   return `<div class="card" style="margin-bottom:14px">
     <div class="card-header">
       <div>
-        <div class="card-title">🔄 Suscripciones detectadas</div>
+        <div class="card-title">🔄 ${t('suscripciones_detectadas','Suscripciones detectadas')}</div>
         <div class="card-subtitle">${unique.length} activas · <strong style="color:var(--text)">${eur(totalSubs)}/mes</strong> · ${eur(totalSubs*12)}/año</div>
       </div>
       <button class="btn btn-ghost btn-xs" onclick="goTo('gastos')">Ver todas →</button>
@@ -4356,7 +4356,7 @@ function renderPresupuestosResumen() {
     </div>`
   }).join('')
   return `<div class="card" style="margin-bottom:14px">
-    <div class="card-header"><div class="card-title">📊 Presupuestos del mes</div><button class="btn btn-ghost btn-xs" onclick="goTo('presupuestos')">Ver todos →</button></div>
+    <div class="card-header"><div class="card-title">📊 ${t('presupuestos_del_mes','Presupuestos del mes')}</div><button class="btn btn-ghost btn-xs" onclick="goTo('presupuestos')">${t('ver_todos','Ver todos')} →</button></div>
     ${items}
   </div>`
 }
@@ -4791,7 +4791,7 @@ function exportarGastos() {
     XLSX.utils.book_append_sheet(wb, ws, 'Gastos')
     XLSX.writeFile(wb, `MoneyNest_Gastos_${todayISO()}.xlsx`)
     toast(t('toast_gastos_exportados'))
-  } catch(e) { toast('Error al exportar','error') }
+  } catch(e) { toast(t('err_exportar','Error al exportar'),'error') }
 }
 // ─── INVERSIONES ───────────────────────────────────────────────
 function renderInversiones() {
@@ -4963,7 +4963,7 @@ function exportarInversiones() {
     XLSX.utils.book_append_sheet(wb, ws, 'Inversiones')
     XLSX.writeFile(wb, `MoneyNest_Inversiones_${todayISO()}.xlsx`)
     toast(t('toast_inversiones_exportadas'))
-  } catch(e) { toast('Error al exportar','error') }
+  } catch(e) { toast(t('err_exportar','Error al exportar'),'error') }
 }
 // ─── DEUDAS ────────────────────────────────────────────────────
 let _deudaSearch = ''
@@ -5493,7 +5493,7 @@ function exportarDeudas() {
     XLSX.utils.book_append_sheet(wb, ws, 'Deudas')
     XLSX.writeFile(wb, `MoneyNest_Deudas_${todayISO()}.xlsx`)
     toast(t('toast_deudas_exportadas'))
-  } catch(e) { toast('Error al exportar','error'); console.error(e) }
+  } catch(e) { toast(t('err_exportar','Error al exportar'),'error'); console.error(e) }
 }
 
 // ─── OBJETIVOS ─────────────────────────────────────────────────
@@ -5661,7 +5661,7 @@ function exportarObjetivos() {
     XLSX.utils.book_append_sheet(wb, ws, 'Objetivos')
     XLSX.writeFile(wb, `MoneyNest_Objetivos_${todayISO()}.xlsx`)
     toast(t('toast_objetivos_exportados'))
-  } catch(e) { toast('Error al exportar','error'); console.error(e) }
+  } catch(e) { toast(t('err_exportar','Error al exportar'),'error'); console.error(e) }
 }
 
 // Avatar helpers for objetivos
@@ -5821,7 +5821,7 @@ function exportarPresupuestos() {
     XLSX.utils.book_append_sheet(wb, ws, 'Presupuestos')
     XLSX.writeFile(wb, `MoneyNest_Presupuestos_${todayISO()}.xlsx`)
     toast(t('toast_presupuestos_exportados'))
-  } catch(e) { toast('Error al exportar','error') }
+  } catch(e) { toast(t('err_exportar','Error al exportar'),'error') }
 }
 function renderCuentas() {
   const totalSaldo = calcDineroDisponible()
@@ -7739,8 +7739,8 @@ function exportarClientes() {
     ws['!cols'] = headers.map(h=>({wch:Math.max(h.length,14)}))
     XLSX.utils.book_append_sheet(wb, ws, 'Clientes')
     XLSX.writeFile(wb, `MoneyNest_Clientes_${todayISO()}.xlsx`)
-    toast('Clientes exportados ✓')
-  } catch(e) { toast('Error al exportar','error'); console.error(e) }
+    toast(t('toast_clientes_exportados','Clientes exportados ✓'))
+  } catch(e) { toast(t('err_exportar','Error al exportar'),'error'); console.error(e) }
 }
 
 function cambiarModoEmpresa() {
@@ -7825,7 +7825,7 @@ function previewClienteAvatar(input) {
 
 function guardarCliente() {
   const nombre = document.getElementById('clienteNombre').value.trim()
-  if (!nombre) { toast('El nombre es requerido','error'); return }
+  if (!nombre) { toast(t('err_nombre_requerido','El nombre es requerido'),'error'); return }
   if (!S.clientes) S.clientes = []
   const id  = document.getElementById('clienteId').value
   const data = {
@@ -7844,13 +7844,13 @@ function guardarCliente() {
   } else {
     S.clientes.push({id: uid(), ...data})
   }
-  save(); closeModal('clienteModal'); render(); toast('Cliente guardado ✓')
+  save(); closeModal('clienteModal'); render(); toast(t('toast_cliente_guardado','Cliente guardado ✓'))
 }
 
 function borrarCliente(id) {
   confirmar(t('confirm_eliminar_cliente'), ()=>{
     S.clientes = (S.clientes||[]).filter(x=>x.id!==id)
-    save(); render(); toast('Cliente eliminado')
+    save(); render(); toast(t('toast_cliente_eliminado','Cliente eliminado'))
   }, {titulo:t('confirm_eliminar_cliente_titulo'),icono:'🗑️'})
 }
 
@@ -9565,7 +9565,7 @@ function _obLeftHTML(step) {
 
   // STEP 1: Auth — left panel shows language selector + brand tagline
   if (step === 1) {
-    const langs = [['es','🇪🇸','Español'],['en','🇺🇸','English'],['ca','🏴','Català'],['fr','🇫🇷','Français'],['de','🇩🇪','Deutsch'],['pt','🇵🇹','Português'],['it','🇮🇹','Italiano']]
+    const langs = [['es','🇪🇸','Español'],['en','🇺🇸','English'],['fr','🇫🇷','Français'],['de','🇩🇪','Deutsch'],['pt','🇵🇹','Português'],['it','🇮🇹','Italiano']]
     return `
     <div class="ob-left-content ob-left-content--auth">
       ${brand}
@@ -10660,7 +10660,7 @@ function clearDemoData() {
   render()
   // Show the "real mode" subtle FAB
   setTimeout(_renderDemoFab, 300)
-  toast('✅ Modo real activado — app lista para tus datos')
+  toast(t('toast_modo_real','✅ Modo real activado — app lista para tus datos'))
 }
 
 function showDemoChip() { _renderDemoFab() }  // Alias kept for compatibility
@@ -10752,7 +10752,7 @@ function reloadDemoWithScenario() {
   save()
   render()
   _renderDemoFab()
-  toast('🔄 Escenario recargado: ' + scenario)
+  toast(t('toast_escenario_recargado','🔄 Escenario recargado'))
 }
 
 function finishOnboarding() {
@@ -10777,7 +10777,7 @@ function finishOnboarding() {
     _setTutDone()
     save()
     render()
-    toast('Datos de ejemplo cargados — explora libremente')
+    toast(t('toast_demo_cargados','Datos de ejemplo cargados — explora libremente'))
     _renderDemoFab()
     // Register in background after demo loaded
     _obRegisterSupabase()
@@ -11074,7 +11074,7 @@ function endTutorial() {
   destroyAllCharts()
   currentPage = 'dashboard'
   render()
-  toast('¡Tour completado! 🎉 Añade tus cuentas reales para empezar.')
+  toast(t('toast_tour_completado','¡Tour completado! 🎉 Añade tus cuentas reales para empezar.'))
 }
 function lanzarTutorial() { startTutorial() }
 
@@ -11122,7 +11122,7 @@ function editarProveedor(id) {
 
 function guardarProveedor() {
   var nombre = document.getElementById("proveedorNombre").value.trim()
-  if (!nombre) { toast("El nombre es requerido","error"); return }
+  if (!nombre) { toast(t('err_nombre_requerido','El nombre es requerido'),'error'); return }
   if (!S.proveedores) S.proveedores = []
   var id = document.getElementById("proveedorId").value
   var data = {
@@ -11141,13 +11141,13 @@ function guardarProveedor() {
   } else {
     S.proveedores.push(Object.assign({id:uid()}, data))
   }
-  save(); closeModal("proveedorModal"); render(); toast("Proveedor guardado ✓")
+  save(); closeModal("proveedorModal"); render(); toast(t('toast_proveedor_guardado','Proveedor guardado ✓'))
 }
 
 function borrarProveedor(id) {
   confirmar("¿Eliminar este proveedor?", function(){
     S.proveedores = (S.proveedores||[]).filter(function(x){ return x.id!==id })
-    save(); render(); toast("Proveedor eliminado")
+    save(); render(); toast(t('toast_proveedor_eliminado','Proveedor eliminado'))
   }, {titulo:"Eliminar proveedor",icono:"🗑️"})
 }
 
@@ -11200,7 +11200,7 @@ function exportarProveedores() {
     ws["!cols"] = headers.map(function(h){ return {wch:Math.max(h.length,14)} })
     XLSX.utils.book_append_sheet(wb, ws, "Proveedores")
     XLSX.writeFile(wb, "MoneyNest_Proveedores_"+todayISO()+".xlsx")
-    toast("Proveedores exportados ✓")
+    toast(t('toast_proveedores_exportados','Proveedores exportados ✓'))
   } catch(e) { toast("Error al exportar","error") }
 }
 
@@ -11366,11 +11366,11 @@ function saveSugerencia() {
   const tipoEl = document.querySelector('input[name="sug-tipo"]:checked')
   if (!input) return
   const text = (input.value||'').trim()
-  if (!text) { toast('Escribe una sugerencia primero','error'); return }
+  if (!text) { toast(t('err_sugerencia_vacia','Escribe una sugerencia primero'),'error'); return }
   const sug = { id: Date.now(), text, categoria: cat?.value||'General', tipo: tipoEl?.value||'Sugerencia', fecha: new Date().toISOString().slice(0,10), votos: 0 }
   window._sugerencias.unshift(sug)
   try { localStorage.setItem('mn_sugerencias', JSON.stringify(window._sugerencias)) } catch(e) {}
-  toast('¡Sugerencia guardada! Gracias 🙏','success')
+  toast(t('toast_sugerencia_guardada','¡Sugerencia guardada! Gracias 🙏'),'success')
   renderFAQ()
 }
 
@@ -11390,7 +11390,7 @@ function borrarSugerencia(id) {
 function copiarEmailSugerencias() {
   const email = 'invest.grid.main@gmail.com'
   if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(email).then(()=>toast('Email copiado al portapapeles 📋')).catch(()=>{
+    navigator.clipboard.writeText(email).then(()=>toast(t('toast_email_copiado','Email copiado al portapapeles 📋'))).catch(()=>{
       _copiarEmailFallback(email)
     })
   } else {
@@ -11401,7 +11401,7 @@ function _copiarEmailFallback(email) {
   const ta = document.createElement('textarea')
   ta.value = email; ta.style.position='fixed'; ta.style.opacity='0'
   document.body.appendChild(ta); ta.select()
-  try { document.execCommand('copy'); toast('Email copiado al portapapeles 📋') }
+  try { document.execCommand('copy'); toast(t('toast_email_copiado','Email copiado al portapapeles 📋')) }
   catch(e) { toast('Copia manualmente: '+email,'error') }
   document.body.removeChild(ta)
 }
@@ -11412,7 +11412,7 @@ function enviarSugerenciaEmail() {
   const tipoEl = document.querySelector('input[name="sug-tipo"]:checked')
   if (!input) return
   const text = (input.value||'').trim()
-  if (!text) { toast('Escribe un mensaje primero','error'); return }
+  if (!text) { toast(t('err_mensaje_vacio','Escribe un mensaje primero'),'error'); return }
 
   const tipo      = tipoEl?.value || 'Sugerencia'
   const categoria = cat?.value    || 'General'
@@ -11429,14 +11429,14 @@ function enviarSugerenciaEmail() {
   .then(r => r.json())
   .then(data => {
     if (data.ok) {
-      toast('✅ Sugerencia enviada directamente. ¡Gracias!', 'success')
+      toast(t('toast_sugerencia_enviada','✅ Sugerencia enviada directamente. ¡Gracias!'), 'success')
       if (input) input.value = ''
       renderFAQ()
     } else {
-      toast('⚠ Error al enviar: ' + (data.error || 'inténtalo de nuevo'), 'error')
+      toast('⚠ ' + t('err_enviar_sugerencia','Error al enviar') + ': ' + (data.error || t('intentalo_de_nuevo','inténtalo de nuevo')), 'error')
     }
   })
-  .catch(() => toast('⚠ No se pudo enviar. Comprueba tu conexión.', 'error'))
+  .catch(() => toast('⚠ ' + t('err_conexion','No se pudo enviar. Comprueba tu conexión.'), 'error'))
   .finally(() => {
     if (btn) { btn.disabled = false; btn.textContent = '📧 Enviar por email' }
   })
@@ -11568,13 +11568,13 @@ function guardarDevengo() {
   } else {
     S.devengos.push(Object.assign({id:uid()}, data))
   }
-  save(); closeModal("devengoModal"); render(); toast("Devengo guardado ✓")
+  save(); closeModal("devengoModal"); render(); toast(t('toast_devengo_guardado','Devengo guardado ✓'))
 }
 
 function borrarDevengo(id) {
   confirmar("¿Eliminar este registro de devengo?", function(){
     S.devengos = (S.devengos||[]).filter(function(x){ return x.id!==id })
-    save(); render(); toast("Devengo eliminado")
+    save(); render(); toast(t('toast_devengo_eliminado','Devengo eliminado'))
   }, {titulo:"Eliminar devengo",icono:"🗑️"})
 }
 
@@ -11602,7 +11602,7 @@ function exportarDevengos() {
     ws["!cols"] = headers.map(function(h){ return {wch:Math.max(h.length,14)} })
     XLSX.utils.book_append_sheet(wb, ws, "Devengo")
     XLSX.writeFile(wb, "MoneyNest_Devengo_"+todayISO()+".xlsx")
-    toast("Devengos exportados ✓")
+    toast(t('toast_devengos_exportados','Devengos exportados ✓'))
   } catch(e) { toast("Error al exportar","error") }
 }
 
@@ -12062,7 +12062,7 @@ function editarAsset(id) {
 function guardarAsset() {
   const nombre = document.getElementById('assetNombre').value.trim()
   const valor  = parseFloat(document.getElementById('assetValor').value)
-  if (!nombre) { toast('El nombre es obligatorio','error'); return }
+  if (!nombre) { toast(t('err_nombre_obligatorio','El nombre es obligatorio'),'error'); return }
   if (isNaN(valor)||valor<0) { toast('Introduce un valor actual válido','error'); return }
   if (!S.assets) S.assets = []
   const id   = document.getElementById('assetId').value
@@ -12094,7 +12094,7 @@ function guardarAsset() {
   save()
   closeModal('assetModal')
   if (currentPage==='patrimonio') renderPatrimonio()
-  toast('Activo guardado ✓')
+  toast(t('toast_activo_guardado','Activo guardado ✓'))
 }
 
 function borrarAsset(id) {
@@ -12103,7 +12103,7 @@ function borrarAsset(id) {
     recordPatrimonio()
     save()
     if (currentPage==='patrimonio') renderPatrimonio()
-    toast('Activo eliminado')
+    toast(t('toast_activo_eliminado','Activo eliminado'))
   }, {titulo:'Eliminar activo',icono:'🗑️'})
 }
 
@@ -12127,7 +12127,7 @@ function marcarAssetVendido(id) {
   if (!body || !btn) return
   body.innerHTML = `
     <div class="confirm-icon">🏷</div>
-    <div class="confirm-title">Vender activo</div>
+    <div class="confirm-title">${t('confirm_title_vender_activo','Vender activo')}</div>
     <div class="confirm-msg" style="text-align:left;margin-top:12px">
       <div style="font-size:.88rem;color:var(--text2);margin-bottom:12px">
         Vender <strong style="color:var(--text)">${a.nombre}</strong> generará un ingreso automático en la cuenta seleccionada.
@@ -12185,7 +12185,7 @@ function quickUpdateAssetValue(id) {
   if (!body || !btn) return
   body.innerHTML = `
     <div class="confirm-icon">💰</div>
-    <div class="confirm-title">Actualizar valor actual</div>
+    <div class="confirm-title">${t('confirm_title_actualizar_valor','Actualizar valor actual')}</div>
     <div class="confirm-msg" style="text-align:left;margin-top:12px">
       <div style="font-size:.82rem;color:var(--text2);margin-bottom:10px"><strong>${a.nombre}</strong> — Valor actual: <strong>${eur(Number(a.valor)||0)}</strong></div>
       <div class="form-group">
@@ -12194,17 +12194,17 @@ function quickUpdateAssetValue(id) {
           style="width:100%;padding:8px 12px;background:var(--bg2);border:1.5px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);font-size:.9rem;margin-top:4px">
       </div>
     </div>`
-  btn.textContent = '✓ Actualizar'
+  btn.textContent = t('btn_actualizar','✓ Actualizar')
   btn.className = 'btn btn-primary btn-sm'
   btn.onclick = () => {
     const newVal = parseFloat(document.getElementById('_quickVal')?.value)
-    if (isNaN(newVal) || newVal < 0) { toast('Valor inválido','error'); return }
+    if (isNaN(newVal) || newVal < 0) { toast(t('err_valor_invalido','Valor inválido'),'error'); return }
     a.valor = newVal
     recordPatrimonio()
     save()
     closeModal('confirmModal')
     if (currentPage === 'patrimonio') renderPatrimonio()
-    toast(`Valor actualizado: ${eur(newVal)} ✓`)
+    toast(t('toast_valor_actualizado','Valor actualizado') + ': ' + eur(newVal) + ' ✓')
   }
   openModal('confirmModal')
 }
@@ -12682,7 +12682,7 @@ function saveQuickAdd() {
   updateStreak()
   closeQuickAdd()
   render()
-  toast(`${_qaType==='gasto'?'Gasto':'Ingreso'} de ${eur(importe)} registrado ✓`)
+  toast((_qaType==='gasto'?t('nav_gastos','Gasto'):t('nav_ingresos','Ingreso')) + ' ' + eur(importe) + ' ✓')
   // Haptic feedback on mobile
   if (navigator.vibrate) navigator.vibrate(10)
 }
@@ -13183,7 +13183,7 @@ function gcCreate() {
   save()
   render()
   gcClose()
-  toast(`🎯 Objetivo creado: ${nombre}`)
+  toast('🎯 ' + t('toast_objetivo_creado','Objetivo creado') + ': ' + nombre)
 }
 
 function checkGoalCoach() {
@@ -13325,8 +13325,8 @@ function _showMisionComplete() {
       <div style="font-family:'Plus Jakarta Sans',sans-serif;font-size:1.4rem;font-weight:800;color:var(--text);letter-spacing:-.04em;margin-bottom:8px">¡Misiones completadas!</div>
       <div style="font-size:.875rem;color:var(--text2);line-height:1.6;margin-bottom:28px">Ya conoces lo esencial de ${APP_NAME}. ¿Qué quieres hacer con los datos de práctica?</div>
       <div style="display:flex;flex-direction:column;gap:10px">
-        <button onclick="document.getElementById('misionCompleteOverlay').remove();toast('✅ Datos guardados — ¡bienvenido a ${APP_NAME}!')" style="padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#00D4AA,#00A882);color:#0A0E17;font-size:.9rem;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 4px 16px rgba(0,212,170,.3)">Mantener datos y continuar 🚀</button>
-        <button onclick="document.getElementById('misionCompleteOverlay').remove();const s=defaultState();s.usuario.nombre=S.usuario.nombre;s.theme=S.theme;S=s;save();render();toast('App reiniciada — empieza con tus datos reales 🚀')" style="padding:13px;border-radius:12px;border:1.5px solid var(--border2);background:transparent;color:var(--text2);font-size:.85rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all .18s">Empezar limpio (borrar práctica)</button>
+        <button onclick="document.getElementById('misionCompleteOverlay').remove();toast(t('toast_datos_guardados','✅ Datos guardados — ¡bienvenido!'))" style="padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#00D4AA,#00A882);color:#0A0E17;font-size:.9rem;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 4px 16px rgba(0,212,170,.3)">${t('mision_mantener','Mantener datos y continuar 🚀')}</button>
+        <button onclick="document.getElementById('misionCompleteOverlay').remove();const s=defaultState();s.usuario.nombre=S.usuario.nombre;s.theme=S.theme;S=s;save();render();toast(t('toast_app_reiniciada','App reiniciada — empieza con tus datos reales 🚀'))" style="padding:13px;border-radius:12px;border:1.5px solid var(--border2);background:transparent;color:var(--text2);font-size:.85rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all .18s">${t('mision_empezar_limpio','Empezar limpio (borrar práctica)')}</button>
       </div>
     </div>`
   document.body.appendChild(overlay)
@@ -13377,7 +13377,7 @@ function _authStartTrial() {
   if (gg) gg.style.display = 'none';
   _renderAuthBadge();
   _renderTrialPill();
-  toast('⏳ ¡Prueba de 24h activada! Explora todas las funciones.');
+  toast(t('toast_trial_activada','⏳ ¡Prueba de 24h activada! Explora todas las funciones.'));
 }
 
 function _authActivatePro() {

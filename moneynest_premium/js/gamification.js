@@ -8,40 +8,44 @@
   const STORE_KEY  = 'mn_achievements';
   const STREAK_KEY = 'mn_streak';
 
-  // ─── Achievement definitions ──────────────────────────────────────
-  const ACHIEVEMENTS = [
-    // ── Primeros pasos ──
-    { id:'primer_ingreso',      emoji:'💰', cat:'inicio',    nombre:'Primer ingreso',         desc:'Añade tu primer ingreso',                        trigger:'ingreso_added'    },
-    { id:'primer_gasto',        emoji:'📝', cat:'inicio',    nombre:'Primer gasto',           desc:'Registra tu primer gasto',                       trigger:'gasto_added'      },
-    { id:'primera_deuda',       emoji:'🎯', cat:'inicio',    nombre:'Deuda registrada',       desc:'Registra tu primera deuda',                      trigger:'deuda_added'      },
-    { id:'primera_inversion',   emoji:'📈', cat:'inicio',    nombre:'Inversor',               desc:'Crea tu primera inversión',                      trigger:'inversion_added'  },
-    { id:'primer_objetivo',     emoji:'🌟', cat:'inicio',    nombre:'Soñador',                desc:'Crea tu primer objetivo de ahorro',              trigger:'objetivo_added'   },
-    { id:'primer_presupuesto',  emoji:'📋', cat:'inicio',    nombre:'Planificador',           desc:'Crea tu primer presupuesto',                     trigger:'presupuesto_added'},
-    // ── Constancia ──
-    { id:'streak_7',            emoji:'🔥', cat:'constancia',nombre:'Una semana seguida',     desc:'7 días de racha de uso',                         trigger:'streak'           },
-    { id:'streak_30',           emoji:'💎', cat:'constancia',nombre:'Un mes de racha',        desc:'30 días de racha de uso',                        trigger:'streak'           },
-    { id:'streak_100',          emoji:'👑', cat:'constancia',nombre:'Centenario',             desc:'100 días de racha — eres imparable',             trigger:'streak'           },
-    { id:'ahorrador_3meses',    emoji:'🌱', cat:'constancia',nombre:'Ahorrador constante',    desc:'3 meses seguidos con ahorro positivo',           trigger:'data_check'       },
-    { id:'ahorrador_6meses',    emoji:'🌳', cat:'constancia',nombre:'Raíces profundas',       desc:'6 meses seguidos con ahorro positivo',           trigger:'data_check'       },
-    // ── Volumen ──
-    { id:'diez_ingresos',       emoji:'💵', cat:'volumen',   nombre:'Flujo constante',        desc:'10 ingresos registrados',                        trigger:'ingreso_added'    },
-    { id:'cincuenta_gastos',    emoji:'🧾', cat:'volumen',   nombre:'Detallista',             desc:'50 gastos registrados',                          trigger:'gasto_added'      },
-    { id:'cinco_inversiones',   emoji:'🏦', cat:'volumen',   nombre:'Cartera diversificada',  desc:'5 inversiones activas',                          trigger:'inversion_added'  },
-    { id:'cinco_objetivos',     emoji:'🎯', cat:'volumen',   nombre:'Ambicioso',              desc:'5 objetivos de ahorro creados',                  trigger:'objetivo_added'   },
-    // ── Logros financieros ──
-    { id:'sin_deudas',          emoji:'🏆', cat:'finanzas',  nombre:'Libre de deudas',        desc:'Todas tus deudas en cero',                       trigger:'deuda_updated'    },
-    { id:'objetivo_completado', emoji:'✅', cat:'finanzas',  nombre:'Meta alcanzada',         desc:'Completa tu primer objetivo de ahorro',          trigger:'objetivo_done'    },
-    { id:'saldo_positivo',      emoji:'📊', cat:'finanzas',  nombre:'En positivo',            desc:'Cash flow positivo este mes',                    trigger:'data_check'       },
-    { id:'ahorro_1000',         emoji:'💶', cat:'finanzas',  nombre:'Mil euros ahorrados',    desc:'Acumula 1.000€ en objetivos completados',        trigger:'data_check'       },
-    // ── Exportar y personalizar ──
-    { id:'exportador',          emoji:'📄', cat:'pro',       nombre:'Documentado',            desc:'Primera exportación PDF o Excel',                trigger:'export_done'      },
-    { id:'personalizado',       emoji:'✨', cat:'pro',       nombre:'A tu manera',            desc:'Primera categoría personalizada creada',         trigger:'cat_created'      },
-    { id:'tres_cuentas',        emoji:'🏛️', cat:'pro',       nombre:'Multibanco',             desc:'3 o más cuentas bancarias gestionadas',          trigger:'data_check'       },
-    // ── Especiales ──
-    { id:'madrugador',          emoji:'🌅', cat:'especial',  nombre:'Madrugador',             desc:'Añade una transacción antes de las 7am',         trigger:'ingreso_added'    },
-    { id:'nocturno',            emoji:'🌙', cat:'especial',  nombre:'Noctámbulo',             desc:'Añade una transacción después de las 23h',       trigger:'gasto_added'      },
-    { id:'fin_de_semana',       emoji:'🎉', cat:'especial',  nombre:'Fin de semana activo',   desc:'Usa la app un sábado o domingo',                 trigger:'data_check'       },
-  ];
+  // ─── Achievement definitions — nombres y descs via t() ───────────
+  function _ach() {
+    const _w = (k, fb) => (typeof window.t === 'function' ? window.t(k) || fb : fb);
+    return [
+      // ── Primeros pasos ──
+      { id:'primer_ingreso',      emoji:'💰', cat:'inicio',    get nombre(){ return _w('ach_primer_ingreso_n','Primer ingreso') },         get desc(){ return _w('ach_primer_ingreso_d','Añade tu primer ingreso') },                        trigger:'ingreso_added'    },
+      { id:'primer_gasto',        emoji:'📝', cat:'inicio',    get nombre(){ return _w('ach_primer_gasto_n','Primer gasto') },             get desc(){ return _w('ach_primer_gasto_d','Registra tu primer gasto') },                       trigger:'gasto_added'      },
+      { id:'primera_deuda',       emoji:'🎯', cat:'inicio',    get nombre(){ return _w('ach_primera_deuda_n','Deuda registrada') },        get desc(){ return _w('ach_primera_deuda_d','Registra tu primera deuda') },                      trigger:'deuda_added'      },
+      { id:'primera_inversion',   emoji:'📈', cat:'inicio',    get nombre(){ return _w('ach_primera_inv_n','Inversor') },                  get desc(){ return _w('ach_primera_inv_d','Crea tu primera inversión') },                        trigger:'inversion_added'  },
+      { id:'primer_objetivo',     emoji:'🌟', cat:'inicio',    get nombre(){ return _w('ach_primer_obj_n','Soñador') },                    get desc(){ return _w('ach_primer_obj_d','Crea tu primer objetivo de ahorro') },                 trigger:'objetivo_added'   },
+      { id:'primer_presupuesto',  emoji:'📋', cat:'inicio',    get nombre(){ return _w('ach_primer_pres_n','Planificador') },              get desc(){ return _w('ach_primer_pres_d','Crea tu primer presupuesto') },                       trigger:'presupuesto_added'},
+      // ── Constancia ──
+      { id:'streak_7',            emoji:'🔥', cat:'constancia',get nombre(){ return _w('ach_streak_7_n','Una semana seguida') },           get desc(){ return _w('ach_streak_7_d','7 días de racha de uso') },                             trigger:'streak'           },
+      { id:'streak_30',           emoji:'💎', cat:'constancia',get nombre(){ return _w('ach_streak_30_n','Un mes de racha') },             get desc(){ return _w('ach_streak_30_d','30 días de racha de uso') },                           trigger:'streak'           },
+      { id:'streak_100',          emoji:'👑', cat:'constancia',get nombre(){ return _w('ach_streak_100_n','Centenario') },                 get desc(){ return _w('ach_streak_100_d','100 días de racha — eres imparable') },                trigger:'streak'           },
+      { id:'ahorrador_3meses',    emoji:'🌱', cat:'constancia',get nombre(){ return _w('ach_ahorrador_3m_n','Ahorrador constante') },      get desc(){ return _w('ach_ahorrador_3m_d','3 meses seguidos con ahorro positivo') },           trigger:'data_check'       },
+      { id:'ahorrador_6meses',    emoji:'🌳', cat:'constancia',get nombre(){ return _w('ach_ahorrador_6m_n','Raíces profundas') },         get desc(){ return _w('ach_ahorrador_6m_d','6 meses seguidos con ahorro positivo') },           trigger:'data_check'       },
+      // ── Volumen ──
+      { id:'diez_ingresos',       emoji:'💵', cat:'volumen',   get nombre(){ return _w('ach_diez_ing_n','Flujo constante') },              get desc(){ return _w('ach_diez_ing_d','10 ingresos registrados') },                            trigger:'ingreso_added'    },
+      { id:'cincuenta_gastos',    emoji:'🧾', cat:'volumen',   get nombre(){ return _w('ach_cincuenta_gas_n','Detallista') },              get desc(){ return _w('ach_cincuenta_gas_d','50 gastos registrados') },                         trigger:'gasto_added'      },
+      { id:'cinco_inversiones',   emoji:'🏦', cat:'volumen',   get nombre(){ return _w('ach_cinco_inv_n','Cartera diversificada') },       get desc(){ return _w('ach_cinco_inv_d','5 inversiones activas') },                             trigger:'inversion_added'  },
+      { id:'cinco_objetivos',     emoji:'🎯', cat:'volumen',   get nombre(){ return _w('ach_cinco_obj_n','Ambicioso') },                   get desc(){ return _w('ach_cinco_obj_d','5 objetivos de ahorro creados') },                     trigger:'objetivo_added'   },
+      // ── Logros financieros ──
+      { id:'sin_deudas',          emoji:'🏆', cat:'finanzas',  get nombre(){ return _w('ach_sin_deudas_n','Libre de deudas') },            get desc(){ return _w('ach_sin_deudas_d','Todas tus deudas en cero') },                         trigger:'deuda_updated'    },
+      { id:'objetivo_completado', emoji:'✅', cat:'finanzas',  get nombre(){ return _w('ach_obj_completado_n','Meta alcanzada') },         get desc(){ return _w('ach_obj_completado_d','Completa tu primer objetivo de ahorro') },        trigger:'objetivo_done'    },
+      { id:'saldo_positivo',      emoji:'📊', cat:'finanzas',  get nombre(){ return _w('ach_saldo_pos_n','En positivo') },                 get desc(){ return _w('ach_saldo_pos_d','Cash flow positivo este mes') },                      trigger:'data_check'       },
+      { id:'ahorro_1000',         emoji:'💶', cat:'finanzas',  get nombre(){ return _w('ach_ahorro_1000_n','Mil euros ahorrados') },       get desc(){ return _w('ach_ahorro_1000_d','Acumula 1.000€ en objetivos completados') },        trigger:'data_check'       },
+      // ── Pro ──
+      { id:'exportador',          emoji:'📄', cat:'pro',       get nombre(){ return _w('ach_exportador_n','Documentado') },               get desc(){ return _w('ach_exportador_d','Primera exportación PDF o Excel') },                  trigger:'export_done'      },
+      { id:'personalizado',       emoji:'✨', cat:'pro',       get nombre(){ return _w('ach_personalizado_n','A tu manera') },            get desc(){ return _w('ach_personalizado_d','Primera categoría personalizada creada') },        trigger:'cat_created'      },
+      { id:'tres_cuentas',        emoji:'🏛️', cat:'pro',       get nombre(){ return _w('ach_tres_cuentas_n','Multibanco') },              get desc(){ return _w('ach_tres_cuentas_d','3 o más cuentas bancarias gestionadas') },          trigger:'data_check'       },
+      // ── Especiales ──
+      { id:'madrugador',          emoji:'🌅', cat:'especial',  get nombre(){ return _w('ach_madrugador_n','Madrugador') },                get desc(){ return _w('ach_madrugador_d','Añade una transacción antes de las 7am') },           trigger:'ingreso_added'    },
+      { id:'nocturno',            emoji:'🌙', cat:'especial',  get nombre(){ return _w('ach_nocturno_n','Noctámbulo') },                  get desc(){ return _w('ach_nocturno_d','Añade una transacción después de las 23h') },           trigger:'gasto_added'      },
+      { id:'fin_de_semana',       emoji:'🎉', cat:'especial',  get nombre(){ return _w('ach_fin_semana_n','Fin de semana activo') },       get desc(){ return _w('ach_fin_semana_d','Usa la app un sábado o domingo') },                  trigger:'data_check'       },
+    ];
+  }
+  const ACHIEVEMENTS = _ach();
 
   // ─── Storage ──────────────────────────────────────────────────────
   function getAchievements() {
@@ -181,7 +185,7 @@
     el.innerHTML = `
       <div style="font-size:2rem;flex-shrink:0">${def.emoji}</div>
       <div>
-        <div style="font-size:.65rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(0,212,170,.8);margin-bottom:2px">¡Logro desbloqueado!</div>
+        <div style="font-size:.65rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(0,212,170,.8);margin-bottom:2px">${typeof window.t==='function'?window.t('achievement_unlocked','¡Logro desbloqueado!'):'¡Logro desbloqueado!'}</div>
         <div style="font-size:.95rem;font-weight:700;color:#fff">${def.nombre}</div>
         <div style="font-size:.75rem;color:rgba(255,255,255,.5);margin-top:2px">${def.desc}</div>
       </div>
