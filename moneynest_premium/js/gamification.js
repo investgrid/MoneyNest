@@ -354,13 +354,6 @@
     const unlocked = Object.keys(store.unlocked).length;
     const pct      = Math.round(unlocked / ACHIEVEMENTS.length * 100);
 
-    // State for collapsed/expanded (persistent in sessionStorage)
-    if (!window._achCollapsedState) {
-      try {
-        window._achCollapsedState = JSON.parse(sessionStorage.getItem('mn_ach_collapsed') || '{}');
-      } catch { window._achCollapsedState = {}; }
-    }
-
     // Group by category
     const groups = {};
     for (const a of ACHIEVEMENTS) {
@@ -369,56 +362,20 @@
       groups[cat].push(a);
     }
 
-    // Render collapsed card (compact, single line with emoji + title + progress bar)
-    function renderCollapsed(a) {
+    // Render single achievement card (GRID style like before)
+    function renderAchCard(a) {
       const done = !!store.unlocked[a.id];
-      const progress = done ? 100 : 0;
-      const safeId = a.id.replace(/[^a-z0-9_]/gi, '_');
+      const guide = ACH_GUIDES[a.id] || {};
+      const guideText = guide.tip || _gt(`ach_${a.id}_guide`, 'Toca para saber cómo');
       return `
-        <div class="mn-ach-collapsed" data-id="${safeId}" onclick="window.MNGamification._expandAch('${safeId}')">
-          <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
-            <span style="font-size:1.3rem;flex-shrink:0;${done?'':'filter:grayscale(1);opacity:.45'}">${a.emoji}</span>
-            <div style="flex:1;min-width:0">
-              <div style="font-size:.82rem;font-weight:700;color:${done?'var(--text)':'var(--text2)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.nombre}</div>
-              <div style="height:4px;background:var(--border);border-radius:99px;margin-top:4px;overflow:hidden">
-                <div style="height:100%;width:${progress}%;background:${done?'linear-gradient(90deg,#00D4AA,#059669)':'var(--border2)'};border-radius:inherit;transition:width .3s"></div>
-              </div>
-            </div>
-          </div>
-          <button class="mn-ach-info-btn" onclick="event.stopPropagation();window.MNGamification._showAchGuide('${a.id}','${a.emoji}','${a.nombre.replace(/'/g,"\\'")}','${done}')" title="${_gt('logro_info','Más info')}">
+        <div class="mn-ach-card ${done?'mn-ach-done':''}">
+          <div class="mn-ach-emoji">${a.emoji}</div>
+          <div class="mn-ach-name">${a.nombre}</div>
+          <div class="mn-ach-desc">${a.desc}</div>
+          ${done ? `<div class="mn-ach-badge">✓ ${_gt('completado','Completado')}</div>` : ''}
+          <button class="mn-ach-info-btn" onclick="event.stopPropagation();window.MNGamification._showAchGuide('${a.id}','${a.emoji}','${a.nombre.replace(/'/g,"\\'")}','${done}')" title="${guideText}">
             ℹ️
           </button>
-        </div>`;
-    }
-
-    // Render expanded card (roadmap + checklist + guide button)
-    function renderExpanded(a) {
-      const done = !!store.unlocked[a.id];
-      const guide = ACH_GUIDES[a.id] || { steps: [] };
-      const dateStr = done ? new Date(store.unlocked[a.id].unlockedAt).toLocaleDateString('es-ES', { day:'numeric', month:'short', year:'numeric' }) : '';
-      const safeId = a.id.replace(/[^a-z0-9_]/gi, '_');
-      return `
-        <div class="mn-ach-expanded" data-id="${safeId}" style="${done?'':'opacity:.8'}">
-          <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:14px">
-            <span style="font-size:2.2rem;flex-shrink:0;${done?'':'filter:grayscale(1);opacity:.45'}">${a.emoji}</span>
-            <div style="flex:1;min-width:0">
-              <div style="font-size:1rem;font-weight:800;color:${done?'var(--accent)':'var(--text)'};margin-bottom:3px">${a.nombre}</div>
-              <div style="font-size:.78rem;color:var(--text2);line-height:1.45">${a.desc}</div>
-              ${done ? `<div style="font-size:.7rem;color:var(--accent);margin-top:6px;font-weight:700">✅ ${_gt('logro_completado','Completado')} · ${dateStr}</div>` : ''}
-            </div>
-            <button class="mn-ach-collapse-btn" onclick="window.MNGamification._collapseAch('${safeId}')" title="${_gt('logro_colapsar','Colapsar')}">▲</button>
-          </div>
-          ${guide.steps.length ? `
-            <div class="mn-ach-roadmap">
-              <div style="font-size:.7rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">${done?_gt('logro_roadmap_completado','🗺 Cómo lo hiciste'):_gt('logro_roadmap','🗺 Roadmap')}</div>
-              ${guide.steps.map((step,i)=>`
-                <div class="mn-ach-step">
-                  <div class="mn-ach-step-num">${i+1}</div>
-                  <div class="mn-ach-step-text">${step}</div>
-                </div>
-              `).join('')}
-            </div>
-          ` : ''}
         </div>`;
     }
 
@@ -426,35 +383,26 @@
       const items = groups[catKey];
       if (!items || items.length === 0) return '';
       const doneCount = items.filter(a => !!store.unlocked[a.id]).length;
-      const catId = `cat-${catKey}`;
-      const catCollapsed = window._achCollapsedState[catId] !== false; // default collapsed
       return `
-        <div class="mn-ach-category" style="margin-bottom:18px">
-          <div class="mn-ach-cat-header" onclick="window.MNGamification._toggleCategory('${catId}')">
-            <div style="display:flex;align-items:center;gap:8px">
-              <span style="font-size:1.1rem">${meta.icon}</span>
-              <span style="font-size:.82rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:${meta.color}">${typeof meta.label === 'function' ? meta.label() : meta.label}</span>
-              <span style="font-size:.7rem;color:var(--text3);margin-left:6px">${doneCount}/${items.length}</span>
-            </div>
-            <span class="mn-ach-cat-arrow" style="transform:rotate(${catCollapsed?'0':'180deg'})"">▼</span>
+        <div class="mn-ach-section">
+          <div class="mn-ach-section-header">
+            <span style="font-size:1.05rem;margin-right:8px">${meta.icon}</span>
+            <span style="color:${meta.color}">${typeof meta.label === 'function' ? meta.label() : meta.label}</span>
+            <span style="margin-left:8px;font-size:.8rem;color:var(--text3)">${doneCount}/${items.length}</span>
           </div>
-          <div class="mn-ach-cat-body" id="${catId}" style="display:${catCollapsed?'none':'block'};margin-top:10px">
-            ${items.map(a => {
-              const safeId = a.id.replace(/[^a-z0-9_]/gi, '_');
-              const isExpanded = window._achCollapsedState[safeId] === true;
-              return isExpanded ? renderExpanded(a) : renderCollapsed(a);
-            }).join('')}
+          <div class="mn-ach-grid">
+            ${items.map(renderAchCard).join('')}
           </div>
         </div>`;
     }).join('');
 
     el.innerHTML = `
-      <div style="margin-bottom:20px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <span style="font-size:.9rem;font-weight:700;color:var(--text)">${unlocked} / ${ACHIEVEMENTS.length} ${_gt('logros','logros')}</span>
-          <span style="font-size:.85rem;color:var(--accent);font-weight:800">${pct}%</span>
+      <div style="margin-bottom:24px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <span style="font-size:1rem;font-weight:700;color:var(--text)">${unlocked} / ${ACHIEVEMENTS.length} ${_gt('logros','logros')}</span>
+          <span style="font-size:.95rem;color:var(--accent);font-weight:800">${pct}%</span>
         </div>
-        <div style="height:7px;background:var(--border);border-radius:99px;overflow:hidden;box-shadow:inset 0 1px 3px rgba(0,0,0,.2)">
+        <div style="height:8px;background:var(--border);border-radius:99px;overflow:hidden;box-shadow:inset 0 1px 3px rgba(0,0,0,.2)">
           <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#00D4AA,#6366F1,#A855F7);border-radius:inherit;transition:width .5s cubic-bezier(0.22,1,0.36,1);box-shadow:0 0 12px rgba(0,212,170,.4)"></div>
         </div>
       </div>
