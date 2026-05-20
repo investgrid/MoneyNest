@@ -328,14 +328,28 @@ function buildExportPanel() {
 window.dmExportMoneynest = function() {
   try {
     const payload = _buildExportPayload();
+
+    // ✨ Personalizar nombre del archivo con datos del usuario
+    const state = (typeof S !== 'undefined') ? S : {};
+    const userName = (state.usuario?.nombre || '').trim();
+    const currentYear = new Date().getFullYear();
+
+    // Limpiar nombre de usuario para nombre de archivo válido
+    const safeUserName = userName
+      ? userName.replace(/[^a-zA-Z0-9_\-áéíóúñÁÉÍÓÚÑ]/g, '_').substring(0, 30)
+      : 'usuario';
+
+    // Formato: datos_[nombre]_2026.moneynest
+    const fileName = `datos_${safeUserName}_${currentYear}${DM_EXT}`;
+
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `MoneyNest_${_today()}${DM_EXT}`;
+    a.download = fileName;
     a.click();
     URL.revokeObjectURL(a.href);
     dmToast(_dm('dm_exportado_moneynest', '✅ Archivo .moneynest exportado correctamente'), 'success');
-    _showExportSuccess('MoneyNest_' + _today() + DM_EXT);
+    _showExportSuccess(fileName);
   } catch(e) {
     dmToast(_dm('dm_error_exportar', '❌ Error al exportar') + ': ' + e.message, 'error');
   }
