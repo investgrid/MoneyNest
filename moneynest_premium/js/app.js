@@ -5190,30 +5190,38 @@ function renderDeudas() {
           ${isActive ? `<div style="margin-top:6px;font-size:.65rem;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.08em">✓ ${t('estrategia_activa','Activa')}</div>` : ''}
         </div>`
       }).join('')}
+      <!-- 4th card: Create Custom Strategy -->
+      <div class="mn-strat-card custom" onclick="openCustomDebtModal()">
+        <div style="text-align:center">
+          <div style="font-size:2rem;margin-bottom:6px">➕</div>
+          <div style="font-size:.85rem;font-weight:800;color:var(--text)">${t('crear_estrategia','Crear estrategia')}</div>
+          <div style="font-size:.7rem;color:var(--text3);margin-top:3px">${t('personaliza_pago','Personaliza tu pago mensual')}</div>
+        </div>
+      </div>
     </div>
+    <!-- Show custom strategy if saved -->
+    ${window._customDebtStrategy ? `
+    <div style="margin-top:14px;padding:14px 16px;border-radius:12px;border:2px solid var(--accent);background:var(--accent-dim)">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        <span style="font-size:1.4rem">${window._customDebtStrategy.icon || '🎯'}</span>
+        <div style="flex:1">
+          <div style="font-size:.88rem;font-weight:800;color:var(--accent)">${window._customDebtStrategy.name}</div>
+          <div style="font-size:.75rem;color:var(--text2)">${t('estrategia_personalizada','Estrategia personalizada')}</div>
+        </div>
+        <button class="btn btn-ghost btn-xs" onclick="window._customDebtStrategy=null;renderDeudas()">✕</button>
+      </div>
+      <div style="display:flex;gap:14px;flex-wrap:wrap">
+        <span style="font-size:.82rem;color:var(--text2)">💳 <strong style="color:var(--accent)">${eur(window._customDebtStrategy.monthlyPayment)}/mes</strong></span>
+        <span style="font-size:.82rem;color:var(--text2)">⏱ Libre en <strong style="color:var(--text)">${fmtMonths(window._customDebtStrategy.months)}</strong></span>
+        <span style="font-size:.82rem;color:var(--text2)">📅 <strong style="color:var(--text)">${window._customDebtStrategy.date}</strong></span>
+        <span style="font-size:.82rem;color:var(--text2)">💰 Ahorro: <strong style="color:var(--green)">${eur(window._customDebtStrategy.savings)}</strong></span>
+      </div>
+    </div>` : ''}
     <!-- Libertad financiera card -->
     <div class="mn-freedom-card" style="margin-top:16px">
       <div style="font-size:.72rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">🏁 ${t('libertad_financiera','Fecha de libertad financiera')}</div>
       <div class="mn-freedom-date">${_fechaLibertad(activeMonths) || '—'}</div>
       <div class="mn-freedom-sub">${activeStratData.icon} ${activeStratData.name} · ${eur(activePago)}/${t('mes_lbl','mes')} · ${fmtMonths(activeMonths)}</div>
-    </div>
-    <!-- Calculadora personalizada -->
-    <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
-      <div style="font-size:.82rem;font-weight:700;color:var(--text);margin-bottom:10px">🧮 ${t('calc_personalizada','Calculadora personalizada')}</div>
-      <div style="font-size:.75rem;color:var(--text2);margin-bottom:10px">${t('calc_desc_v2','¿En cuánto tiempo quieres estar libre de deudas?')}</div>
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">
-        <span style="font-size:.82rem;color:var(--text2)">${t('quiero_libre_en','Libre en')}</span>
-        <input type="number" id="libertadN" min="1" max="600" placeholder="24"
-          style="width:72px;padding:7px 10px;background:var(--bg2);border:1.5px solid var(--border2);border-radius:8px;color:var(--text);font-size:.95rem;font-weight:700;text-align:center"
-          oninput="calcLibertad3Cards()"
-          onkeydown="if(event.key==='Enter')calcLibertad3Cards()">
-        <select id="libertadUnit" style="padding:7px 12px;background:var(--bg2);border:1.5px solid var(--border2);border-radius:8px;color:var(--text);font-size:.82rem;font-weight:600;cursor:pointer"
-          onchange="calcLibertad3Cards()">
-          <option value="meses">${t('meses','meses')}</option>
-          <option value="anos">${t('anios','años')}</option>
-        </select>
-      </div>
-      <div id="libertad3Cards"></div>
     </div>
   </div>
 
@@ -13808,4 +13816,342 @@ window._mnAnimatedClose   = _mnAnimatedClose
 window._mnShakeFeedback   = _mnShakeFeedback
 window._mnCloseGuestGate  = _mnCloseGuestGate
 window._mnCloseAuthModal  = _mnCloseAuthModal
+
+// ════════════════════════════════════════════════════════════════════
+//  CUSTOM DEBT STRATEGY CALCULATOR — Modal premium con gráfico
+// ════════════════════════════════════════════════════════════════════
+
+function openCustomDebtModal() {
+  const pend = S.deudas.reduce((a,d) => a + Math.max(0,(Number(d.importeTotal)||0)-(Number(d.importePagado)||0)), 0)
+  if (pend <= 0) {
+    toast(t('sin_deudas_pendientes','No hay deudas pendientes para calcular'), 'info')
+    return
+  }
+
+  const intMed = S.deudas.length ? S.deudas.reduce((a,d) => a+(Number(d.interes)||0),0)/S.deudas.length : 0
+
+  // Default: suggest 3% of balance (moderado)
+  const suggestedPayment = Math.max(50, pend * 0.03)
+
+  // State
+  let currentMethod = 'avalanche' // or 'snowball'
+  let currentPayment = suggestedPayment
+
+  const overlay = document.createElement('div')
+  overlay.className = 'modal-overlay mn-custom-modal'
+  overlay.id = 'customDebtModalOverlay'
+  overlay.innerHTML = `
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <span class="modal-title">🎯 ${t('estrategia_personalizada','Estrategia personalizada')}</span>
+        <button class="modal-close" onclick="closeCustomDebtModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div style="font-size:.85rem;color:var(--text2);margin-bottom:16px">${t('calc_custom_desc','Introduce tu pago mensual personalizado y compara métodos.')}</div>
+
+        <!-- Input principal -->
+        <div class="mn-custom-input-wrap">
+          <span style="font-size:1.2rem;color:var(--text2)">💳</span>
+          <input type="number" id="customPayInput" class="mn-custom-input" placeholder="${suggestedPayment.toFixed(0)}"
+            value="${suggestedPayment.toFixed(0)}" inputmode="decimal" step="1" min="1"
+            oninput="updateCustomCalc()" onkeydown="if(event.key==='Enter')event.target.blur()">
+          <span style="font-size:.9rem;color:var(--text2);font-weight:700">/mes</span>
+        </div>
+
+        <!-- Results cards -->
+        <div class="mn-custom-results" id="customResults">
+          <!-- filled by updateCustomCalc() -->
+        </div>
+
+        <!-- Method toggle: Avalanche vs Snowball -->
+        <div class="mn-custom-method-toggle">
+          <button class="mn-custom-method-btn active" id="btnAvalanche" onclick="toggleCustomMethod('avalanche')">
+            🌊 ${t('avalancha','Avalancha')}
+          </button>
+          <button class="mn-custom-method-btn" id="btnSnowball" onclick="toggleCustomMethod('snowball')">
+            ❄️ ${t('bola_nieve','Bola de nieve')}
+          </button>
+        </div>
+
+        <!-- Comparison chart -->
+        <div class="mn-custom-chart-wrap">
+          <canvas id="customDebtChart"></canvas>
+        </div>
+
+        <!-- Name input -->
+        <input type="text" id="customStratName" class="mn-custom-name-input"
+          placeholder="🎯 ${t('nombre_estrategia_default','Mi estrategia')}" maxlength="30"
+          value="${t('nombre_estrategia_default','Mi estrategia')}">
+
+        <!-- Motivation / savings card -->
+        <div class="mn-custom-save-card" id="customSaveCard">
+          <!-- filled by updateCustomCalc() -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost btn-sm" onclick="closeCustomDebtModal()">${t('btn_cancelar','Cancelar')}</button>
+        <button class="btn btn-primary btn-sm" onclick="saveCustomStrategy()">${t('btn_guardar','Guardar estrategia')}</button>
+      </div>
+    </div>
+  `
+  document.body.appendChild(overlay)
+  setTimeout(() => overlay.classList.add('active'), 10)
+
+  // Initialize calculation
+  updateCustomCalc()
+}
+
+function closeCustomDebtModal() {
+  const overlay = document.getElementById('customDebtModalOverlay')
+  if (overlay) {
+    overlay.classList.remove('active')
+    setTimeout(() => overlay.remove(), 200)
+  }
+}
+
+window.toggleCustomMethod = function(method) {
+  const btnAva = document.getElementById('btnAvalanche')
+  const btnSno = document.getElementById('btnSnowball')
+  if (method === 'avalanche') {
+    btnAva.classList.add('active')
+    btnSno.classList.remove('active')
+  } else {
+    btnSno.classList.add('active')
+    btnAva.classList.remove('active')
+  }
+  window._customDebtMethod = method
+  updateCustomCalc()
+}
+
+window.updateCustomCalc = function() {
+  const inputEl = document.getElementById('customPayInput')
+  const resultsBox = document.getElementById('customResults')
+  const saveCard = document.getElementById('customSaveCard')
+  if (!inputEl || !resultsBox || !saveCard) return
+
+  const monthlyPay = parseFloat(inputEl.value) || 0
+  if (monthlyPay <= 0) {
+    resultsBox.innerHTML = `<div style="grid-column:1/-1;text-align:center;color:var(--text3);font-size:.8rem">${t('introduce_pago','Introduce un pago mensual')}</div>`
+    saveCard.innerHTML = ''
+    return
+  }
+
+  const pend = S.deudas.reduce((a,d) => a + Math.max(0,(Number(d.importeTotal)||0)-(Number(d.importePagado)||0)), 0)
+  const intMed = S.deudas.length ? S.deudas.reduce((a,d) => a+(Number(d.interes)||0),0)/S.deudas.length : 0
+
+  // Calculate months with interest
+  let months = 0
+  let totalPaid = 0
+  if (intMed > 0) {
+    const r = intMed / 100 / 12
+    months = Math.ceil(Math.log(monthlyPay / (monthlyPay - r * pend)) / Math.log(1 + r))
+    if (!isFinite(months) || months <= 0) months = Math.ceil(pend / monthlyPay)
+    totalPaid = monthlyPay * months
+  } else {
+    months = Math.ceil(pend / monthlyPay)
+    totalPaid = pend
+  }
+
+  const totalInterest = Math.max(0, totalPaid - pend)
+  const fechaLibre = (() => {
+    const fd = new Date()
+    fd.setMonth(fd.getMonth() + months)
+    return fd.toLocaleDateString(_currentLang === 'en' ? 'en-US' : 'es-ES', { month: 'long', year: 'numeric' })
+  })()
+
+  // Calculate baseline (minimum payment = 2% of balance)
+  const baselinePayment = Math.max(20, pend * 0.02)
+  let baselineMonths = 0
+  let baselineTotalPaid = 0
+  if (intMed > 0) {
+    const r = intMed / 100 / 12
+    baselineMonths = Math.ceil(Math.log(baselinePayment / (baselinePayment - r * pend)) / Math.log(1 + r))
+    if (!isFinite(baselineMonths) || baselineMonths <= 0) baselineMonths = Math.ceil(pend / baselinePayment)
+    baselineTotalPaid = baselinePayment * baselineMonths
+  } else {
+    baselineMonths = Math.ceil(pend / baselinePayment)
+    baselineTotalPaid = pend
+  }
+  const baselineInterest = Math.max(0, baselineTotalPaid - pend)
+  const interestSavings = Math.max(0, baselineInterest - totalInterest)
+
+  // Results cards
+  resultsBox.innerHTML = `
+    <div class="mn-custom-result-card">
+      <div class="mn-custom-result-label">⏱ ${t('tiempo','Tiempo')}</div>
+      <div class="mn-custom-result-value accent">${fmtMonths(months)}</div>
+    </div>
+    <div class="mn-custom-result-card">
+      <div class="mn-custom-result-label">📅 ${t('fecha','Fecha')}</div>
+      <div class="mn-custom-result-value">${fechaLibre}</div>
+    </div>
+    <div class="mn-custom-result-card">
+      <div class="mn-custom-result-label">💰 ${t('intereses','Intereses')}</div>
+      <div class="mn-custom-result-value">${eur(totalInterest)}</div>
+    </div>
+  `
+
+  // Savings motivation card
+  const percentFaster = baselineMonths > 0 ? Math.round(((baselineMonths - months) / baselineMonths) * 100) : 0
+  saveCard.innerHTML = `
+    <div class="mn-custom-save-icon">💎</div>
+    <div class="mn-custom-save-text">
+      ${interestSavings > 0
+        ? `<strong>${t('ahorraras','Ahorrarás')} ${eur(interestSavings)}</strong> ${t('en_intereses_vs_minimo','en intereses vs. pago mínimo')}. `
+        : ''
+      }
+      ${percentFaster > 0
+        ? `<strong>${percentFaster}% ${t('mas_rapido','más rápido')}</strong> ${t('que_pago_minimo','que el pago mínimo')}.`
+        : t('muy_cerca_pago_minimo','Estás cerca del pago mínimo.')
+      }
+    </div>
+  `
+
+  // Render comparison chart
+  renderCustomDebtChart(monthlyPay, months, baselinePayment, baselineMonths, pend)
+
+  // Store current calculation in window for saveCustomStrategy
+  window._customDebtCalc = { monthlyPay, months, fechaLibre, totalInterest, interestSavings, baselineInterest }
+}
+
+function renderCustomDebtChart(customPay, customMonths, basePay, baseMonths, totalDebt) {
+  const ctx = document.getElementById('customDebtChart')
+  if (!ctx) return
+
+  // Destroy previous chart
+  if (window._customDebtChartInstance) {
+    window._customDebtChartInstance.destroy()
+  }
+
+  const maxMonths = Math.max(customMonths, baseMonths)
+  const labels = []
+  const baselineData = []
+  const customData = []
+
+  for (let i = 0; i <= maxMonths; i++) {
+    labels.push(i)
+    // Baseline (minimum payment) line - red
+    if (i <= baseMonths) {
+      baselineData.push(Math.max(0, totalDebt - (basePay * i)))
+    } else {
+      baselineData.push(0)
+    }
+    // Custom strategy line - teal/green
+    if (i <= customMonths) {
+      customData.push(Math.max(0, totalDebt - (customPay * i)))
+    } else {
+      customData.push(0)
+    }
+  }
+
+  window._customDebtChartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: t('pago_minimo','Pago mínimo'),
+          data: baselineData,
+          borderColor: '#F43F5E',
+          backgroundColor: 'rgba(244,63,94,0.1)',
+          borderWidth: 2,
+          tension: 0.3,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+        },
+        {
+          label: t('tu_estrategia','Tu estrategia'),
+          data: customData,
+          borderColor: '#00D4AA',
+          backgroundColor: 'rgba(0,212,170,0.1)',
+          borderWidth: 3,
+          tension: 0.3,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+        },
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: true, position: 'top', labels: { color: 'rgba(255,255,255,0.7)', font: { size: 11, weight: '600' } } },
+        tooltip: {
+          backgroundColor: 'rgba(10,14,23,0.95)',
+          titleColor: '#fff',
+          bodyColor: 'rgba(255,255,255,0.8)',
+          borderColor: 'rgba(0,212,170,0.3)',
+          borderWidth: 1,
+          padding: 10,
+          displayColors: true,
+          callbacks: {
+            label: function(ctx) {
+              return `${ctx.dataset.label}: ${eur(ctx.parsed.y)}`
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          title: { display: true, text: t('meses','Meses'), color: 'rgba(255,255,255,0.5)', font: { size: 10, weight: '600' } },
+          ticks: { color: 'rgba(255,255,255,0.4)', font: { size: 9 } },
+          grid: { color: 'rgba(255,255,255,0.05)' }
+        },
+        y: {
+          title: { display: true, text: t('deuda_pendiente','Deuda pendiente'), color: 'rgba(255,255,255,0.5)', font: { size: 10, weight: '600' } },
+          ticks: {
+            color: 'rgba(255,255,255,0.4)',
+            font: { size: 9 },
+            callback: function(val) { return eur(val) }
+          },
+          grid: { color: 'rgba(255,255,255,0.05)' },
+          beginAtZero: true
+        }
+      }
+    }
+  })
+}
+
+window.saveCustomStrategy = function() {
+  const calc = window._customDebtCalc
+  const nameInput = document.getElementById('customStratName')
+  const method = window._customDebtMethod || 'avalanche'
+
+  if (!calc || !calc.monthlyPay || calc.months <= 0) {
+    toast(t('err_calculo_invalido','Cálculo inválido'), 'error')
+    return
+  }
+
+  const name = (nameInput?.value || t('nombre_estrategia_default','Mi estrategia')).trim()
+
+  window._customDebtStrategy = {
+    icon: '🎯',
+    name: name,
+    monthlyPayment: calc.monthlyPay,
+    months: calc.months,
+    date: calc.fechaLibre,
+    savings: calc.interestSavings || 0,
+    method: method,
+  }
+
+  // Persist to localStorage
+  try {
+    localStorage.setItem('mn_custom_debt_strategy', JSON.stringify(window._customDebtStrategy))
+  } catch(_) {}
+
+  toast(`✅ ${t('estrategia_guardada','Estrategia guardada')}: ${name}`, 'success')
+  closeCustomDebtModal()
+  renderDeudas() // Refresh to show saved strategy
+}
+
+// Load custom strategy on init
+;(function() {
+  try {
+    const saved = localStorage.getItem('mn_custom_debt_strategy')
+    if (saved) {
+      window._customDebtStrategy = JSON.parse(saved)
+    }
+  } catch(_) {}
+})()
 
