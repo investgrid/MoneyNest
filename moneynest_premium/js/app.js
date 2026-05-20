@@ -3612,6 +3612,7 @@ const _formGuard = {
 }
 
 let _gTimePeriod = 'month'   // default: this month
+// En modo demo siempre forzar 'all' para que se vean todos los datos históricos
 let _gDateFrom   = ''        // ISO date string (for custom)
 let _gDateTo     = ''        // ISO date string (for custom)
 
@@ -10482,9 +10483,9 @@ function loadDemoData(scenario, nombreOverride) {
     { id:'dc5', nombre:'Efectivo',          tipo:'efectivo', saldo:180,   valorTotal:180,   color:'#10B981' },
   ]
 
-  // ── INGRESOS: 6 meses de datos ────────────────────────────────
+  // ── INGRESOS: 12 meses de datos ──────────────────────────────────
   const ingresos = []
-  for (let i = 0; i <= 5; i++) {
+  for (let i = 0; i <= 11; i++) {
     const mi = mes(-i)
     const idx = String(i).padStart(2,'0')
     ingresos.push({ id:`di${idx}a`, concepto:`Nómina ${i===0?'este mes':monthLabel(mi)}`, importe:jitter(3850,.02), categoria:'Salario', fecha:d(mi,'01'), cuentaId:'dc1', status:'cobrado', recurrente:true })
@@ -10497,9 +10498,9 @@ function loadDemoData(scenario, nombreOverride) {
   }
   S.ingresos = ingresos
 
-  // ── GASTOS: 6 meses, +90 transacciones, todas las categorías ─
+  // ── GASTOS: 12 meses, +150 transacciones, todas las categorías ──
   const g = []
-  for (let i = 0; i <= 5; i++) {
+  for (let i = 0; i <= 11; i++) {
     const mi = mes(-i)
     const p = `dg${i}`
     // Vivienda fijos
@@ -12228,6 +12229,10 @@ function renderBilling() {
 
 function render() {
   if (!S) return // Safety: S must be loaded before rendering
+  // En modo demo siempre mostrar todo el período para ver datos históricos
+  if (isDemoMode() && (_gTimePeriod === 'month' || _gTimePeriod === 'lastmonth')) {
+    _gTimePeriod = 'all'
+  }
   updateTopBar()
   updateBadges()
   syncBottomNav(currentPage)

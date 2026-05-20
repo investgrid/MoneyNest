@@ -972,10 +972,14 @@ textarea{resize:vertical;min-height:70px}
 .sidebar-overlay{
   display:none;position:fixed;inset:0;
   background:rgba(0,0,0,0.5);z-index:99;
-  touch-action:none;
   -webkit-tap-highlight-color:transparent;
 }
-.sidebar-overlay.open{display:block;pointer-events:all;}
+/* El overlay solo cubre la zona fuera del sidebar para no bloquear sus clics */
+.sidebar-overlay.open{
+  display:block;
+  pointer-events:all;
+  left:var(--sidebar-w,220px); /* no cubre el sidebar */
+}
 
 /* ─── 1100px: tighten sidebar on mid-range laptops ─────────── */
 @media(max-width:1100px){

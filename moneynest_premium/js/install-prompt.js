@@ -554,105 +554,11 @@
     if (isInstalled()) return;
     if (localStorage.getItem(ONBOARDING_MODAL_KEY)) return;
     localStorage.setItem(ONBOARDING_MODAL_KEY, '1');
-    _injectStyles();
-
-    const overlay = document.createElement('div');
-    overlay.id = 'mnOnbInstallOverlay';
-    overlay.style.cssText = `
-      position:fixed;inset:0;z-index:9850;
-      background:rgba(0,0,0,.65);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
-      display:flex;align-items:center;justify-content:center;padding:24px;
-      animation:mnFadeIn .25s ease forwards;
-    `;
-
-    const isIosDevice = isIOS();
-    const shareIcon = `<svg width="12" height="15" viewBox="0 0 13 16" fill="none" style="display:inline;vertical-align:middle;margin:0 2px">
-      <path d="M6.5 1v9M3.5 3.5L6.5 1l3 2.5" stroke="#00D4AA" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-      <rect x="1" y="6" width="11" height="9" rx="2" stroke="rgba(255,255,255,0.4)" stroke-width="1.3" fill="none"/>
-    </svg>`;
-
-    overlay.innerHTML = `
-      <div style="
-        background:#0D1424;border:1px solid rgba(255,255,255,.08);border-radius:24px;
-        width:min(400px,100%);padding:32px 28px 24px;
-        box-shadow:0 40px 100px rgba(0,0,0,.75);
-        animation:mnScaleIn .3s cubic-bezier(0.22,1,0.36,1) forwards;
-        position:relative;overflow:hidden;text-align:center;font-family:inherit;
-      ">
-        <div style="position:absolute;top:0;left:0;right:0;height:2px;
-          background:linear-gradient(90deg,transparent,#00D4AA,transparent)"></div>
-
-        <!-- Icono -->
-        <div style="width:72px;height:72px;border-radius:18px;margin:0 auto 16px;
-          overflow:hidden;border:1px solid rgba(0,212,170,.2);
-          box-shadow:0 0 24px rgba(0,212,170,.15)">
-          <img src="./assets/icon-with-text.png" style="width:100%;height:100%;object-fit:cover"
-            onerror="this.src='./assets/icon-192.png'">
-        </div>
-
-        <div style="font-size:1.15rem;font-weight:900;color:#fff;letter-spacing:-.03em;margin-bottom:6px">
-          ${_t('install_onb_title', '¡Instala MoneyNest!')}
-        </div>
-        <div style="font-size:.82rem;color:rgba(255,255,255,.5);line-height:1.6;margin-bottom:22px">
-          ${_t('install_onb_desc', 'Accede más rápido, funciona sin conexión y sin abrir el navegador.')}
-        </div>
-
-        ${isIosDevice ? `
-        <!-- iOS: instrucciones inline -->
-        <div style="text-align:left;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:14px 16px;margin-bottom:18px">
-          <div style="font-size:.72rem;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">Cómo instalar en iOS</div>
-          <div style="display:flex;flex-direction:column;gap:8px">
-            <div style="display:flex;align-items:center;gap:8px;font-size:.78rem;color:rgba(255,255,255,.65)">
-              <span style="width:20px;height:20px;border-radius:50%;background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.25);color:#00D4AA;font-size:.65rem;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</span>
-              ${_t('install_ios_step1','Toca el botón')} <strong style="color:#fff"> ${_t('install_ios_share','Compartir')}</strong> ${shareIcon}
-            </div>
-            <div style="display:flex;align-items:center;gap:8px;font-size:.78rem;color:rgba(255,255,255,.65)">
-              <span style="width:20px;height:20px;border-radius:50%;background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.25);color:#00D4AA;font-size:.65rem;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</span>
-              ${_t('install_ios_step2','Selecciona')} <strong style="color:#fff"> ${_t('install_ios_add','Añadir a pantalla de inicio')}</strong>
-            </div>
-          </div>
-        </div>
-        <button onclick="document.getElementById('mnOnbInstallOverlay').remove()"
-          style="width:100%;padding:13px;border-radius:12px;border:none;background:linear-gradient(135deg,#00D4AA,#059669);color:#042b20;font-size:.9rem;font-weight:900;cursor:pointer;font-family:inherit;margin-bottom:10px;letter-spacing:-.01em">
-          ${_t('install_understood', 'Entendido 👍')}
-        </button>` : `
-        <!-- Android / Desktop: botón nativo -->
-        <button id="mnOnbInstallBtn"
-          style="width:100%;padding:13px;border-radius:12px;border:none;background:linear-gradient(135deg,#00D4AA,#059669);color:#042b20;font-size:.9rem;font-weight:900;cursor:pointer;font-family:inherit;margin-bottom:10px;letter-spacing:-.01em;box-shadow:0 6px 24px rgba(0,212,170,.3)">
-          ⬇ ${_t('install_btn', 'Instalar MoneyNest')}
-        </button>`}
-
-        <button onclick="document.getElementById('mnOnbInstallOverlay').remove()"
-          style="background:none;border:none;color:rgba(255,255,255,.3);font-size:.78rem;cursor:pointer;font-family:inherit;transition:color .15s"
-          onmouseover="this.style.color='rgba(255,255,255,.6)'" onmouseout="this.style.color='rgba(255,255,255,.3)'">
-          ${_t('install_later', 'Ahora no — puedo instalarlo desde Configuración')}
-        </button>
-      </div>
-    `;
-
-    document.body.appendChild(overlay);
-    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
-
-    if (!isIosDevice) {
-      const btn = document.getElementById('mnOnbInstallBtn');
-      if (btn) {
-        btn.addEventListener('click', async () => {
-          if (deferredPrompt) {
-            deferredPrompt.prompt();
-            const { outcome } = await deferredPrompt.userChoice;
-            deferredPrompt = null;
-            if (outcome === 'accepted') localStorage.setItem(INSTALLED_KEY, 'true');
-          }
-          overlay.remove();
-        });
-        // Si no hay prompt disponible (Chrome ya instalado o no soportado), cambia el texto
-        if (!deferredPrompt) {
-          btn.textContent = _t('install_understood', 'Entendido 👍');
-          btn.onclick = () => overlay.remove();
-        }
-      }
-    }
+    // Reutilizar el modal de confirmación — mismo flujo, sin duplicar código
+    showInstallConfirmModal();
   }
+
+  // _showOnboardingInstallModalFull eliminada — se reutiliza showInstallConfirmModal
 
   // ── Botón de instalación para la sección Configuración ──────────────
   // Muestra botón simple que abre el modal de confirmación primero
