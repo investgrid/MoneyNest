@@ -2,7 +2,7 @@ import Stripe from 'npm:stripe@14';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
-  apiVersion: '2024-04-10',
+  apiVersion: '2025-04-30',
 });
 
 const WEBHOOK_SECRET = Deno.env.get('STRIPE_WEBHOOK_SECRET') ?? '';
@@ -99,13 +99,37 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       }, { onConflict: 'stripe_subscription_id' });
     }
   }
+
+  // ── Enviar email de confirmación ──────────────────────────────
+  if (email) {
+    await supabase.functions.invoke('send-email', {
+      body: {
+        to: email,
+        type: plan === 'local_lifetime' ? 'purchase_local' : 'purchase_pro',
+        plan: plan,
+      },
+    });
+  }
 }
 
 async function handleSubscriptionUpsert(sub: Stripe.Subscription) {
   const email  = await resolveEmail(sub.customer);
   const custId = typeof sub.customer === 'string' ? sub.customer : '';
 
+  // ── Resolver user_id desde profiles ──────────────────────────
+  let userId: string | null = null;
+  if (email) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('email', email)
+      .maybeSingle();
+    userId = profile?.id ?? null;
+  }
+  // ──────────────────────────────────────────────────────────────
+
   await supabase.from('subscriptions').upsert({
+    user_id:                userId,
     stripe_subscription_id: sub.id,
     stripe_customer_id:     custId,
     stripe_price_id:        sub.items.data[0]?.price.id ?? '',
@@ -170,6 +194,41 @@ async function handlePaymentIntentSucceeded(pi: Stripe.PaymentIntent) {
     .eq('status', 'pending');
 }
 
+// ── Handler: aviso fin de trial (3 días antes) ────────────────
+async function handleTrialWillEnd(sub: Stripe.Subscription) {
+  const email = await resolveEmail(sub.customer);
+  if (!email) return;
+
+  // Llama a tu función send-email con tipo 'trial_ending'
+  await supabase.functions.invoke('send-email', {
+    body: {
+      to: email,
+      type: 'trial_ending',
+      trialEnd: new Date(sub.trial_end! * 1000).toISOString(),
+    },
+  });
+}
+
+// ── Handler: reembolso → downgrade ───────────────────────────
+async function handleChargeRefunded(charge: Stripe.Charge) {
+  if (!charge.payment_intent) return;
+
+  // Buscar la compra en purchases y marcarla como refunded
+  await supabase
+    .from('purchases')
+    .update({ status: 'refunded' })
+    .eq('stripe_payment_intent_id', charge.payment_intent as string);
+
+  // Si era un plan local, hacer downgrade a trial bloqueado
+  const email = await resolveEmail(charge.customer);
+  if (email) {
+    await supabase
+      .from('profiles')
+      .update({ plan: 'locked_local', updated_at: new Date().toISOString() })
+      .eq('email', email);
+  }
+}
+
 // ── main ─────────────────────────────────────────────────────────
 
 Deno.serve(async (req) => {
@@ -188,6 +247,18 @@ Deno.serve(async (req) => {
   } catch (err) {
     return json({ error: err instanceof Error ? err.message : 'invalid_signature' }, 400);
   }
+
+  // ── Idempotency check ─────────────────────────────────────────
+  const { data: existingEvent } = await supabase
+    .from('billing_events')
+    .select('id')
+    .eq('stripe_event_id', event.id)
+    .maybeSingle();
+
+  if (existingEvent) {
+    return json({ received: true, skipped: 'duplicate' });
+  }
+  // ─────────────────────────────────────────────────────────────
 
   let handlerError: string | undefined;
 
@@ -209,6 +280,12 @@ Deno.serve(async (req) => {
         break;
       case 'payment_intent.succeeded':
         await handlePaymentIntentSucceeded(event.data.object as Stripe.PaymentIntent);
+        break;
+      case 'customer.subscription.trial_will_end':
+        await handleTrialWillEnd(event.data.object as Stripe.Subscription);
+        break;
+      case 'charge.refunded':
+        await handleChargeRefunded(event.data.object as Stripe.Charge);
         break;
       default:
         break;
