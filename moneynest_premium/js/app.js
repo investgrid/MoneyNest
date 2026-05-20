@@ -4884,19 +4884,38 @@ function renderInversiones() {
         </div>` : ''}
       </div>
       ${inv.notas?`<div style="font-size:.73rem;color:var(--text2);padding:5px 8px;background:var(--bg2);border-radius:5px;margin-bottom:10px">${inv.notas}</div>`:''}
-      ${inv.revalorizaciones && inv.revalorizaciones.length > 0 ? `
+      ${(() => {
+        const revals = inv.revalorizaciones || []
+        const benefs = inv.beneficiosRetirados || []
+        const total = revals.length + benefs.length
+        if (total === 0) return ''
+        const totalBenef = benefs.reduce((sum, b) => sum + Number(b.importe), 0)
+        return `
       <div style="margin-bottom:10px">
-        <div style="font-size:.7rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">📊 Historial revalorizaciones</div>
-        <div style="display:flex;flex-direction:column;gap:4px">
-          ${inv.revalorizaciones.slice(-3).map(r => `
-            <div style="font-size:.72rem;color:var(--text2);display:flex;justify-content:space-between;padding:4px 8px;background:var(--bg2);border-radius:4px">
-              <span>${fmtDate(r.fecha)}</span>
-              <strong style="color:${r.valor >= Number(inv.importe) ? 'var(--green)' : 'var(--red)'}">${eur(r.valor)}</strong>
-            </div>
-          `).join('')}
-          ${inv.revalorizaciones.length > 3 ? `<div style="font-size:.7rem;color:var(--text3);text-align:center">+${inv.revalorizaciones.length - 3} más</div>` : ''}
+        <div style="font-size:.7rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">
+          <span>📊 Historial (${total})</span>
+          ${totalBenef > 0 ? `<span style="color:var(--green);font-size:.75rem">💰 +${eur(totalBenef)} retirados</span>` : ''}
         </div>
-      </div>` : ''}
+        <div style="display:flex;flex-direction:column;gap:4px;max-height:120px;overflow-y:auto">
+          ${[...revals.map(r => ({ tipo: 'rev', fecha: r.fecha, data: r })), ...benefs.map(b => ({ tipo: 'ben', fecha: b.fecha, data: b }))].sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).slice(0, 4).map(item => {
+            if (item.tipo === 'rev') {
+              const r = item.data
+              return `<div style="font-size:.72rem;color:var(--text2);display:flex;justify-content:space-between;padding:4px 8px;background:var(--bg2);border-radius:4px">
+                <span>📊 ${fmtDate(r.fecha)}</span>
+                <strong style="color:${r.valor >= Number(inv.importe) ? 'var(--green)' : 'var(--red)'}">${eur(r.valor)}</strong>
+              </div>`
+            } else {
+              const b = item.data
+              return `<div style="font-size:.72rem;color:var(--green);display:flex;justify-content:space-between;padding:4px 8px;background:rgba(0,212,170,.08);border-radius:4px">
+                <span>💰 ${fmtDate(b.fecha)}</span>
+                <strong>+${eur(b.importe)}</strong>
+              </div>`
+            }
+          }).join('')}
+          ${total > 4 ? `<div style="font-size:.7rem;color:var(--text3);text-align:center">+${total - 4} más</div>` : ''}
+        </div>
+      </div>`
+      })()}
       <div class="action-row">
         ${!inv.cerrada?`<button class="btn btn-accent btn-xs" onclick="abrirRevalorizar('${inv.id}')">📊 Revalorizar</button>`:''}
         ${!inv.cerrada?`<button class="btn btn-primary btn-xs" onclick="abrirLiquidar('${inv.id}')">💰 Liquidar</button>`:''}
@@ -7254,16 +7273,22 @@ function updateLiqPreview() {
   const valorFinal = parseFloat(document.getElementById('liqValor').value)||0
   const importe = Number(inv.importe)||0
   if (!valorFinal) { document.getElementById('liqPreview').style.display='none'; return }
+
+  // Restar beneficios ya retirados
+  const beneficiosRetirados = (inv.beneficiosRetirados || []).reduce((sum, b) => sum + Number(b.importe), 0)
   const ganancia = valorFinal - importe
+  const gananciaFinal = ganancia - beneficiosRetirados
   const roiReal = importe ? (ganancia/importe)*100 : 0
-  const ganColor = ganancia>=0?'var(--green)':'var(--red)'
+  const ganColor = gananciaFinal>=0?'var(--green)':'var(--red)'
+
   document.getElementById('liqPreview').style.display = 'block'
   document.getElementById('liqPreview').innerHTML = `
     <div class="liq-preview-row"><span>Capital inicial</span><span>${eur(importe)}</span></div>
     <div class="liq-preview-row"><span>Valor de salida</span><span>${eur(valorFinal)}</span></div>
+    ${beneficiosRetirados > 0 ? `<div class="liq-preview-row"><span>Beneficios ya retirados</span><span style="color:var(--green)">-${eur(beneficiosRetirados)}</span></div>` : ''}
     <hr class="liq-preview-divider">
-    <div class="liq-preview-row liq-ganancia"><span><strong>Ganancia / Pérdida</strong></span><span style="color:${ganColor}"><strong>${ganancia>=0?'+':''}${eur(ganancia)}</strong></span></div>
-    <div class="liq-preview-row"><span>ROI real</span><span style="color:${ganColor}">${ganancia>=0?'+':''}${pct(roiReal)}</span></div>`
+    <div class="liq-preview-row liq-ganancia"><span><strong>${beneficiosRetirados > 0 ? 'Ganancia restante' : 'Ganancia / Pérdida'}</strong></span><span style="color:${ganColor}"><strong>${gananciaFinal>=0?'+':''}${eur(gananciaFinal)}</strong></span></div>
+    <div class="liq-preview-row"><span>ROI real total</span><span style="color:${ganColor}">${ganancia>=0?'+':''}${pct(roiReal)}</span></div>`
 }
 function spawnMoneyParticles(x, y) {
   const emojis = ['💰','✨','📈','🤑','💵']
@@ -7295,20 +7320,23 @@ function confirmarLiquidacion() {
   // 1) Return full value to account
   cuenta.saldo = (Number(cuenta.saldo)||0) + valorFinal
 
-  // 2) Register gain as income or loss as expense
-  if (ganancia > 0) {
+  // 2) Register gain as income or loss as expense (restando beneficios ya retirados)
+  const beneficiosRetirados = (inv.beneficiosRetirados || []).reduce((sum, b) => sum + Number(b.importe), 0)
+  const gananciaFinal = ganancia - beneficiosRetirados
+
+  if (gananciaFinal > 0) {
     S.ingresos.push({
-      id: uid(), concepto: '💰 Ganancia: ' + inv.nombre,
-      importe: ganancia, categoria: 'Dividendos',
+      id: uid(), concepto: '💰 Ganancia final: ' + inv.nombre,
+      importe: gananciaFinal, categoria: 'Dividendos',
       fecha: todayISO(), cuentaId,
-      notas: 'ROI real: ' + pct(roiReal) + ' · Capital: ' + eur(Number(inv.importe))
+      notas: `ROI real: ${pct(roiReal)} · Capital: ${eur(Number(inv.importe))}${beneficiosRetirados > 0 ? ` · Beneficios ya retirados: ${eur(beneficiosRetirados)}` : ''}`
     })
-  } else if (ganancia < 0) {
+  } else if (gananciaFinal < 0) {
     S.gastos.push({
-      id: uid(), concepto: '📉 Pérdida: ' + inv.nombre,
-      importe: Math.abs(ganancia), categoria: 'Otro',
+      id: uid(), concepto: '📉 Pérdida final: ' + inv.nombre,
+      importe: Math.abs(gananciaFinal), categoria: 'Otro',
       fecha: todayISO(), cuentaId,
-      notas: 'ROI real: ' + pct(roiReal) + ' · Capital: ' + eur(Number(inv.importe))
+      notas: `ROI real: ${pct(roiReal)} · Capital: ${eur(Number(inv.importe))}${beneficiosRetirados > 0 ? ` · Beneficios ya retirados: ${eur(beneficiosRetirados)}` : ''}`
     })
   }
 
@@ -7341,7 +7369,35 @@ function confirmarLiquidacion() {
   }, 100)
 }
 
-// ─── REVALORIZAR ────────────────────────────────────────────────
+// ─── REVALORIZAR / BENEFICIO ────────────────────────────────────
+window.cambiarTipoRev = function(tipo) {
+  const btnReval = document.getElementById('revTipoRevalBtn')
+  const btnBenef = document.getElementById('revTipoBenefBtn')
+  const formReval = document.getElementById('revFormRevalorizacion')
+  const formBenef = document.getElementById('revFormBeneficio')
+
+  if (tipo === 'revalorizacion') {
+    btnReval.style.background = 'var(--accent-dim)'
+    btnReval.style.color = 'var(--accent)'
+    btnReval.style.borderColor = 'var(--accent)'
+    btnBenef.style.background = 'var(--border)'
+    btnBenef.style.color = 'var(--text2)'
+    btnBenef.style.borderColor = 'var(--border2)'
+    formReval.style.display = 'block'
+    formBenef.style.display = 'none'
+  } else {
+    btnBenef.style.background = 'var(--green-dim)'
+    btnBenef.style.color = 'var(--green)'
+    btnBenef.style.borderColor = 'var(--green)'
+    btnReval.style.background = 'var(--border)'
+    btnReval.style.color = 'var(--text2)'
+    btnReval.style.borderColor = 'var(--border2)'
+    formBenef.style.display = 'block'
+    formReval.style.display = 'none'
+  }
+  window._revTipo = tipo
+}
+
 function abrirRevalorizar(id) {
   const inv = S.inversiones.find(x=>x.id===id)
   if (!inv) { toast(t('err_inversion_no_encontrada'),'error'); return }
@@ -7354,10 +7410,20 @@ function abrirRevalorizar(id) {
     ? inv.revalorizaciones[inv.revalorizaciones.length - 1].valor
     : Number(inv.importe)
 
+  const beneficiosRetirados = inv.beneficiosRetirados || []
+  const totalBeneficios = beneficiosRetirados.reduce((sum, b) => sum + Number(b.importe), 0)
+
   document.getElementById('revInvId').value = id
   document.getElementById('revValor').value = ''
   document.getElementById('revFecha').value = todayISO()
   document.getElementById('revNotas').value = ''
+  document.getElementById('revBeneficio').value = ''
+  document.getElementById('revBeneficioFecha').value = todayISO()
+  document.getElementById('revBeneficioNotas').value = ''
+  poblarCuentaSelect('revBeneficioCuenta', inv.cuentaId || '')
+
+  window._revTipo = 'revalorizacion'
+  cambiarTipoRev('revalorizacion')
 
   document.getElementById('revInvInfo').innerHTML = `
     <div style="background:var(--bg2);border-radius:var(--radius-sm);padding:12px 14px;border:1px solid var(--border)">
@@ -7373,31 +7439,57 @@ function abrirRevalorizar(id) {
       </div>
     </div>`
 
-  // Mostrar historial
-  if (inv.revalorizaciones && inv.revalorizaciones.length > 0) {
+  // Mostrar historial combinado (revalorizaciones + beneficios)
+  const revalorizaciones = inv.revalorizaciones || []
+  const beneficios = inv.beneficiosRetirados || []
+  const totalOperaciones = revalorizaciones.length + beneficios.length
+
+  if (totalOperaciones > 0) {
+    // Combinar y ordenar por fecha
+    const historial = [
+      ...revalorizaciones.map(r => ({ tipo: 'revalorizacion', fecha: r.fecha, data: r })),
+      ...beneficios.map(b => ({ tipo: 'beneficio', fecha: b.fecha, data: b }))
+    ].sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
+
     document.getElementById('revHistorial').innerHTML = `
-      <div style="font-size:.75rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">📊 Historial (${inv.revalorizaciones.length})</div>
+      <div style="font-size:.75rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">📊 Historial (${totalOperaciones})</div>
       <div style="max-height:200px;overflow-y:auto;display:flex;flex-direction:column;gap:6px">
-        ${inv.revalorizaciones.slice().reverse().map((r,i) => {
-          const prevVal = i === inv.revalorizaciones.length - 1 ? Number(inv.importe) : inv.revalorizaciones[inv.revalorizaciones.length - i - 2].valor
-          const cambio = r.valor - prevVal
-          return `
-            <div style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:8px 10px;font-size:.78rem">
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-                <strong style="color:var(--text)">${fmtDate(r.fecha)}</strong>
-                <strong style="color:${r.valor >= prevVal ? 'var(--green)' : 'var(--red)'}">${eur(r.valor)}</strong>
-              </div>
-              <div style="display:flex;justify-content:space-between;font-size:.72rem;color:var(--text3)">
-                <span>${cambio >= 0 ? '+' : ''}${eur(cambio)} (${cambio >= 0 ? '+' : ''}${pct((cambio/prevVal)*100)})</span>
-                ${r.notas ? `<span style="font-style:italic;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.notas}</span>` : ''}
-              </div>
-            </div>`
+        ${historial.map(item => {
+          if (item.tipo === 'revalorizacion') {
+            const r = item.data
+            const idx = revalorizaciones.indexOf(r)
+            const prevVal = idx === 0 ? Number(inv.importe) : revalorizaciones[idx - 1].valor
+            const cambio = r.valor - prevVal
+            return `
+              <div style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:8px 10px;font-size:.78rem">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                  <strong style="color:var(--text)">📊 ${fmtDate(r.fecha)}</strong>
+                  <strong style="color:${r.valor >= prevVal ? 'var(--green)' : 'var(--red)'}">${eur(r.valor)}</strong>
+                </div>
+                <div style="display:flex;justify-content:space-between;font-size:.72rem;color:var(--text3)">
+                  <span>${cambio >= 0 ? '+' : ''}${eur(cambio)} (${cambio >= 0 ? '+' : ''}${pct((cambio/prevVal)*100)})</span>
+                  ${r.notas ? `<span style="font-style:italic;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.notas}</span>` : ''}
+                </div>
+              </div>`
+          } else {
+            const b = item.data
+            return `
+              <div style="background:rgba(0,212,170,.04);border:1px solid rgba(0,212,170,.2);border-radius:6px;padding:8px 10px;font-size:.78rem">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                  <strong style="color:var(--green)">💰 ${fmtDate(b.fecha)}</strong>
+                  <strong style="color:var(--green)">+${eur(b.importe)}</strong>
+                </div>
+                <div style="font-size:.72rem;color:var(--text3)">
+                  ${b.concepto || 'Beneficio retirado'}
+                </div>
+              </div>`
+          }
         }).join('')}
       </div>`
   } else {
     document.getElementById('revHistorial').innerHTML = `
       <div style="font-size:.8rem;color:var(--text3);text-align:center;padding:12px">
-        Sin revalorizaciones registradas aún
+        Sin operaciones registradas aún
       </div>`
   }
 
@@ -7409,39 +7501,87 @@ function confirmarRevalorizacion() {
   const inv = S.inversiones.find(x=>x.id===id)
   if (!inv) { toast('Inversión no encontrada','error'); return }
 
-  const nuevoValor = parseFloat(document.getElementById('revValor').value)
-  if (!nuevoValor || nuevoValor <= 0) { toast(t('err_valor_salida'),'error'); return }
+  const tipo = window._revTipo || 'revalorizacion'
 
-  const fecha = document.getElementById('revFecha').value || todayISO()
-  const notas = document.getElementById('revNotas').value.trim()
+  if (tipo === 'revalorizacion') {
+    // Revalorización normal
+    const nuevoValor = parseFloat(document.getElementById('revValor').value)
+    if (!nuevoValor || nuevoValor <= 0) { toast(t('err_valor_salida'),'error'); return }
 
-  if (!inv.revalorizaciones) inv.revalorizaciones = []
-  inv.revalorizaciones.push({
-    fecha,
-    valor: nuevoValor,
-    notas,
-    timestamp: Date.now()
-  })
+    const fecha = document.getElementById('revFecha').value || todayISO()
+    const notas = document.getElementById('revNotas').value.trim()
 
-  // Ordenar por fecha
-  inv.revalorizaciones.sort((a,b) => new Date(a.fecha) - new Date(b.fecha))
+    if (!inv.revalorizaciones) inv.revalorizaciones = []
+    inv.revalorizaciones.push({
+      fecha,
+      valor: nuevoValor,
+      notas,
+      timestamp: Date.now()
+    })
 
-  const valorPrevio = inv.revalorizaciones.length > 1
-    ? inv.revalorizaciones[inv.revalorizaciones.length - 2].valor
-    : Number(inv.importe)
-  const cambio = nuevoValor - valorPrevio
-  const pctCambio = valorPrevio > 0 ? (cambio / valorPrevio) * 100 : 0
+    inv.revalorizaciones.sort((a,b) => new Date(a.fecha) - new Date(b.fecha))
 
-  save(); closeModal('revalorizarModal'); render()
+    const valorPrevio = inv.revalorizaciones.length > 1
+      ? inv.revalorizaciones[inv.revalorizaciones.length - 2].valor
+      : Number(inv.importe)
+    const cambio = nuevoValor - valorPrevio
+    const pctCambio = valorPrevio > 0 ? (cambio / valorPrevio) * 100 : 0
 
-  // Update ROI chart in real-time if on inversiones page
-  if (currentPage === 'inversiones') {
-    setTimeout(() => renderChartInvROI(), 150)
+    save(); closeModal('revalorizarModal'); render()
+
+    if (currentPage === 'inversiones') {
+      setTimeout(() => renderChartInvROI(), 150)
+    }
+
+    const signo = cambio >= 0 ? '+' : ''
+    toast(`📊 ${t('toast_revalorizacion_guardada','Revalorización guardada')} · ${signo}${eur(cambio)} (${signo}${pct(pctCambio)})`, cambio >= 0 ? 'success' : 'warning')
+
+  } else {
+    // Retiro de beneficio
+    const importe = parseFloat(document.getElementById('revBeneficio').value)
+    if (!importe || importe <= 0) { toast('Introduce un importe válido','error'); return }
+
+    const cuentaId = document.getElementById('revBeneficioCuenta').value
+    if (!cuentaId) { toast('Selecciona una cuenta destino','error'); return }
+
+    const fecha = document.getElementById('revBeneficioFecha').value || todayISO()
+    const concepto = document.getElementById('revBeneficioNotas').value.trim() || 'Beneficio retirado'
+
+    // Guardar beneficio retirado
+    if (!inv.beneficiosRetirados) inv.beneficiosRetirados = []
+    inv.beneficiosRetirados.push({
+      fecha,
+      importe,
+      concepto,
+      cuentaId,
+      timestamp: Date.now()
+    })
+
+    // Añadir dinero a la cuenta
+    const cuenta = getCuenta(cuentaId)
+    if (cuenta) {
+      cuenta.saldo = (Number(cuenta.saldo)||0) + importe
+    }
+
+    // Registrar como ingreso
+    S.ingresos.push({
+      id: uid(),
+      concepto: `💰 ${concepto}: ${inv.nombre}`,
+      importe,
+      categoria: 'Dividendos',
+      fecha,
+      cuentaId,
+      notas: `Beneficio parcial de inversión (${inv.categoria})`
+    })
+
+    save(); closeModal('revalorizarModal'); render()
+
+    if (currentPage === 'inversiones') {
+      setTimeout(() => renderChartInvROI(), 150)
+    }
+
+    toast(`💰 ${t('beneficio_retirado','Beneficio retirado')} · +${eur(importe)}`, 'success')
   }
-
-  // Visual feedback
-  const signo = cambio >= 0 ? '+' : ''
-  toast(`📊 ${t('toast_revalorizacion_guardada')} · ${signo}${eur(cambio)} (${signo}${pct(pctCambio)})`, cambio >= 0 ? 'success' : 'warning')
 }
 
 // ─── DEUDA CRUD ─────────────────────────────────────────────────
