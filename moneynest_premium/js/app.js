@@ -8863,6 +8863,22 @@ function renderAnalisis() {
     {label:t('escenario_optimista','Optimista'),icon:'🚀',val:serOpt[11],dif:serOpt[11]-saldoIni,color:'#10B981',bg:'rgba(16,185,129,0.08)',border:'rgba(16,185,129,0.2)'},
   ]
 
+  // ── Proyección próximo mes (3 months history + 1 projected) ──
+  const mo3History = getMonths(3).reverse() // oldest to newest
+  const nextMonthDate = (() => { const d = new Date(); d.setMonth(d.getMonth() + 1); return d.toISOString().slice(0,7) })()
+  const projectionData = {
+    months: [...mo3History, nextMonthDate],
+    income: [...mo3History.map(mo => calcIngresosMes(mo)), avgInc3],
+    expenses: [...mo3History.map(mo => calcGastosMes(mo)), avgGas3],
+    savings: [...mo3History.map(mo => calcIngresosMes(mo) - calcGastosMes(mo)), cfPlanner],
+  }
+  const projectionAlert = (() => {
+    if (cfPlanner < 0) return { type: 'alert', icon: '🚨', msg: `${t('proyeccion_negativa', 'Proyección negativa')}: ${eur(cfPlanner)}/${t('mes_lbl','mes')}. ${t('proyeccion_negativa_msg','Reducir gastos o aumentar ingresos.')}` }
+    if (cfPlanner > avgInc3 * 0.3) return { type: 'ok', icon: '🎉', msg: `${t('proyeccion_excelente', 'Proyección excelente')}: ${eur(cfPlanner)}/${t('mes_lbl','mes')} (${pct((cfPlanner/avgInc3)*100)} ${t('de_ingresos','de ingresos')}). ${t('proyeccion_excelente_msg','Considera invertir el excedente.')}` }
+    if (cfPlanner > avgInc3 * 0.15) return { type: 'ok', icon: '✅', msg: `${t('proyeccion_positiva', 'Proyección positiva')}: ${eur(cfPlanner)}/${t('mes_lbl','mes')}. ${t('proyeccion_positiva_msg','Mantén el ritmo.')}` }
+    return { type: 'warn', icon: '⚠️', msg: `${t('proyeccion_ajustada', 'Proyección ajustada')}: ${eur(cfPlanner)}/${t('mes_lbl','mes')}. ${t('proyeccion_ajustada_msg','Margen de mejora disponible.')}` }
+  })()
+
   document.getElementById('content').innerHTML = `
   <!-- ── HEADER ────────────────────────────────────────────────── -->
   <div class="section-header mn-section">
@@ -9155,7 +9171,40 @@ function renderAnalisis() {
     </div>
   </div>` : ''}
 
-  <!-- ── PROYECCIÓN PATRIMONIAL ────────────────────────────────── -->
+  <!-- ── PROYECCIÓN PRÓXIMO MES ────────────────────────────────── -->
+  ${(avgInc3>0||avgGas3>0) ? `
+  <div class="card mn-section">
+    <div class="card-header">
+      <div>
+        <div class="card-title">🔮 ${t('proyeccion_proximo_mes','Proyección próximo mes')}</div>
+        <div class="card-subtitle">${t('proyeccion_basada_3m','Basada en media de últimos 3 meses')}</div>
+      </div>
+    </div>
+    <!-- Alert banner -->
+    <div class="mn-insight mn-insight--${projectionAlert.type}" style="margin-bottom:16px">
+      <span class="mn-insight-icon">${projectionAlert.icon}</span>
+      <div class="mn-insight-body">${projectionAlert.msg}</div>
+    </div>
+    <!-- Bar chart: 3 historical months + 1 projected -->
+    <div class="chart-container" style="height:240px;margin-bottom:16px"><canvas id="chartProximoMes"></canvas></div>
+    <!-- Summary cards -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center">
+        <div style="font-size:.65rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">💰 ${t('ingresos_estimados','Ingresos')}</div>
+        <div style="font-size:1rem;font-weight:800;color:var(--green)">${eur(avgInc3)}</div>
+      </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center">
+        <div style="font-size:.65rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">💸 ${t('gastos_estimados','Gastos')}</div>
+        <div style="font-size:1rem;font-weight:800;color:var(--red)">${eur(avgGas3)}</div>
+      </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center">
+        <div style="font-size:.65rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">📈 ${t('ahorro_estimado','Ahorro')}</div>
+        <div style="font-size:1rem;font-weight:800;color:${cfPlanner>=0?'var(--accent)':'var(--red)'}">${cfPlanner>=0?'+':''}${eur(cfPlanner)}</div>
+      </div>
+    </div>
+  </div>` : ''}
+
+  <!-- ── PROYECCIÓN PATRIMONIAL ANUAL ───────────────────────────── -->
   ${(avgInc3>0||avgGas3>0) ? `
   <div class="card mn-section">
     <div class="card-header">
@@ -9302,7 +9351,82 @@ function renderAnalisis() {
         }
       })
     }
-    // Financial Planner chart
+    // Próximo mes projection chart (3 historical + 1 projected)
+    const projMesCtx = document.getElementById('chartProximoMes')
+    if (projMesCtx) {
+      destroyChart('proximoMes')
+      const mo3Hist = getMonths(3).reverse()
+      const nextMonth = (() => { const d = new Date(); d.setMonth(d.getMonth() + 1); return d.toISOString().slice(0,7) })()
+      const allMonths = [...mo3Hist, nextMonth]
+      const avgInc = mo3Hist.reduce((a,mo)=>a+calcIngresosMes(mo),0)/3
+      const avgGas = mo3Hist.reduce((a,mo)=>a+calcGastosMes(mo),0)/3
+      const avgSav = avgInc - avgGas
+
+      charts['proximoMes'] = new Chart(projMesCtx, {
+        type: 'bar',
+        data: {
+          labels: allMonths.map((mo, i) => i === 3 ? `📅 ${monthLabel(mo)}` : monthLabel(mo)),
+          datasets: [
+            {
+              label: t('ingresos_label','Ingresos'),
+              data: [...mo3Hist.map(calcIngresosMes), avgInc],
+              backgroundColor: (ctx) => ctx.dataIndex === 3 ? 'rgba(16,185,129,0.5)' : 'rgba(16,185,129,0.8)',
+              borderColor: '#10B981',
+              borderWidth: (ctx) => ctx.dataIndex === 3 ? 2 : 1,
+              borderRadius: 5,
+              borderDash: (ctx) => ctx.dataIndex === 3 ? [4, 3] : []
+            },
+            {
+              label: t('gastos_label','Gastos'),
+              data: [...mo3Hist.map(calcGastosMes), avgGas],
+              backgroundColor: (ctx) => ctx.dataIndex === 3 ? 'rgba(244,63,94,0.5)' : 'rgba(244,63,94,0.75)',
+              borderColor: '#F43F5E',
+              borderWidth: (ctx) => ctx.dataIndex === 3 ? 2 : 1,
+              borderRadius: 5,
+              borderDash: (ctx) => ctx.dataIndex === 3 ? [4, 3] : []
+            },
+            {
+              label: t('ahorro_label','Ahorro'),
+              data: [...mo3Hist.map(mo => calcIngresosMes(mo) - calcGastosMes(mo)), avgSav],
+              backgroundColor: (ctx) => {
+                const val = ctx.parsed.y
+                const isProj = ctx.dataIndex === 3
+                if (val >= 0) return isProj ? 'rgba(0,212,170,0.5)' : 'rgba(0,212,170,0.8)'
+                return isProj ? 'rgba(248,113,113,0.5)' : 'rgba(248,113,113,0.75)'
+              },
+              borderColor: (ctx) => ctx.parsed.y >= 0 ? '#00D4AA' : '#F87171',
+              borderWidth: (ctx) => ctx.dataIndex === 3 ? 2 : 1,
+              borderRadius: 5,
+              borderDash: (ctx) => ctx.dataIndex === 3 ? [4, 3] : []
+            }
+          ]
+        },
+        options: {
+          ...chartDefaults(),
+          plugins: {
+            ...chartDefaults().plugins,
+            legend: { display: true, labels: { color: labelColor(), boxWidth: 10, font: { size: 11, weight: '600' } } },
+            tooltip: {
+              ...chartDefaults().plugins.tooltip,
+              callbacks: {
+                title: (ctx) => ctx[0].dataIndex === 3 ? `${ctx[0].label} (proyectado)` : ctx[0].label,
+                label: (ctx) => ' ' + ctx.dataset.label + ': ' + (ctx.parsed.y >= 0 ? '+' : '') + eur(ctx.parsed.y)
+              }
+            }
+          },
+          scales: {
+            x: { grid: { color: 'transparent' }, ticks: { color: labelColor(), font: { size: 10 } }, border: { color: 'transparent' } },
+            y: {
+              grid: { color: gridColor() },
+              border: { color: 'transparent' },
+              ticks: { color: labelColor(), font: { size: 10 }, callback: v => eur(v) }
+            }
+          }
+        }
+      })
+    }
+
+    // Financial Planner chart (annual)
     const planCtx = document.getElementById('chartFinancialPlanner')
     if(planCtx){
       destroyChart('financialPlanner')
