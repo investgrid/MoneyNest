@@ -623,5 +623,13 @@
     }
   }
 
-  window.MNGamification = { checkAchievement, renderAchievementsPanel, getAchievements, isUnlocked, _showAchDetail, _fireConfetti, _expandAch, _collapseAch, _toggleCategory, _showAchGuide };
+  // Export all public methods (some already attached to window.MNGamification above)
+  window.MNGamification = window.MNGamification || {};
+  window.MNGamification.checkAchievement = checkAchievement;
+  window.MNGamification.renderAchievementsPanel = renderAchievementsPanel;
+  window.MNGamification.getAchievements = getAchievements;
+  window.MNGamification.isUnlocked = isUnlocked;
+  window.MNGamification._showAchDetail = _showAchDetail;
+  window.MNGamification._fireConfetti = _fireConfetti;
+  // _expandAch, _collapseAch, _toggleCategory, _showAchGuide already attached above
 })();
