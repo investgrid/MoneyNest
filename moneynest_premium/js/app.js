@@ -10839,23 +10839,24 @@ function loadDemoData(scenario, nombreOverride) {
     { id:'dc5', nombre:'Efectivo',          tipo:'efectivo', saldo:180,   valorTotal:180,   color:'#10B981' },
   ]
 
-  // ── INGRESOS: 6 meses de datos (más reciente y realista) ─────────
+  // ── INGRESOS: 12 meses de datos ──────────────────────────────────
   const ingresos = []
-  for (let i = 0; i <= 5; i++) {
+  for (let i = 0; i <= 11; i++) {
     const mi = mes(-i)
     const idx = String(i).padStart(2,'0')
     ingresos.push({ id:`di${idx}a`, concepto:`Nómina ${i===0?'este mes':monthLabel(mi)}`, importe:jitter(3850,.02), categoria:'Salario', fecha:d(mi,'01'), cuentaId:'dc1', status:'cobrado', recurrente:true })
     ingresos.push({ id:`di${idx}b`, concepto:i%2===0?'Proyecto freelance':'Consultoría Digital', importe:jitter(i===0?1200:900,.12), categoria:'Freelance', fecha:d(mi,'10'), cuentaId:'dc3', status:'cobrado' })
-    if (i <= 2) ingresos.push({ id:`di${idx}c`, concepto:'Dividendos cartera ETF', importe:jitter(148,.1), categoria:'Dividendos', fecha:d(mi,'15'), cuentaId:'dc2', status:'cobrado' })
-    if (i === 1) ingresos.push({ id:`di${idx}d`, concepto:'Bono trimestral empresa', importe:1400, categoria:'Bono', fecha:d(mi,'20'), cuentaId:'dc1', status:'cobrado' })
+    if (i <= 3) ingresos.push({ id:`di${idx}c`, concepto:'Dividendos cartera ETF', importe:jitter(148,.1), categoria:'Dividendos', fecha:d(mi,'15'), cuentaId:'dc2', status:'cobrado' })
+    if (i === 1) ingresos.push({ id:`di${idx}d`, concepto:'Bono anual empresa', importe:2800, categoria:'Bono', fecha:d(mi,'20'), cuentaId:'dc1', status:'cobrado' })
     if (i === 0) ingresos.push({ id:`di${idx}e`, concepto:'Alquiler habitación Airbnb', importe:480, categoria:'Alquiler', fecha:d(mi,'05'), cuentaId:'dc1', status:'pendiente' })
-    if (i === 2) ingresos.push({ id:`di${idx}f`, concepto:'Venta muebles', importe:850, categoria:'Venta', fecha:d(mi,'22'), cuentaId:'dc1', status:'cobrado' })
+    if (i === 2) ingresos.push({ id:`di${idx}f`, concepto:'Venta coche antiguo', importe:5500, categoria:'Venta', fecha:d(mi,'22'), cuentaId:'dc1', status:'cobrado' })
+    if (i === 4) ingresos.push({ id:`di${idx}g`, concepto:'Reembolso seguro médico', importe:320, categoria:'Otros', fecha:d(mi,'18'), cuentaId:'dc1', status:'cobrado' })
   }
   S.ingresos = ingresos
 
-  // ── GASTOS: 6 meses recientes, ~80 transacciones realistas ───────
+  // ── GASTOS: 12 meses, +150 transacciones, todas las categorías ──
   const g = []
-  for (let i = 0; i <= 5; i++) {
+  for (let i = 0; i <= 11; i++) {
     const mi = mes(-i)
     const p = `dg${i}`
     // Vivienda fijos
@@ -10987,14 +10988,14 @@ function loadDemoData(scenario, nombreOverride) {
     { id:'da5', nombre:'BMW 320d 2018',      tipo:'vehicle',  valor:12000,  valorCompra:18000,  fecha:d(mes(-30),'01'), status:'sold',    fechaVenta:d(mes(-5),'22'), valorVenta:12000, notas:'Vendido' },
   ]
 
-  // ── PATRIMONIO HISTÓRICO — 6 meses con tendencia creciente ──
+  // ── PATRIMONIO HISTÓRICO — 12 meses con tendencia creciente ──
   S.patrimonio_hist = []
-  const basePatr = 42000
-  for (let i = 5; i >= 0; i--) {
+  const basePatr = 38000
+  for (let i = 11; i >= 0; i--) {
     const dt    = new Date(hoy.getFullYear(), hoy.getMonth()-i, 1)
     const mesi  = dt.toISOString().slice(0,7)
-    const trend = (5 - i) * 2000
-    const noise = Math.round(Math.random() * 1200 - 400)
+    const trend = (11 - i) * 1200
+    const noise = Math.round(Math.random() * 800 - 200)
     S.patrimonio_hist.push({ mes: mesi, valor: basePatr + trend + noise })
   }
 }
