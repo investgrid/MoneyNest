@@ -12,43 +12,90 @@
   function _ach() {
     const _w = (k, fb) => (typeof window.t === 'function' ? window.t(k) || fb : fb);
     return [
-      // ── Primeros pasos ──
-      { id:'primer_ingreso',      emoji:'💰', cat:'inicio',    get nombre(){ return _w('ach_primer_ingreso_n','Primer ingreso') },         get desc(){ return _w('ach_primer_ingreso_d','Añade tu primer ingreso') },                        trigger:'ingreso_added'    },
-      { id:'primer_gasto',        emoji:'📝', cat:'inicio',    get nombre(){ return _w('ach_primer_gasto_n','Primer gasto') },             get desc(){ return _w('ach_primer_gasto_d','Registra tu primer gasto') },                       trigger:'gasto_added'      },
-      { id:'primera_deuda',       emoji:'🎯', cat:'inicio',    get nombre(){ return _w('ach_primera_deuda_n','Deuda registrada') },        get desc(){ return _w('ach_primera_deuda_d','Registra tu primera deuda') },                      trigger:'deuda_added'      },
-      { id:'primera_inversion',   emoji:'📈', cat:'inicio',    get nombre(){ return _w('ach_primera_inv_n','Inversor') },                  get desc(){ return _w('ach_primera_inv_d','Crea tu primera inversión') },                        trigger:'inversion_added'  },
-      { id:'primer_objetivo',     emoji:'🌟', cat:'inicio',    get nombre(){ return _w('ach_primer_obj_n','Soñador') },                    get desc(){ return _w('ach_primer_obj_d','Crea tu primer objetivo de ahorro') },                 trigger:'objetivo_added'   },
-      { id:'primer_presupuesto',  emoji:'📋', cat:'inicio',    get nombre(){ return _w('ach_primer_pres_n','Planificador') },              get desc(){ return _w('ach_primer_pres_d','Crea tu primer presupuesto') },                       trigger:'presupuesto_added'},
-      // ── Constancia ──
-      { id:'streak_7',            emoji:'🔥', cat:'constancia',get nombre(){ return _w('ach_streak_7_n','Una semana seguida') },           get desc(){ return _w('ach_streak_7_d','7 días de racha de uso') },                             trigger:'streak'           },
-      { id:'streak_30',           emoji:'💎', cat:'constancia',get nombre(){ return _w('ach_streak_30_n','Un mes de racha') },             get desc(){ return _w('ach_streak_30_d','30 días de racha de uso') },                           trigger:'streak'           },
-      { id:'streak_100',          emoji:'👑', cat:'constancia',get nombre(){ return _w('ach_streak_100_n','Centenario') },                 get desc(){ return _w('ach_streak_100_d','100 días de racha — eres imparable') },                trigger:'streak'           },
-      { id:'ahorrador_3meses',    emoji:'🌱', cat:'constancia',get nombre(){ return _w('ach_ahorrador_3m_n','Ahorrador constante') },      get desc(){ return _w('ach_ahorrador_3m_d','3 meses seguidos con ahorro positivo') },           trigger:'data_check'       },
-      { id:'ahorrador_6meses',    emoji:'🌳', cat:'constancia',get nombre(){ return _w('ach_ahorrador_6m_n','Raíces profundas') },         get desc(){ return _w('ach_ahorrador_6m_d','6 meses seguidos con ahorro positivo') },           trigger:'data_check'       },
-      // ── Volumen ──
-      { id:'diez_ingresos',       emoji:'💵', cat:'volumen',   get nombre(){ return _w('ach_diez_ing_n','Flujo constante') },              get desc(){ return _w('ach_diez_ing_d','10 ingresos registrados') },                            trigger:'ingreso_added'    },
-      { id:'cincuenta_gastos',    emoji:'🧾', cat:'volumen',   get nombre(){ return _w('ach_cincuenta_gas_n','Detallista') },              get desc(){ return _w('ach_cincuenta_gas_d','50 gastos registrados') },                         trigger:'gasto_added'      },
-      { id:'cinco_inversiones',   emoji:'🏦', cat:'volumen',   get nombre(){ return _w('ach_cinco_inv_n','Cartera diversificada') },       get desc(){ return _w('ach_cinco_inv_d','5 inversiones activas') },                             trigger:'inversion_added'  },
-      { id:'cinco_objetivos',     emoji:'🎯', cat:'volumen',   get nombre(){ return _w('ach_cinco_obj_n','Ambicioso') },                   get desc(){ return _w('ach_cinco_obj_d','5 objetivos de ahorro creados') },                     trigger:'objetivo_added'   },
-      // ── Logros financieros ──
-      { id:'sin_deudas',          emoji:'🏆', cat:'finanzas',  get nombre(){ return _w('ach_sin_deudas_n','Libre de deudas') },            get desc(){ return _w('ach_sin_deudas_d','Todas tus deudas en cero') },                         trigger:'deuda_updated'    },
-      { id:'objetivo_completado', emoji:'✅', cat:'finanzas',  get nombre(){ return _w('ach_obj_completado_n','Meta alcanzada') },         get desc(){ return _w('ach_obj_completado_d','Completa tu primer objetivo de ahorro') },        trigger:'objetivo_done'    },
-      { id:'saldo_positivo',      emoji:'📊', cat:'finanzas',  get nombre(){ return _w('ach_saldo_pos_n','En positivo') },                 get desc(){ return _w('ach_saldo_pos_d','Cash flow positivo este mes') },                      trigger:'data_check'       },
-      { id:'ahorro_1000',         emoji:'💶', cat:'finanzas',  get nombre(){ return _w('ach_ahorro_1000_n','Mil euros ahorrados') },       get desc(){ return _w('ach_ahorro_1000_d','Acumula 1.000€ en objetivos completados') },        trigger:'data_check'       },
-      // ── Pro ──
-      { id:'exportador',          emoji:'📄', cat:'pro',       get nombre(){ return _w('ach_exportador_n','Documentado') },               get desc(){ return _w('ach_exportador_d','Primera exportación PDF o Excel') },                  trigger:'export_done'      },
-      { id:'personalizado',       emoji:'✨', cat:'pro',       get nombre(){ return _w('ach_personalizado_n','A tu manera') },            get desc(){ return _w('ach_personalizado_d','Primera categoría personalizada creada') },        trigger:'cat_created'      },
-      { id:'tres_cuentas',        emoji:'🏛️', cat:'pro',       get nombre(){ return _w('ach_tres_cuentas_n','Multibanco') },              get desc(){ return _w('ach_tres_cuentas_d','3 o más cuentas bancarias gestionadas') },          trigger:'data_check'       },
-      // ── Especiales ──
-      { id:'madrugador',          emoji:'🌅', cat:'especial',  get nombre(){ return _w('ach_madrugador_n','Madrugador') },                get desc(){ return _w('ach_madrugador_d','Añade una transacción antes de las 7am') },           trigger:'ingreso_added'    },
-      { id:'nocturno',            emoji:'🌙', cat:'especial',  get nombre(){ return _w('ach_nocturno_n','Noctámbulo') },                  get desc(){ return _w('ach_nocturno_d','Añade una transacción después de las 23h') },           trigger:'gasto_added'      },
-      { id:'fin_de_semana',       emoji:'🎉', cat:'especial',  get nombre(){ return _w('ach_fin_semana_n','Fin de semana activo') },       get desc(){ return _w('ach_fin_semana_d','Usa la app un sábado o domingo') },                  trigger:'data_check'       },
-      // ── Explorador (nuevos) ──
-      { id:'analista',            emoji:'📊', cat:'explorador', get nombre(){ return _w('ach_analista_n','Analista') },                     get desc(){ return _w('ach_analista_d','Visita la página de Análisis') },                      trigger:'page_visit'       },
-      { id:'visualizador',        emoji:'📈', cat:'explorador', get nombre(){ return _w('ach_visualizador_n','Visualizador') },             get desc(){ return _w('ach_visualizador_d','Visita la página de Patrimonio') },                trigger:'page_visit'       },
-      { id:'estratega',           emoji:'🎯', cat:'explorador', get nombre(){ return _w('ach_estratega_n','Estratega') },                   get desc(){ return _w('ach_estratega_d','Crea una estrategia de pago de deudas') },            trigger:'custom_debt'      },
-      { id:'configurador',        emoji:'⚙️', cat:'explorador', get nombre(){ return _w('ach_configurador_n','Configurador') },             get desc(){ return _w('ach_configurador_d','Cambia el tema o idioma en Configuración') },      trigger:'settings_change'  },
-      { id:'completista',         emoji:'👑', cat:'explorador', get nombre(){ return _w('ach_completista_n','Completista') },               get desc(){ return _w('ach_completista_d','Desbloquea todos los demás logros') },              trigger:'data_check'       },
+      // ── Primeros pasos (6) ──
+      { id:'primer_ingreso',      emoji:'💰', cat:'inicio',    get nombre(){ return _w('ach_primer_ingreso_n','Primer ingreso') },         get desc(){ return _w('ach_primer_ingreso_d','Añade tu primer ingreso') }},
+      { id:'primer_gasto',        emoji:'📝', cat:'inicio',    get nombre(){ return _w('ach_primer_gasto_n','Primer gasto') },             get desc(){ return _w('ach_primer_gasto_d','Registra tu primer gasto') }},
+      { id:'primera_deuda',       emoji:'💳', cat:'inicio',    get nombre(){ return _w('ach_primera_deuda_n','Deuda registrada') },        get desc(){ return _w('ach_primera_deuda_d','Registra tu primera deuda') }},
+      { id:'primera_inversion',   emoji:'📈', cat:'inicio',    get nombre(){ return _w('ach_primera_inv_n','Inversor') },                  get desc(){ return _w('ach_primera_inv_d','Crea tu primera inversión') }},
+      { id:'primer_objetivo',     emoji:'🎯', cat:'inicio',    get nombre(){ return _w('ach_primer_obj_n','Soñador') },                    get desc(){ return _w('ach_primer_obj_d','Crea tu primer objetivo de ahorro') }},
+      { id:'primer_presupuesto',  emoji:'📋', cat:'inicio',    get nombre(){ return _w('ach_primer_pres_n','Planificador') },              get desc(){ return _w('ach_primer_pres_d','Crea tu primer presupuesto') }},
+
+      // ── Ingresos (5) ──
+      { id:'diez_ingresos',       emoji:'💵', cat:'ingresos',  get nombre(){ return _w('ach_diez_ing_n','Flujo constante') },              get desc(){ return _w('ach_diez_ing_d','10 ingresos registrados') }},
+      { id:'ingreso_recurrente',  emoji:'🔄', cat:'ingresos',  get nombre(){ return _w('ach_ing_rec_n','Ingresos automáticos') },          get desc(){ return _w('ach_ing_rec_d','Crea tu primer ingreso recurrente') }},
+      { id:'cinco_categorias_ing',emoji:'🏷️', cat:'ingresos',  get nombre(){ return _w('ach_5cat_ing_n','Ingresos diversificados') },      get desc(){ return _w('ach_5cat_ing_d','Usa 5 categorías diferentes de ingresos') }},
+      { id:'ingreso_grande',      emoji:'💎', cat:'ingresos',  get nombre(){ return _w('ach_ing_grande_n','Golpe maestro') },              get desc(){ return _w('ach_ing_grande_d','Registra un ingreso de +5.000€') }},
+      { id:'mes_record_ingresos', emoji:'🚀', cat:'ingresos',  get nombre(){ return _w('ach_mes_record_n','Mes récord') },                 get desc(){ return _w('ach_mes_record_d','Tu mejor mes de ingresos') }},
+
+      // ── Gastos (6) ──
+      { id:'cincuenta_gastos',    emoji:'🧾', cat:'gastos',    get nombre(){ return _w('ach_cincuenta_gas_n','Detallista') },              get desc(){ return _w('ach_cincuenta_gas_d','50 gastos registrados') }},
+      { id:'presupuesto_cumplido',emoji:'✅', cat:'gastos',    get nombre(){ return _w('ach_pres_ok_n','Bajo control') },                  get desc(){ return _w('ach_pres_ok_d','Respeta un presupuesto todo el mes') }},
+      { id:'tres_presupuestos',   emoji:'📊', cat:'gastos',    get nombre(){ return _w('ach_3pres_n','Maestro del presupuesto') },         get desc(){ return _w('ach_3pres_d','Crea 3 o más presupuestos') }},
+      { id:'gasto_eliminado',     emoji:'🗑️', cat:'gastos',    get nombre(){ return _w('ach_gas_del_n','Corrector') },                     get desc(){ return _w('ach_gas_del_d','Elimina o edita un gasto') }},
+      { id:'mes_austero',         emoji:'🌱', cat:'gastos',    get nombre(){ return _w('ach_austero_n','Mes austero') },                   get desc(){ return _w('ach_austero_d','Gastos <50% de tus ingresos') }},
+      { id:'gasto_recurrente',    emoji:'🔁', cat:'gastos',    get nombre(){ return _w('ach_gas_rec_n','Suscriptor') },                    get desc(){ return _w('ach_gas_rec_d','Registra un gasto recurrente') }},
+
+      // ── Inversiones (7) ──
+      { id:'cinco_inversiones',   emoji:'🏦', cat:'inversiones',get nombre(){ return _w('ach_cinco_inv_n','Cartera diversificada') },      get desc(){ return _w('ach_cinco_inv_d','5 inversiones activas') }},
+      { id:'inversion_liquidada', emoji:'💰', cat:'inversiones',get nombre(){ return _w('ach_inv_liq_n','Cobrador') },                      get desc(){ return _w('ach_inv_liq_d','Liquida tu primera inversión') }},
+      { id:'ganancia_positiva',   emoji:'📈', cat:'inversiones',get nombre(){ return _w('ach_gan_pos_n','En ganancias') },                 get desc(){ return _w('ach_gan_pos_d','Liquida una inversión con ROI positivo') }},
+      { id:'diez_inversiones',    emoji:'💼', cat:'inversiones',get nombre(){ return _w('ach_10inv_n','Portfolio profesional') },          get desc(){ return _w('ach_10inv_d','10 inversiones registradas') }},
+      { id:'roi_chart',           emoji:'📊', cat:'inversiones',get nombre(){ return _w('ach_roi_n','Analista de ROI') },                   get desc(){ return _w('ach_roi_d','Consulta el gráfico de ROI') }},
+      { id:'cinco_categorias_inv',emoji:'🎯', cat:'inversiones',get nombre(){ return _w('ach_5cat_inv_n','Inversor diversificado') },      get desc(){ return _w('ach_5cat_inv_d','Invierte en 5 categorías diferentes') }},
+      { id:'inversion_cripto',    emoji:'₿', cat:'inversiones', get nombre(){ return _w('ach_cripto_n','Cripto trader') },                  get desc(){ return _w('ach_cripto_d','Registra una inversión en cripto') }},
+
+      // ── Deudas (5) ──
+      { id:'primera_deuda',       emoji:'💳', cat:'deudas',    get nombre(){ return _w('ach_primera_deuda_n','Deuda registrada') },        get desc(){ return _w('ach_primera_deuda_d','Registra tu primera deuda') }},
+      { id:'pago_deuda',          emoji:'💸', cat:'deudas',    get nombre(){ return _w('ach_pago_deuda_n','Pagador') },                    get desc(){ return _w('ach_pago_deuda_d','Registra un pago a una deuda') }},
+      { id:'deuda_saldada',       emoji:'🎉', cat:'deudas',    get nombre(){ return _w('ach_deuda_ok_n','Deuda saldada') },                get desc(){ return _w('ach_deuda_ok_d','Paga completamente una deuda') }},
+      { id:'sin_deudas',          emoji:'🏆', cat:'deudas',    get nombre(){ return _w('ach_sin_deudas_n','Libre de deudas') },            get desc(){ return _w('ach_sin_deudas_d','Todas tus deudas en cero') }},
+      { id:'estrategia_deuda',    emoji:'🧠', cat:'deudas',    get nombre(){ return _w('ach_estrategia_n','Estratega') },                  get desc(){ return _w('ach_estrategia_d','Usa el simulador de pago de deudas') }},
+
+      // ── Objetivos (6) ──
+      { id:'cinco_objetivos',     emoji:'🌟', cat:'objetivos', get nombre(){ return _w('ach_cinco_obj_n','Ambicioso') },                   get desc(){ return _w('ach_cinco_obj_d','5 objetivos de ahorro creados') }},
+      { id:'objetivo_completado', emoji:'✅', cat:'objetivos', get nombre(){ return _w('ach_obj_completado_n','Meta alcanzada') },         get desc(){ return _w('ach_obj_completado_d','Completa tu primer objetivo') }},
+      { id:'tres_obj_completos',  emoji:'🏅', cat:'objetivos', get nombre(){ return _w('ach_3obj_n','Alcanzador serial') },                get desc(){ return _w('ach_3obj_d','Completa 3 objetivos de ahorro') }},
+      { id:'aportacion_objetivo', emoji:'💵', cat:'objetivos', get nombre(){ return _w('ach_aport_n','Aportador') },                        get desc(){ return _w('ach_aport_d','Haz una aportación a un objetivo') }},
+      { id:'objetivo_grande',     emoji:'🎯', cat:'objetivos', get nombre(){ return _w('ach_obj_grande_n','Gran ambición') },              get desc(){ return _w('ach_obj_grande_d','Crea un objetivo de +10.000€') }},
+      { id:'objetivo_rapido',     emoji:'⚡', cat:'objetivos', get nombre(){ return _w('ach_obj_rapido_n','Velocista') },                  get desc(){ return _w('ach_obj_rapido_d','Completa un objetivo en <30 días') }},
+
+      // ── Patrimonio & Cuentas (5) ──
+      { id:'tres_cuentas',        emoji:'🏛️', cat:'patrimonio',get nombre(){ return _w('ach_tres_cuentas_n','Multibanco') },              get desc(){ return _w('ach_tres_cuentas_d','3 o más cuentas gestionadas') }},
+      { id:'patrimonio_10k',      emoji:'💎', cat:'patrimonio',get nombre(){ return _w('ach_patr_10k_n','10K club') },                     get desc(){ return _w('ach_patr_10k_d','Patrimonio neto supera 10.000€') }},
+      { id:'patrimonio_50k',      emoji:'👑', cat:'patrimonio',get nombre(){ return _w('ach_patr_50k_n','50K club') },                     get desc(){ return _w('ach_patr_50k_d','Patrimonio neto supera 50.000€') }},
+      { id:'saldo_positivo',      emoji:'📊', cat:'patrimonio',get nombre(){ return _w('ach_saldo_pos_n','En positivo') },                 get desc(){ return _w('ach_saldo_pos_d','Cash flow positivo este mes') }},
+      { id:'activo_fisico',       emoji:'🏠', cat:'patrimonio',get nombre(){ return _w('ach_activo_n','Propietario') },                    get desc(){ return _w('ach_activo_d','Registra un activo físico') }},
+
+      // ── Constancia (5) ──
+      { id:'streak_7',            emoji:'🔥', cat:'constancia',get nombre(){ return _w('ach_streak_7_n','Una semana seguida') },           get desc(){ return _w('ach_streak_7_d','7 días de racha de uso') }},
+      { id:'streak_30',           emoji:'💎', cat:'constancia',get nombre(){ return _w('ach_streak_30_n','Un mes de racha') },             get desc(){ return _w('ach_streak_30_d','30 días de racha de uso') }},
+      { id:'streak_100',          emoji:'👑', cat:'constancia',get nombre(){ return _w('ach_streak_100_n','Centenario') },                 get desc(){ return _w('ach_streak_100_d','100 días de racha — imparable') }},
+      { id:'ahorrador_3meses',    emoji:'🌱', cat:'constancia',get nombre(){ return _w('ach_ahorrador_3m_n','Ahorrador constante') },      get desc(){ return _w('ach_ahorrador_3m_d','3 meses con ahorro positivo') }},
+      { id:'ahorrador_6meses',    emoji:'🌳', cat:'constancia',get nombre(){ return _w('ach_ahorrador_6m_n','Raíces profundas') },         get desc(){ return _w('ach_ahorrador_6m_d','6 meses con ahorro positivo') }},
+
+      // ── Herramientas Pro (7) ──
+      { id:'exportador_pdf',      emoji:'📄', cat:'pro',       get nombre(){ return _w('ach_pdf_n','PDF Master') },                        get desc(){ return _w('ach_pdf_d','Primera exportación PDF') }},
+      { id:'exportador_excel',    emoji:'📊', cat:'pro',       get nombre(){ return _w('ach_excel_n','Excel Pro') },                       get desc(){ return _w('ach_excel_d','Primera exportación Excel') }},
+      { id:'personalizado',       emoji:'✨', cat:'pro',       get nombre(){ return _w('ach_personalizado_n','A tu manera') },            get desc(){ return _w('ach_personalizado_d','Crea una categoría personalizada') }},
+      { id:'modo_demo',           emoji:'🎭', cat:'pro',       get nombre(){ return _w('ach_demo_n','Explorador demo') },                  get desc(){ return _w('ach_demo_d','Activa el modo demo') }},
+      { id:'cambio_tema',         emoji:'🎨', cat:'pro',       get nombre(){ return _w('ach_tema_n','Decorador') },                        get desc(){ return _w('ach_tema_d','Cambia el tema dark/light') }},
+      { id:'cambio_idioma',       emoji:'🌐', cat:'pro',       get nombre(){ return _w('ach_idioma_n','Políglota') },                      get desc(){ return _w('ach_idioma_d','Cambia el idioma de la app') }},
+      { id:'chatbot_usado',       emoji:'🤖', cat:'pro',       get nombre(){ return _w('ach_chatbot_n','Asistente IA') },                  get desc(){ return _w('ach_chatbot_d','Usa el chatbot IA') }},
+
+      // ── Explorador (6) ──
+      { id:'todas_paginas',       emoji:'🗺️', cat:'explorador',get nombre(){ return _w('ach_todas_pag_n','Explorador completo') },         get desc(){ return _w('ach_todas_pag_d','Visita todas las secciones') }},
+      { id:'pagina_dashboard',    emoji:'🏠', cat:'explorador',get nombre(){ return _w('ach_dashboard_n','Bienvenida') },                   get desc(){ return _w('ach_dashboard_d','Visita el Dashboard') }},
+      { id:'pagina_analisis',     emoji:'📊', cat:'explorador',get nombre(){ return _w('ach_analisis_n','Analista') },                     get desc(){ return _w('ach_analisis_d','Visita la página de Análisis') }},
+      { id:'pagina_patrimonio',   emoji:'💰', cat:'explorador',get nombre(){ return _w('ach_patrimonio_n','Patrimonialista') },            get desc(){ return _w('ach_patrimonio_d','Visita la página de Patrimonio') }},
+      { id:'pagina_logros',       emoji:'🏆', cat:'explorador',get nombre(){ return _w('ach_logros_n','Coleccionista') },                  get desc(){ return _w('ach_logros_d','Visita la página de Logros') }},
+      { id:'configuracion_vista', emoji:'⚙️', cat:'explorador',get nombre(){ return _w('ach_config_n','Configurador') },                   get desc(){ return _w('ach_config_d','Visita Configuración') }},
+
+      // ── Especiales (5) ──
+      { id:'madrugador',          emoji:'🌅', cat:'especial',  get nombre(){ return _w('ach_madrugador_n','Madrugador') },                get desc(){ return _w('ach_madrugador_d','Transacción antes de las 7am') }},
+      { id:'nocturno',            emoji:'🌙', cat:'especial',  get nombre(){ return _w('ach_nocturno_n','Noctámbulo') },                  get desc(){ return _w('ach_nocturno_d','Transacción después de las 23h') }},
+      { id:'fin_de_semana',       emoji:'🎉', cat:'especial',  get nombre(){ return _w('ach_fin_semana_n','Weekend warrior') },            get desc(){ return _w('ach_fin_semana_d','Usa la app un fin de semana') }},
+      { id:'perfeccionista',      emoji:'💯', cat:'especial',  get nombre(){ return _w('ach_perfect_n','Perfeccionista') },                get desc(){ return _w('ach_perfect_d','Completa 100% de tus objetivos') }},
+      { id:'completista',         emoji:'👑', cat:'especial',  get nombre(){ return _w('ach_completista_n','Leyenda') },                   get desc(){ return _w('ach_completista_d','Desbloquea TODOS los logros') }},
     ];
   }
   const ACHIEVEMENTS = _ach();
@@ -266,13 +313,17 @@
   function _gt(k, fb) { return (typeof window.t === 'function' ? window.t(k) || fb : fb); }
 
   const CAT_META = {
-    inicio:     { label: () => _gt('logro_cat_inicio',     'Primeros pasos'),     icon: '🚀', color: '#6366F1' },
-    constancia: { label: () => _gt('logro_cat_constancia', 'Constancia'),         icon: '🔥', color: '#F59E0B' },
-    volumen:    { label: () => _gt('logro_cat_volumen',    'Volumen'),            icon: '📦', color: '#10B981' },
-    finanzas:   { label: () => _gt('logro_cat_finanzas',   'Logros financieros'), icon: '💰', color: '#00D4AA' },
-    pro:        { label: () => 'Pro',                                             icon: '⚡', color: '#A855F7' },
-    especial:   { label: () => _gt('logro_cat_especial',   'Especiales'),         icon: '✨', color: '#F472B6' },
-    explorador: { label: () => _gt('logro_cat_explorador', 'Explorador'),         icon: '🧭', color: '#3B82F6' },
+    inicio:      { label: () => _gt('logro_cat_inicio',      'Primeros pasos'),    icon: '🚀', color: '#6366F1' },
+    ingresos:    { label: () => _gt('logro_cat_ingresos',    'Ingresos'),          icon: '💰', color: '#10B981' },
+    gastos:      { label: () => _gt('logro_cat_gastos',      'Gastos'),            icon: '💸', color: '#F59E0B' },
+    inversiones: { label: () => _gt('logro_cat_inversiones', 'Inversiones'),       icon: '📈', color: '#00D4AA' },
+    deudas:      { label: () => _gt('logro_cat_deudas',      'Deudas'),            icon: '💳', color: '#F43F5E' },
+    objetivos:   { label: () => _gt('logro_cat_objetivos',   'Objetivos'),         icon: '🎯', color: '#8B5CF6' },
+    patrimonio:  { label: () => _gt('logro_cat_patrimonio',  'Patrimonio'),        icon: '🏦', color: '#0EA5E9' },
+    constancia:  { label: () => _gt('logro_cat_constancia',  'Constancia'),        icon: '🔥', color: '#F97316' },
+    pro:         { label: () => _gt('logro_cat_pro',         'Herramientas Pro'),  icon: '⚡', color: '#A855F7' },
+    explorador:  { label: () => _gt('logro_cat_explorador',  'Explorador'),        icon: '🧭', color: '#3B82F6' },
+    especial:    { label: () => _gt('logro_cat_especial',    'Especiales'),        icon: '✨', color: '#EC4899' },
   };
 
   // ─── Achievement guides (roadmap + steps) ────────────────────────
