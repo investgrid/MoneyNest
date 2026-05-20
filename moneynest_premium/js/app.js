@@ -3885,12 +3885,26 @@ function calcPatrimonio() {
 function calcROI(inv) {
   if (inv.cerrada) return Number(inv.roiReal)||0
   if (!inv.importe) return 0
-  if (VOLATILE_CATS.includes(inv.categoria)) return 0 // no ROI for volatile
+
+  // Si tiene revalorizaciones, calcular ROI basado en último valor
+  if (inv.revalorizaciones && inv.revalorizaciones.length > 0) {
+    const ultimaRev = inv.revalorizaciones[inv.revalorizaciones.length - 1]
+    const gananciaActual = ultimaRev.valor - Number(inv.importe)
+    return (gananciaActual / Number(inv.importe)) * 100
+  }
+
+  if (VOLATILE_CATS.includes(inv.categoria)) return 0 // no ROI for volatile without revaluation
   return Number(inv.rentabilidad)||0
 }
 function isVolatile(inv) { return VOLATILE_CATS.includes(inv.categoria) }
 function calcValorInv(inv) {
   if (inv.cerrada) return Number(inv.valorFinal)||0
+
+  // Si tiene revalorizaciones, usar última revalorización
+  if (inv.revalorizaciones && inv.revalorizaciones.length > 0) {
+    return inv.revalorizaciones[inv.revalorizaciones.length - 1].valor
+  }
+
   if (isVolatile(inv)) return Number(inv.importe) // no projected value for volatile
   return Number(inv.importe)*(1+(Number(inv.rentabilidad)||0)/100)
 }
@@ -4870,7 +4884,21 @@ function renderInversiones() {
         </div>` : ''}
       </div>
       ${inv.notas?`<div style="font-size:.73rem;color:var(--text2);padding:5px 8px;background:var(--bg2);border-radius:5px;margin-bottom:10px">${inv.notas}</div>`:''}
+      ${inv.revalorizaciones && inv.revalorizaciones.length > 0 ? `
+      <div style="margin-bottom:10px">
+        <div style="font-size:.7rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">📊 Historial revalorizaciones</div>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          ${inv.revalorizaciones.slice(-3).map(r => `
+            <div style="font-size:.72rem;color:var(--text2);display:flex;justify-content:space-between;padding:4px 8px;background:var(--bg2);border-radius:4px">
+              <span>${fmtDate(r.fecha)}</span>
+              <strong style="color:${r.valor >= Number(inv.importe) ? 'var(--green)' : 'var(--red)'}">${eur(r.valor)}</strong>
+            </div>
+          `).join('')}
+          ${inv.revalorizaciones.length > 3 ? `<div style="font-size:.7rem;color:var(--text3);text-align:center">+${inv.revalorizaciones.length - 3} más</div>` : ''}
+        </div>
+      </div>` : ''}
       <div class="action-row">
+        ${!inv.cerrada?`<button class="btn btn-accent btn-xs" onclick="abrirRevalorizar('${inv.id}')">📊 Revalorizar</button>`:''}
         ${!inv.cerrada?`<button class="btn btn-primary btn-xs" onclick="abrirLiquidar('${inv.id}')">💰 Liquidar</button>`:''}
         <button class="btn-edit" onclick="editarInversion('${inv.id}')">${t('btn_editar')}</button>
         <button class="btn-del" onclick="borrarInversion('${inv.id}')">${t('btn_eliminar')}</button>
@@ -7302,29 +7330,118 @@ function confirmarLiquidacion() {
   }
 
   save(); closeModal('liquidarModal'); render()
+  toast(`${t('toast_inversion_liquidada')} · ${ganancia>=0?'+':''}${eur(ganancia)} · ROI ${ganancia>=0?'+':''}${pct(roiReal)}`)
+  if (window.MNGamification) {
+    MNGamification.checkAchievement('inversion_liquidada')
+    if (ganancia > 0) MNGamification.checkAchievement('ganancia_positiva')
+  }
+  setTimeout(() => {
+    const rect = document.querySelector('.btn-primary')?.getBoundingClientRect()
+    if (rect) spawnMoneyParticles(rect.left + rect.width/2, rect.top)
+  }, 100)
+}
+
+// ─── REVALORIZAR ────────────────────────────────────────────────
+function abrirRevalorizar(id) {
+  const inv = S.inversiones.find(x=>x.id===id)
+  if (!inv) { toast(t('err_inversion_no_encontrada'),'error'); return }
+  if (inv.cerrada) {
+    toast(t('inversion_ya_liquidada') + ' ' + (inv.fechaCierre || '—'), 'error')
+    return
+  }
+
+  const valorActual = inv.revalorizaciones && inv.revalorizaciones.length > 0
+    ? inv.revalorizaciones[inv.revalorizaciones.length - 1].valor
+    : Number(inv.importe)
+
+  document.getElementById('revInvId').value = id
+  document.getElementById('revValor').value = ''
+  document.getElementById('revFecha').value = todayISO()
+  document.getElementById('revNotas').value = ''
+
+  document.getElementById('revInvInfo').innerHTML = `
+    <div style="background:var(--bg2);border-radius:var(--radius-sm);padding:12px 14px;border:1px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+        <div>
+          <strong style="color:var(--text);font-size:.95rem">${inv.nombre}</strong>
+          <div style="font-size:.78rem;color:var(--text2);margin-top:3px">
+            Capital inicial: <strong style="color:var(--accent)">${eur(inv.importe)}</strong> ·
+            Valor actual: <strong style="color:${valorActual >= Number(inv.importe) ? 'var(--green)' : 'var(--red)'}">${eur(valorActual)}</strong>
+          </div>
+        </div>
+        <span class="badge badge-gold">${catEmoji(inv.categoria)} ${inv.categoria||'—'}</span>
+      </div>
+    </div>`
+
+  // Mostrar historial
+  if (inv.revalorizaciones && inv.revalorizaciones.length > 0) {
+    document.getElementById('revHistorial').innerHTML = `
+      <div style="font-size:.75rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">📊 Historial (${inv.revalorizaciones.length})</div>
+      <div style="max-height:200px;overflow-y:auto;display:flex;flex-direction:column;gap:6px">
+        ${inv.revalorizaciones.slice().reverse().map((r,i) => {
+          const prevVal = i === inv.revalorizaciones.length - 1 ? Number(inv.importe) : inv.revalorizaciones[inv.revalorizaciones.length - i - 2].valor
+          const cambio = r.valor - prevVal
+          return `
+            <div style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:8px 10px;font-size:.78rem">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                <strong style="color:var(--text)">${fmtDate(r.fecha)}</strong>
+                <strong style="color:${r.valor >= prevVal ? 'var(--green)' : 'var(--red)'}">${eur(r.valor)}</strong>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-size:.72rem;color:var(--text3)">
+                <span>${cambio >= 0 ? '+' : ''}${eur(cambio)} (${cambio >= 0 ? '+' : ''}${pct((cambio/prevVal)*100)})</span>
+                ${r.notas ? `<span style="font-style:italic;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.notas}</span>` : ''}
+              </div>
+            </div>`
+        }).join('')}
+      </div>`
+  } else {
+    document.getElementById('revHistorial').innerHTML = `
+      <div style="font-size:.8rem;color:var(--text3);text-align:center;padding:12px">
+        Sin revalorizaciones registradas aún
+      </div>`
+  }
+
+  openModal('revalorizarModal')
+}
+
+function confirmarRevalorizacion() {
+  const id = document.getElementById('revInvId').value
+  const inv = S.inversiones.find(x=>x.id===id)
+  if (!inv) { toast('Inversión no encontrada','error'); return }
+
+  const nuevoValor = parseFloat(document.getElementById('revValor').value)
+  if (!nuevoValor || nuevoValor <= 0) { toast(t('err_valor_salida'),'error'); return }
+
+  const fecha = document.getElementById('revFecha').value || todayISO()
+  const notas = document.getElementById('revNotas').value.trim()
+
+  if (!inv.revalorizaciones) inv.revalorizaciones = []
+  inv.revalorizaciones.push({
+    fecha,
+    valor: nuevoValor,
+    notas,
+    timestamp: Date.now()
+  })
+
+  // Ordenar por fecha
+  inv.revalorizaciones.sort((a,b) => new Date(a.fecha) - new Date(b.fecha))
+
+  const valorPrevio = inv.revalorizaciones.length > 1
+    ? inv.revalorizaciones[inv.revalorizaciones.length - 2].valor
+    : Number(inv.importe)
+  const cambio = nuevoValor - valorPrevio
+  const pctCambio = valorPrevio > 0 ? (cambio / valorPrevio) * 100 : 0
+
+  save(); closeModal('revalorizarModal'); render()
 
   // Update ROI chart in real-time if on inversiones page
   if (currentPage === 'inversiones') {
     setTimeout(() => renderChartInvROI(), 150)
   }
 
-  // 4) Visual feedback
-  if (ganancia > 0) {
-    setTimeout(() => {
-      const topbar = document.querySelector('.dinero-display')
-      if (topbar) {
-        topbar.classList.add('liq-success-flash')
-        const r = topbar.getBoundingClientRect()
-        spawnMoneyParticles(r.left + r.width/2, r.top + r.height/2)
-        setTimeout(() => topbar.classList.remove('liq-success-flash'), 700)
-      }
-    }, 150)
-    toast('✅ ' + t('toast_liquidado_ganancia') + ' +' + eur(ganancia))
-  } else if (ganancia < 0) {
-    toast('📉 ' + t('toast_liquidado_perdida') + ' ' + eur(Math.abs(ganancia)))
-  } else {
-    toast(t('toast_liquidado_neutro'))
-  }
+  // Visual feedback
+  const signo = cambio >= 0 ? '+' : ''
+  toast(`📊 ${t('toast_revalorizacion_guardada')} · ${signo}${eur(cambio)} (${signo}${pct(pctCambio)})`, cambio >= 0 ? 'success' : 'warning')
 }
 
 // ─── DEUDA CRUD ─────────────────────────────────────────────────
@@ -8450,6 +8567,8 @@ document.addEventListener('keydown', e => {
       ingresoModal:    guardarIngreso,
       gastoModal:      guardarGasto,
       inversionModal:  guardarInversion,
+      revalorizarModal: confirmarRevalorizacion,
+      liquidarModal:   confirmarLiquidacion,
       deudaModal:      guardarDeuda,
       objetivoModal:   guardarObjetivo,
       presupuestoModal:guardarPresupuesto,

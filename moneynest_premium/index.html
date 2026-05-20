@@ -409,6 +409,39 @@
   </div>
 </div>
 
+<!-- REVALORIZAR MODAL -->
+<div class="modal-overlay" id="revalorizarModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" data-i18n="modal_revalorizar_titulo">📊 Revalorizar inversión</span>
+      <button class="modal-close" onclick="closeModal('revalorizarModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="revInvId">
+      <div id="revInvInfo" style="margin-bottom:14px"></div>
+      <div class="form-row form-row-2">
+        <div class="form-group">
+          <label data-i18n="modal_revalorizar_valor_lbl">Nuevo valor actual (€) *</label>
+          <input type="number" id="revValor" placeholder="0.00" step="0.01" min="0" required>
+        </div>
+        <div class="form-group">
+          <label data-i18n="modal_revalorizar_fecha_lbl">Fecha de revalorización</label>
+          <input type="date" id="revFecha">
+        </div>
+      </div>
+      <div class="form-group">
+        <label data-i18n="modal_revalorizar_notas_lbl">Notas (opcional)</label>
+        <input type="text" id="revNotas" data-i18n-placeholder="ph_revalorizar_notas" placeholder="Razón del cambio...">
+      </div>
+      <div id="revHistorial" style="margin-top:14px"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('revalorizarModal')" data-i18n="btn_cancelar">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="confirmarRevalorizacion()" data-i18n="btn_revalorizar_confirm">Registrar</button>
+    </div>
+  </div>
+</div>
+
 <!-- LIQUIDAR MODAL -->
 <div class="modal-overlay" id="liquidarModal">
   <div class="modal">
