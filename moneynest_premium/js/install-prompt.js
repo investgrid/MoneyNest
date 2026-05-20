@@ -595,7 +595,10 @@
   window.addEventListener('beforeinstallprompt', e => {
     e.preventDefault();
     deferredPrompt = e;
-    // Ya no inyectamos nada automáticamente — solo guardamos el prompt
+    // Mostrar banner Android si no está instalado
+    if (!isInstalled() && !isIOS()) {
+      setTimeout(_showAndroidBanner, 3000);
+    }
   });
 
   window.addEventListener('appinstalled', () => {
@@ -609,7 +612,14 @@
 
   function init() {
     if (isInstalled()) return;
-    if (isIOS()) setTimeout(_showIOSBanner, 3000);
+    // Android: mostrar banner si hay prompt disponible
+    if (!isIOS() && deferredPrompt) {
+      setTimeout(_showAndroidBanner, 3000);
+    }
+    // iOS: mostrar banner siempre (necesita instrucciones)
+    if (isIOS()) {
+      setTimeout(_showIOSBanner, 3000);
+    }
   }
 
   if (document.readyState === 'loading') {
