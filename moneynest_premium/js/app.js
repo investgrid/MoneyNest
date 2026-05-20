@@ -4948,7 +4948,13 @@ function renderInversiones() {
 
   <div class="grid-2" style="margin-bottom:16px">
     <div class="card col-span-2">
-      <div class="card-header"><div class="card-title">📊 ${t('inv_roi_titulo','ROI por inversión liquidada')}</div><div class="card-subtitle">${t('inv_roi_sub','Rentabilidad real de posiciones cerradas')}</div></div>
+      <div class="card-header">
+        <div><div class="card-title">📊 ${t('inv_roi_titulo','ROI General')}</div><div class="card-subtitle">${t('inv_roi_sub','Evolución de rentabilidad promedio en tiempo real')}</div></div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="btn btn-ghost btn-xs" onclick="window._roiView='monthly';renderChartInvROI()" style="background:${window._roiView==='monthly'||!window._roiView?'var(--accent-dim)':'transparent'};color:${window._roiView==='monthly'||!window._roiView?'var(--accent)':'var(--text3)'}">${t('mensual','Mensual')}</button>
+          <button class="btn btn-ghost btn-xs" onclick="window._roiView='yearly';renderChartInvROI()" style="background:${window._roiView==='yearly'?'var(--accent-dim)':'transparent'};color:${window._roiView==='yearly'?'var(--accent)':'var(--text3)'}">${t('anual','Anual')}</button>
+        </div>
+      </div>
       <div class="chart-container"><canvas id="chartInvROI"></canvas></div>
     </div>
   </div>
@@ -6531,49 +6537,150 @@ function renderChartInvROI() {
   const ctx = document.getElementById('chartInvROI')
   if (!ctx) return
   destroyChart('invROI')
-  const cerradas = S.inversiones.filter(i=>i.cerrada)
-  if (!cerradas.length) {
-    // Show a placeholder message if no closed investments
+
+  // Check if there are any investments (active or closed)
+  if (!S.inversiones.length) {
     const parent = ctx.parentElement
-    if (parent) parent.innerHTML = '<div class=empty style=padding:20px><div class=empty-icon>📊</div><div class=empty-title>Sin inversiones liquidadas</div><div class=empty-sub>Liquida una inversión para ver el gráfico ROI</div></div>'
+    if (parent) parent.innerHTML = '<div class=empty style=padding:20px><div class=empty-icon>📊</div><div class=empty-title>Sin inversiones</div><div class=empty-sub>Añade inversiones para ver el gráfico de ROI</div></div>'
     return
   }
-  const inv = cerradas.slice(0,10)
-  const roiData = inv.map(i=>Number(i.roiReal)||0)
-  const maxAbs = Math.max(...roiData.map(Math.abs), 1)
-  const n = inv.length
-  // Proportional scaling: fewer bars = narrower to avoid single oversized bar
-  const catPct = n === 1 ? 0.18 : n <= 3 ? 0.35 : n <= 5 ? 0.55 : 0.7
+
+  const view = window._roiView || 'monthly' // 'monthly' or 'yearly'
+
+  // Calculate ROI over time based on liquidation dates
+  // For each period (month or year), calculate average ROI of all investments liquidated up to that point
+  const roiByPeriod = {}
+
+  S.inversiones.forEach(inv => {
+    if (!inv.cerrada || !inv.fechaCierre) return
+    const roi = Number(inv.roiReal) || 0
+    const closeDate = new Date(inv.fechaCierre)
+    if (isNaN(closeDate.getTime())) return
+
+    const period = view === 'yearly'
+      ? closeDate.getFullYear().toString()
+      : closeDate.toISOString().slice(0, 7) // YYYY-MM
+
+    if (!roiByPeriod[period]) {
+      roiByPeriod[period] = { sum: 0, count: 0, rois: [] }
+    }
+    roiByPeriod[period].sum += roi
+    roiByPeriod[period].count++
+    roiByPeriod[period].rois.push(roi)
+  })
+
+  // If no liquidated investments yet, show all active investments at 0% for current period
+  if (Object.keys(roiByPeriod).length === 0) {
+    const parent = ctx.parentElement
+    if (parent) parent.innerHTML = '<div class=empty style=padding:20px><div class=empty-icon>⏳</div><div class=empty-title>Sin inversiones liquidadas aún</div><div class=empty-sub>El ROI se calculará cuando liquides inversiones</div></div>'
+    return
+  }
+
+  // Sort periods chronologically
+  const periods = Object.keys(roiByPeriod).sort()
+
+  // Calculate cumulative average ROI over time
+  let cumulativeSum = 0
+  let cumulativeCount = 0
+  const labels = []
+  const avgROI = []
+
+  periods.forEach(period => {
+    cumulativeSum += roiByPeriod[period].sum
+    cumulativeCount += roiByPeriod[period].count
+    const avg = cumulativeCount > 0 ? cumulativeSum / cumulativeCount : 0
+
+    labels.push(view === 'yearly' ? period : formatMonthLabel(period))
+    avgROI.push(Number(avg.toFixed(2)))
+  })
+
+  // Helper function to format month labels
+  function formatMonthLabel(yyyymm) {
+    const [y, m] = yyyymm.split('-')
+    const months = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
+    return `${months[parseInt(m)-1]} ${y.slice(2)}`
+  }
+
+  // Determine color based on final ROI
+  const finalROI = avgROI[avgROI.length - 1] || 0
+  const lineColor = finalROI >= 0 ? '#10B981' : '#F43F5E'
+  const fillColor = finalROI >= 0 ? 'rgba(16,185,129,0.15)' : 'rgba(244,63,94,0.15)'
+
   charts['invROI'] = new Chart(ctx, {
-    type: 'bar',
+    type: 'line',
     data: {
-      labels: inv.map(i=>i.nombre ? (i.nombre.length>18?i.nombre.slice(0,16)+'…':i.nombre) : '—'),
+      labels,
       datasets: [{
-        label: 'ROI %', data: roiData,
-        backgroundColor: roiData.map(v=>v>=0?'rgba(16,185,129,0.75)':'rgba(244,63,94,0.75)'),
-        borderColor: roiData.map(v=>v>=0?'rgba(16,185,129,1)':'rgba(244,63,94,1)'),
-        borderWidth: 1,
-        borderRadius: 6,
-        categoryPercentage: catPct,
-        barPercentage: 0.85,
-        maxBarThickness: 48,
-        minBarLength: 3,
+        label: 'ROI Promedio',
+        data: avgROI,
+        borderColor: lineColor,
+        backgroundColor: (context) => {
+          const chart = context.chart
+          const {ctx, chartArea} = chart
+          if (!chartArea) return fillColor
+          const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom)
+          gradient.addColorStop(0, fillColor)
+          gradient.addColorStop(1, 'transparent')
+          return gradient
+        },
+        fill: true,
+        tension: 0.4,
+        pointRadius: 5,
+        pointHoverRadius: 7,
+        pointBackgroundColor: lineColor,
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+        borderWidth: 3,
       }]
     },
-    options: { ...chartDefaults(),
-      layout: { padding: { left: n<=3 ? 0 : 0 } },
-      plugins: { ...chartDefaults().plugins, legend:{display:false},
-        tooltip: { ...chartDefaults().plugins.tooltip, callbacks: { label: ctx2 => (ctx2.raw>=0?'+':'')+ctx2.raw.toFixed(1)+'%' } }
+    options: {
+      ...chartDefaults(),
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        ...chartDefaults().plugins,
+        legend: { display: false },
+        tooltip: {
+          ...chartDefaults().plugins.tooltip,
+          callbacks: {
+            title: (ctx) => {
+              const period = periods[ctx[0].dataIndex]
+              const data = roiByPeriod[period]
+              return `${ctx[0].label} — ${data.count} ${data.count === 1 ? 'inversión liquidada' : 'inversiones liquidadas'}`
+            },
+            label: (ctx) => {
+              const roi = ctx.parsed.y
+              return ` ROI Promedio: ${roi >= 0 ? '+' : ''}${roi.toFixed(2)}%`
+            },
+            afterLabel: (ctx) => {
+              const period = periods[ctx.dataIndex]
+              const data = roiByPeriod[period]
+              const min = Math.min(...data.rois)
+              const max = Math.max(...data.rois)
+              return `Rango: ${min >= 0 ? '+' : ''}${min.toFixed(1)}% a ${max >= 0 ? '+' : ''}${max.toFixed(1)}%`
+            }
+          }
+        }
       },
       scales: {
-        x: { grid:{color:'transparent'}, ticks:{color:labelColor(),font:{size:10},maxRotation:35},
-             // Align left: add padding after last bar using offset
-             offset: true },
+        x: {
+          grid: { color: 'transparent' },
+          ticks: { color: labelColor(), font: { size: 10 } },
+          border: { color: 'transparent' }
+        },
         y: {
-          grid:{color:gridColor()},
-          ticks:{color:labelColor(),font:{size:10},callback:v=>v+'%'},
-          suggestedMin: -maxAbs*1.3,
-          suggestedMax: maxAbs*1.3,
+          grid: { color: gridColor() },
+          border: { color: 'transparent' },
+          ticks: {
+            color: labelColor(),
+            font: { size: 10 },
+            callback: (v) => (v >= 0 ? '+' : '') + v + '%'
+          },
+          // Add zero line
+          afterDataLimits: (scale) => {
+            const max = Math.max(Math.abs(scale.min), Math.abs(scale.max), 5)
+            scale.min = -max * 1.1
+            scale.max = max * 1.1
+          }
         }
       }
     }
@@ -7195,6 +7302,11 @@ function confirmarLiquidacion() {
   }
 
   save(); closeModal('liquidarModal'); render()
+
+  // Update ROI chart in real-time if on inversiones page
+  if (currentPage === 'inversiones') {
+    setTimeout(() => renderChartInvROI(), 150)
+  }
 
   // 4) Visual feedback
   if (ganancia > 0) {
