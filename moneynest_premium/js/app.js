@@ -4131,6 +4131,9 @@ function renderDashboard() {
   <!-- ── MONTH SUMMARY BANNER (new month only) ────────────────── -->
   ${renderMonthSummaryBanner(monthlySummary)}
 
+  <!-- ── COMPACT HEALTH SCORE ─────────────────────────────────── -->
+  ${renderHealthScore()}
+
   <!-- ── PATRIMONIO HERO ───────────────────────────────────────── -->
   <div style="display:grid;grid-template-columns:1fr 270px;gap:14px;margin-bottom:14px" class="dash-hero-grid">
     <div class="patrimonio-hero" style="margin-bottom:0">
