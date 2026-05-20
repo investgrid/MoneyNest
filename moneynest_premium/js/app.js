@@ -10625,6 +10625,14 @@ async function obNext() {
       try {
         await window.MNSupabaseAuth.signIn(email, pw)
         _auth.upgradeTrial && _auth.upgradeTrial(email)
+        // Login exitoso — cerrar onboarding y cargar datos del usuario
+        _setObSeen()
+        _setTutDone()
+        document.getElementById('onboardingOverlay').style.display = 'none'
+        document.body.style.overflow = ''
+        render()
+        toast(`${t('bienvenido_de_vuelta', 'Bienvenido de vuelta')}! 👋`)
+        return
       } catch (err) {
         const code = err?.code || ''
         const map = {
