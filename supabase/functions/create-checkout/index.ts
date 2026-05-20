@@ -9,8 +9,7 @@ const PRICE_PRO   = 'price_1TTJD3FWll222KpaJ1T6OG6C';
 const ALLOWED_PRICES = new Set([PRICE_LOCAL, PRICE_PRO]);
 
 const ALLOWED_ORIGINS = new Set([
-  'https://moneynest.vercel.app',
-  'https://www.moneynest.vercel.app',
+  'https://money-nest-nk2u.vercel.app',
   'http://localhost:3000',
   'http://localhost:5173',
 ]);
