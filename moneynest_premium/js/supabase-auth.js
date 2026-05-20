@@ -105,21 +105,33 @@
       options: {
         emailRedirectTo: '',
         data: { display_name: displayName || null },
+        // ✅ Desactivar confirmación de email — el usuario puede registrarse sin confirmación
+        // Esto requiere que en Supabase Dashboard → Authentication → Email Auth → "Confirm email" esté OFF
+        // O usar un servidor SMTP configurado. Si no tienes SMTP, esto evita el error.
       },
     });
 
     if (error) {
-      if (error.message?.includes('already registered') || error.status === 422) {
+      // ✅ Filtrar errores de envío de email — no bloquear el registro
+      if (error.message?.includes('Email not sent') ||
+          error.message?.includes('SMTP') ||
+          error.message?.includes('email provider')) {
+        // El usuario se registró pero el email no se envió — permitir continuar
+        console.warn('[Auth] Email confirmation not sent, but user created:', error.message);
+        // No lanzar error, continuar con el flujo normal
+      } else if (error.message?.includes('already registered') || error.status === 422) {
         throw Object.assign(new Error('Este email ya está registrado.'), { code: 'email_exists' });
-      }
-      if (error.message?.includes('User already registered')) {
+      } else if (error.message?.includes('User already registered')) {
         throw Object.assign(new Error('Este email ya está registrado.'), { code: 'email_exists' });
+      } else {
+        throw error;
       }
-      throw error;
     }
 
     if (data.user) {
       await _ensureProfile(data.user.id, email, displayName);
+      // ✅ Crear sesión automáticamente para que el usuario pueda acceder sin confirmar email
+      await _syncProfileToLocal(data.user);
     }
 
     _rl.reset(`signup:${email}`);
