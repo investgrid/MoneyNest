@@ -201,6 +201,8 @@
 
       // Onboarding
       ob_skip: 'Omitir',
+      ob_logros_tip_titulo: '¿Primera vez usando MoneyNest?',
+      ob_logros_tip_desc: 'Ve completando los logros de la sección 🏆 Logros. Ellos te enseñarán paso a paso cómo funciona la aplicación.',
 
       // Tutorial
       tut_salir: '✕ Salir',
@@ -601,6 +603,10 @@
       install_later: 'Ahora no — puedo instalarlo desde Configuración',
       install_already_done: 'App instalada — acceso rápido desde tu pantalla de inicio',
       // Análisis
+      comparativa_anual_titulo: 'Comparativa Anual',
+      ingresos_label: 'Ingresos',
+      gastos_label: 'Gastos',
+      patrimonio_label: 'Patrimonio Neto',
       desglose_categorias: 'Desglose por categoría',
       fondo_emergencia: 'Fondo de emergencia', fondo_cobertura_rec: 'Recomendado: 6 meses',
       fondo_objetivo: 'Objetivo (6m)', fondo_basado_gasto: 'Gasto medio × 6',
@@ -829,6 +835,8 @@
       btn_tax_cancelar: 'Cancel',
       btn_tax_guardar: 'Save',
       ob_skip: 'Skip',
+      ob_logros_tip_titulo: 'First time using MoneyNest?',
+      ob_logros_tip_desc: 'Complete the achievements in the 🏆 Achievements section. They will teach you step by step how the app works.',
       tut_salir: '✕ Exit',
       tut_siguiente: 'Next →',
       mission_bar_titulo: 'Complete your first mission',
@@ -1130,6 +1138,10 @@
       install_later: "Not now — I can install it from Settings",
       install_already_done: 'App installed — quick access from your home screen',
       // Analysis
+      comparativa_anual_titulo: 'Annual Comparison',
+      ingresos_label: 'Income',
+      gastos_label: 'Expenses',
+      patrimonio_label: 'Net Worth',
       desglose_categorias: 'Category breakdown',
       fondo_emergencia: 'Emergency fund', fondo_cobertura_rec: 'Recommended: 6 months',
       fondo_objetivo: 'Target (6m)', fondo_basado_gasto: 'Avg spend × 6',

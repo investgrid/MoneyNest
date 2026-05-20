@@ -8878,6 +8878,103 @@ function renderAnalisis() {
 
   ${_gFilterBar('renderAnalisis()')}
 
+  <!-- ── COMPARATIVA AÑO ACTUAL VS ANTERIOR ─────────────────────── -->
+  ${(() => {
+    const currentYear = new Date().getFullYear()
+    const lastYear = currentYear - 1
+
+    // Calcular totales del año actual (2026)
+    const ingresosActual = S.ingresos.filter(i => i.fecha?.startsWith(String(currentYear))).reduce((a,i)=>a+(Number(i.importe)||0),0)
+    const gastosActual = S.gastos.filter(g => g.fecha?.startsWith(String(currentYear)) && g.tipo !== TX_TYPES.GOAL_TRANSFER).reduce((a,g)=>a+(Number(g.importe)||0),0)
+    const patrimonioActual = calcPatrimonio()
+
+    // Calcular totales del año anterior (2025)
+    const ingresosAnterior = S.ingresos.filter(i => i.fecha?.startsWith(String(lastYear))).reduce((a,i)=>a+(Number(i.importe)||0),0)
+    const gastosAnterior = S.gastos.filter(g => g.fecha?.startsWith(String(lastYear)) && g.tipo !== TX_TYPES.GOAL_TRANSFER).reduce((a,g)=>a+(Number(g.importe)||0),0)
+    const patrimonioAnterior = S.patrimonio_hist?.find(h => h.mes?.startsWith(String(lastYear)))?.valor || 0
+
+    // Calcular deltas
+    const deltaIngresos = ingresosAnterior > 0 ? ((ingresosActual - ingresosAnterior) / ingresosAnterior * 100).toFixed(1) : null
+    const deltaGastos = gastosAnterior > 0 ? ((gastosActual - gastosAnterior) / gastosAnterior * 100).toFixed(1) : null
+    const deltaPatrimonio = patrimonioAnterior > 0 ? ((patrimonioActual - patrimonioAnterior) / patrimonioAnterior * 100).toFixed(1) : null
+
+    const deltaIcon = (val) => val >= 0 ? '▲' : '▼'
+    const deltaColor = (val, inverse = false) => {
+      if (val === null) return 'var(--text2)'
+      const n = parseFloat(val)
+      const good = inverse ? n <= 0 : n >= 0
+      return good ? 'var(--green)' : 'var(--red)'
+    }
+
+    return `<div class="mn-section">
+      <div class="card" style="padding:20px 24px;background:linear-gradient(135deg, rgba(0,212,170,0.06) 0%, rgba(99,102,241,0.06) 100%);border:1px solid var(--border2)">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px">
+          <div style="font-size:1.4rem">📅</div>
+          <div>
+            <div style="font-size:1.05rem;font-weight:800;color:var(--text)">${t('comparativa_anual_titulo', 'Comparativa Anual')}</div>
+            <div style="font-size:0.8rem;color:var(--text2)">${currentYear} vs ${lastYear}</div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px">
+          <!-- Ingresos -->
+          <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px">
+            <div style="font-size:0.75rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">💰 ${t('ingresos_label', 'Ingresos')}</div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
+              <span style="font-size:0.82rem;color:var(--text2)">${currentYear}</span>
+              <span style="font-size:1.1rem;font-weight:800;color:var(--green)">${eur(ingresosActual)}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
+              <span style="font-size:0.82rem;color:var(--text2)">${lastYear}</span>
+              <span style="font-size:0.95rem;font-weight:600;color:var(--text3)">${eur(ingresosAnterior)}</span>
+            </div>
+            ${deltaIngresos !== null ? `
+              <div style="padding:6px 10px;background:${deltaColor(deltaIngresos, false) === 'var(--green)' ? 'rgba(16,185,129,0.1)' : 'rgba(244,63,94,0.1)'};border-radius:8px;text-align:center">
+                <span style="font-size:0.85rem;font-weight:800;color:${deltaColor(deltaIngresos, false)}">${deltaIcon(deltaIngresos)} ${Math.abs(deltaIngresos)}%</span>
+              </div>
+            ` : '<div style="text-align:center;font-size:0.8rem;color:var(--text3)">Sin datos año anterior</div>'}
+          </div>
+
+          <!-- Gastos -->
+          <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px">
+            <div style="font-size:0.75rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">💸 ${t('gastos_label', 'Gastos')}</div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
+              <span style="font-size:0.82rem;color:var(--text2)">${currentYear}</span>
+              <span style="font-size:1.1rem;font-weight:800;color:var(--red)">${eur(gastosActual)}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
+              <span style="font-size:0.82rem;color:var(--text2)">${lastYear}</span>
+              <span style="font-size:0.95rem;font-weight:600;color:var(--text3)">${eur(gastosAnterior)}</span>
+            </div>
+            ${deltaGastos !== null ? `
+              <div style="padding:6px 10px;background:${deltaColor(deltaGastos, true) === 'var(--green)' ? 'rgba(16,185,129,0.1)' : 'rgba(244,63,94,0.1)'};border-radius:8px;text-align:center">
+                <span style="font-size:0.85rem;font-weight:800;color:${deltaColor(deltaGastos, true)}">${deltaIcon(deltaGastos)} ${Math.abs(deltaGastos)}%</span>
+              </div>
+            ` : '<div style="text-align:center;font-size:0.8rem;color:var(--text3)">Sin datos año anterior</div>'}
+          </div>
+
+          <!-- Patrimonio Neto -->
+          <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px">
+            <div style="font-size:0.75rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">🏡 ${t('patrimonio_label', 'Patrimonio Neto')}</div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
+              <span style="font-size:0.82rem;color:var(--text2)">${currentYear}</span>
+              <span style="font-size:1.1rem;font-weight:800;color:var(--accent)">${eur(patrimonioActual)}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
+              <span style="font-size:0.82rem;color:var(--text2)">${lastYear}</span>
+              <span style="font-size:0.95rem;font-weight:600;color:var(--text3)">${eur(patrimonioAnterior)}</span>
+            </div>
+            ${deltaPatrimonio !== null ? `
+              <div style="padding:6px 10px;background:${deltaColor(deltaPatrimonio, false) === 'var(--green)' ? 'rgba(16,185,129,0.1)' : 'rgba(244,63,94,0.1)'};border-radius:8px;text-align:center">
+                <span style="font-size:0.85rem;font-weight:800;color:${deltaColor(deltaPatrimonio, false)}">${deltaIcon(deltaPatrimonio)} ${Math.abs(deltaPatrimonio)}%</span>
+              </div>
+            ` : '<div style="text-align:center;font-size:0.8rem;color:var(--text3)">Sin datos año anterior</div>'}
+          </div>
+        </div>
+      </div>
+    </div>`
+  })()}
+
   <!-- ── KPIs ──────────────────────────────────────────────────── -->
   <div class="kpi-grid kpi-grid-4 mn-section">
     <div class="kpi-card">
@@ -9901,15 +9998,17 @@ function _obRightHTML(step) {
         <div class="ob-opt-info"><div class="ob-opt-label">${t('ob_opt_demo_lbl')}</div><div class="ob-opt-sub">${t('ob_opt_demo_sub')}</div></div>
         <div class="ob-opt-radio"><div class="ob-opt-radio-dot"></div></div>
       </div>
-      <div class="ob-opt ${!obData.startTutorial && !obData.loadDemo ? 'selected' : ''}" onclick="obSelectOpt('direct')">
+      <div class="ob-opt ${!obData.loadDemo ? 'selected' : ''}" onclick="obSelectOpt('direct')">
         <div class="ob-opt-emoji">⚡</div>
         <div class="ob-opt-info"><div class="ob-opt-label">${t('ob_opt_direct_lbl')}</div><div class="ob-opt-sub">${t('ob_opt_direct_sub')}</div></div>
         <div class="ob-opt-radio"><div class="ob-opt-radio-dot"></div></div>
       </div>
-      <div class="ob-opt ${obData.startTutorial === true && !obData.loadDemo ? 'selected' : ''}" onclick="obSelectOpt('tutorial')">
-        <div class="ob-opt-emoji">🎓</div>
-        <div class="ob-opt-info"><div class="ob-opt-label">${t('ob_opt_tutorial_lbl')}</div><div class="ob-opt-sub">${t('ob_opt_tutorial_sub')}</div></div>
-        <div class="ob-opt-radio"><div class="ob-opt-radio-dot"></div></div>
+    </div>
+    <div style="margin-top:20px;padding:14px 18px;background:rgba(0,212,170,0.08);border:1px solid rgba(0,212,170,0.2);border-radius:12px;display:flex;align-items:flex-start;gap:12px">
+      <div style="font-size:1.3rem;flex-shrink:0">💡</div>
+      <div style="flex:1">
+        <div style="font-size:0.88rem;font-weight:700;color:var(--accent);margin-bottom:4px">${t('ob_logros_tip_titulo', '¿Primera vez usando MoneyNest?')}</div>
+        <div style="font-size:0.8rem;color:var(--text2);line-height:1.5">${t('ob_logros_tip_desc', 'Ve completando los logros de la sección 🏆 Logros. Ellos te enseñarán paso a paso cómo funciona la aplicación.')}</div>
       </div>
     </div>
     <div class="ob-actions-row">

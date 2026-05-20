@@ -1038,9 +1038,27 @@ textarea{resize:vertical;min-height:70px}
   .col-span-2{grid-column:span 1}
   .form-row-2{grid-template-columns:1fr}
   .form-row-3{grid-template-columns:1fr}
-  .content{padding:14px 16px}
-  .topbar{padding:0 16px;gap:10px}
+  .content{padding:14px 16px;padding-bottom:90px}
+  .topbar{padding:0 16px;gap:10px;height:auto;min-height:56px;flex-wrap:wrap}
+  .topbar-left{flex:1;min-width:0}
+  .topbar-right{gap:8px;flex-wrap:wrap}
   .dinero-display .dinero-label{display:none}
+  .page-title-bar{font-size:1.1rem}
+  .btn-export{font-size:0.75rem;padding:6px 10px}
+  /* Touch targets mínimos 44px */
+  .nav-item{min-height:44px;padding:10px 14px}
+  .btn{min-height:44px}
+  .hamburger{min-width:44px;min-height:44px}
+  /* Modales full-screen en móvil */
+  .modal{padding:0;border-radius:0;max-width:100%;height:100vh;height:100dvh}
+  .modal-content{border-radius:0;max-height:100%;overflow-y:auto}
+  /* Cards con más padding */
+  .card{padding:16px}
+  .kpi-card{padding:14px 16px}
+  /* Formularios más espaciosos */
+  input,select,textarea{font-size:16px;padding:10px 12px}
+  /* Bottom nav siempre visible */
+  .bottom-nav{position:fixed;bottom:0}
   .tut-tooltip{max-width:calc(100vw - 32px);min-width:0;left:16px!important;right:16px;top:auto!important;bottom:80px!important;transform:none!important}
   .tut-highlight{display:none!important}
   .ob-split-left{display:none!important}
@@ -1060,9 +1078,19 @@ textarea{resize:vertical;min-height:70px}
 @media(max-width:480px){
   .kpi-grid-5,.kpi-grid-4,.kpi-grid-3,.kpi-grid-2{grid-template-columns:1fr}
   .inv-grid{grid-template-columns:1fr}
-  .section-header{flex-direction:column;align-items:flex-start}
-  .section-actions{width:100%}
-  .section-actions .btn{flex:1;justify-content:center}
+  .section-header{flex-direction:column;align-items:flex-start;gap:12px}
+  .section-actions{width:100%;display:flex;flex-direction:column;gap:8px}
+  .section-actions .btn{flex:1;justify-content:center;width:100%}
+  .page-h1{font-size:1.15rem}
+  .topbar{padding:0 12px}
+  .content{padding:12px;padding-bottom:90px}
+  /* Tablas responsivas */
+  table{font-size:0.85rem}
+  td,th{padding:8px 6px}
+  /* Ajustes específicos de componentes */
+  .modal-header{flex-direction:column;align-items:flex-start;gap:8px}
+  .modal-actions{flex-direction:column;gap:10px}
+  .modal-actions .btn{width:100%}
   
 /* ── mnTrialPill — Premium subscription status pill ── */
 #mnTrialPill {
