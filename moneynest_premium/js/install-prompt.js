@@ -413,7 +413,7 @@
         </div>
 
         <div class="mn-dm-name">MoneyNest</div>
-        <div class="mn-dm-tagline">${_t('install_tagline','Tu gestor financiero personal')} · ${(location.hostname || 'moneynest.app').replace(/^moneynest-[a-z0-9]+-/,'').replace('.vercel.app','') || 'moneynest.app'}</div>
+        <div class="mn-dm-tagline">${_t('install_tagline','Tu gestor financiero personal')}</div>
 
         <div class="mn-dm-features">
           <div class="mn-dm-feat">
@@ -434,26 +434,26 @@
           <div style="text-align:left;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:14px 16px;margin-bottom:14px">
             <div style="font-size:.7rem;font-weight:700;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">${_t('install_how','Cómo instalar')}</div>
             <div style="display:flex;flex-direction:column;gap:8px">
-              <div style="display:flex;align-items:center;gap:8px;font-size:.78rem;color:rgba(255,255,255,.65)">
-                <span style="width:20px;height:20px;border-radius:50%;background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.2);color:#00D4AA;font-size:.65rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">1</span>
-                ${_t('install_ios_step1','Toca')} <strong style="color:#fff;margin:0 3px">${_t('install_ios_share','Compartir')}</strong> ${shareIcon} ${_t('install_ios_step1b','en Safari')}
+              <div style="display:flex;align-items:flex-start;gap:8px;font-size:.78rem;color:rgba(255,255,255,.65);line-height:1.5">
+                <span style="width:20px;height:20px;border-radius:50%;background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.2);color:#00D4AA;font-size:.65rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">1</span>
+                <span>${_t('install_ios_step1','Toca el botón')} <strong style="color:#fff">${_t('install_ios_share','Compartir')}</strong> ${shareIcon} ${_t('install_ios_step1b','en la barra inferior de Safari')}</span>
               </div>
-              <div style="display:flex;align-items:center;gap:8px;font-size:.78rem;color:rgba(255,255,255,.65)">
-                <span style="width:20px;height:20px;border-radius:50%;background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.2);color:#00D4AA;font-size:.65rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">2</span>
-                ${_t('install_ios_step2','Pulsa')} <strong style="color:#fff;margin:0 3px">${_t('install_ios_add','Añadir a pantalla de inicio')}</strong>
+              <div style="display:flex;align-items:flex-start;gap:8px;font-size:.78rem;color:rgba(255,255,255,.65);line-height:1.5">
+                <span style="width:20px;height:20px;border-radius:50%;background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.2);color:#00D4AA;font-size:.65rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">2</span>
+                <span>${_t('install_ios_step2','Selecciona')} <strong style="color:#fff">${_t('install_ios_add','Añadir a Inicio')}</strong> ${_t('install_ios_step2b','en el menú que aparece')}</span>
               </div>
-              <div style="display:flex;align-items:center;gap:8px;font-size:.78rem;color:rgba(255,255,255,.65)">
-                <span style="width:20px;height:20px;border-radius:50%;background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.2);color:#00D4AA;font-size:.65rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">3</span>
-                ${_t('install_ios_step3','Confirma tocando')} <strong style="color:#fff;margin:0 3px">${_t('install_ios_confirm','Añadir')}</strong>
+              <div style="display:flex;align-items:flex-start;gap:8px;font-size:.78rem;color:rgba(255,255,255,.65);line-height:1.5">
+                <span style="width:20px;height:20px;border-radius:50%;background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.2);color:#00D4AA;font-size:.65rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">3</span>
+                <span>${_t('install_ios_step3','Confirma tocando')} <strong style="color:#fff">${_t('install_ios_confirm','Añadir')}</strong> ${_t('install_ios_step3b','en la esquina superior derecha')}</span>
               </div>
             </div>
           </div>
-          <button class="mn-dm-btn-install" id="mnDmInstallBtn">${_t('install_understood','Entendido 👍')}</button>
+          <button class="mn-dm-btn-install" id="mnDmInstallBtn">${_t('install_understood','¡Entendido!')}</button>
         ` : `
           <div style="padding:12px 14px;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);border-radius:10px;margin-bottom:14px;font-size:.78rem;color:rgba(255,255,255,.55);line-height:1.55">
-            ${_t('install_manual_hint','Para instalar: en tu navegador busca el menú ⋮ o ⋯ y selecciona "Instalar aplicación" o "Añadir a pantalla de inicio".')}
+            ${_t('install_manual_hint','En tu navegador busca el menú (⋮ o ⋯) y selecciona "Instalar aplicación" o "Añadir a pantalla de inicio".')}
           </div>
-          <button class="mn-dm-btn-install" id="mnDmInstallBtn">${_t('install_understood','Entendido 👍')}</button>
+          <button class="mn-dm-btn-install" id="mnDmInstallBtn">${_t('install_understood','¡Entendido!')}</button>
         `}
         <br>
         <button class="mn-dm-btn-cancel" id="mnDmCancelBtn">${_t('install_cancel','Cerrar')}</button>
