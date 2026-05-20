@@ -11085,7 +11085,13 @@ const DEMO_FLAG = 'mn7_demo_mode'
 function isDemoMode() { try { return localStorage.getItem(DEMO_FLAG) === 'true' } catch(e){ return false } }
 
 function loadDemoData(scenario, nombreOverride) {
-  try { localStorage.setItem(DEMO_FLAG, 'true') } catch(e){}
+  try {
+    localStorage.setItem(DEMO_FLAG, 'true')
+    // Guardar el nombre real del usuario antes de entrar al modo demo
+    if (S.usuario.nombre && S.usuario.nombre !== 'Demo' && S.usuario.nombre !== 'Usuario') {
+      localStorage.setItem('mn_real_user_name', S.usuario.nombre)
+    }
+  } catch(e){}
   const hoy = new Date()
   const mes = (offset) => new Date(hoy.getFullYear(), hoy.getMonth() + offset, 1).toISOString().slice(0,7)
   const d = (m, dia) => `${m}-${String(dia).padStart(2,'0')}`
@@ -11268,9 +11274,18 @@ function loadDemoData(scenario, nombreOverride) {
 function clearDemoData() {
   try { localStorage.removeItem(DEMO_FLAG) } catch(e){}
   const theme  = S.theme
+  // Recuperar el nombre real guardado antes de entrar al modo demo
+  let realName = 'Usuario'
+  try {
+    const savedName = localStorage.getItem('mn_real_user_name')
+    if (savedName) {
+      realName = savedName
+      localStorage.removeItem('mn_real_user_name')
+    }
+  } catch(e){}
+
   S = defaultState()
-  // ALWAYS reset to default "Usuario" when leaving demo, never keep demo names
-  S.usuario.nombre = 'Usuario'
+  S.usuario.nombre = realName
   S.theme = theme
   save()
   // Remove all demo UI elements
