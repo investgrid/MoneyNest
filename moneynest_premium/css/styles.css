@@ -246,7 +246,7 @@ img{max-width:100%;display:block}
 .main{
   flex:1;
   min-width:320px;
-  margin-left:var(--sidebar-w);
+  margin-left:calc(var(--sidebar-w) + 20px);
   display:flex;
   flex-direction:column;
   overflow:hidden;

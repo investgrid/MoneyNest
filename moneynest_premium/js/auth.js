@@ -344,7 +344,6 @@ function bloquearApp() {
   const user = getUser();
   document.body.style.overflow = 'hidden';
   document.body.innerHTML = _buildPaywallHTML(user);
-  _initPaywallListeners();
 }
 
 
@@ -384,6 +383,15 @@ function _buildPaywallHTML(user) {
   const red    = '#F43F5E';
 
   return /* html */`
+    <!DOCTYPE html>
+    <html lang="es" data-theme="${theme}">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>MoneyNest — Acceso Expirado</title>
+      <script src="https://js.stripe.com/v3/"></script>
+    </head>
+    <body>
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
       *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -548,45 +556,62 @@ function _buildPaywallHTML(user) {
         <a href="#" id="pw-restore-link">${_pw('paywall_restore_link','Restaurar licencia')}</a>
       </p>
     </div>
+
+    <script>
+      // Stripe config
+      const STRIPE_KEY = 'pk_live_51T57NbFWll222Kpac9uR0087YoUUATVJCxRg3TzYSC7y0EacJnpooDne5ty7vZOEGrkqA35mj6Rf5unOsDiMzBlp00h0Q8bEJt';
+      const PRICE_LOCAL = 'price_1TTJCBFWll222Kpazyvo4A4W';
+      const PRICE_PRO = 'price_1TTJD3FWll222KpaJ1T6OG6C';
+      const CHECKOUT_ENDPOINT = 'https://jwddciqqhmfkbqhdrfre.supabase.co/functions/v1/create-checkout';
+
+      const stripe = Stripe(STRIPE_KEY);
+
+      async function openCheckout(priceId) {
+        const btn = event.target;
+        btn.disabled = true;
+        btn.style.opacity = '0.5';
+        btn.textContent = '⏳ Abriendo checkout...';
+
+        try {
+          const res = await fetch(CHECKOUT_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ priceId, email: '' })
+          });
+
+          if (!res.ok) throw new Error('Error al crear checkout');
+
+          const { url } = await res.json();
+          if (url) window.location.href = url;
+          else throw new Error('No URL returned');
+
+        } catch (err) {
+          alert('Error al abrir el pago. Por favor recarga la página e inténtalo de nuevo.');
+          btn.disabled = false;
+          btn.style.opacity = '1';
+          btn.textContent = btn.id === 'pw-buy-local-btn'
+            ? '🔓 Comprar Plan Local — 5€ →'
+            : '⚡ Activar Plan Pro — 7 días gratis →';
+        }
+      }
+
+      document.getElementById('pw-buy-local-btn').addEventListener('click', () => openCheckout(PRICE_LOCAL));
+      document.getElementById('pw-buy-pro-btn').addEventListener('click', () => openCheckout(PRICE_PRO));
+
+      document.getElementById('pw-restore-btn-inline').addEventListener('click', () => {
+        window.location.reload();
+      });
+      document.getElementById('pw-restore-link').addEventListener('click', (e) => {
+        e.preventDefault();
+        window.location.reload();
+      });
+    </script>
+    </body>
+    </html>
   `;
 }
 
-function _initPaywallListeners() {
-  const buyLocalBtn = document.getElementById('pw-buy-local-btn');
-  if (buyLocalBtn) {
-    buyLocalBtn.addEventListener('click', () => {
-      const email = window.MNSupabaseAuth?.getEmail() || '';
-      if (window.MNPayment && window.MNStripeConfig) {
-        MNPayment.open(MNStripeConfig.prices.local, email);
-      } else {
-        document.dispatchEvent(new CustomEvent('mn:buyLocal', { detail: { source: 'paywall' } }));
-      }
-    });
-  }
-
-  const buyProBtn = document.getElementById('pw-buy-pro-btn');
-  if (buyProBtn) {
-    buyProBtn.addEventListener('click', () => {
-      const email = window.MNSupabaseAuth?.getEmail() || '';
-      if (window.MNPayment && window.MNStripeConfig) {
-        MNPayment.open(MNStripeConfig.prices.pro, email);
-      } else {
-        document.dispatchEvent(new CustomEvent('mn:activatePro', { detail: { source: 'paywall' } }));
-      }
-    });
-  }
-
-  const restoreInline = document.getElementById('pw-restore-btn-inline');
-  const restoreLink   = document.getElementById('pw-restore-link');
-  [restoreInline, restoreLink].forEach(el => {
-    if (el) {
-      el.addEventListener('click', (e) => {
-        e.preventDefault();
-        document.dispatchEvent(new CustomEvent('mn:restoreAccess', { detail: { source: 'paywall' } }));
-      });
-    }
-  });
-}
+// _initPaywallListeners removed — now inline in HTML with Stripe.js
 
 
 // ════════════════════════════════════════════════════════════════
