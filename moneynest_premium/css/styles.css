@@ -158,15 +158,38 @@ img{max-width:100%;display:block}
   background:var(--border);padding:2px 6px;border-radius:99px;
   margin-top:2px;display:inline-block;
 }
-.sidebar-nav{flex:1;padding:4px 0;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;justify-content:flex-start}
-.nav-section{padding:4px 15px 2px;font-size:.62rem;font-weight:700;
-  color:var(--text3);text-transform:uppercase;letter-spacing:.08em}
+.sidebar-nav{
+  flex:1;
+  padding:2px 0;
+  overflow-y:auto;
+  overflow-x:hidden;
+  display:flex;
+  flex-direction:column;
+  justify-content:flex-start;
+  -webkit-overflow-scrolling:touch;
+}
+.nav-section{
+  padding:6px 15px 3px;
+  margin-top:2px;
+  font-size:.62rem;
+  font-weight:700;
+  color:var(--text3);
+  text-transform:uppercase;
+  letter-spacing:.08em;
+}
 .nav-item{
-  display:flex;align-items:center;gap:9px;
-  padding:6px 15px;margin:0 7px;
+  display:flex;
+  align-items:center;
+  gap:9px;
+  padding:7px 15px;
+  margin:1px 7px;
   border-radius:var(--radius-sm);
-  font-size:.86rem;font-weight:500;color:var(--text2);
-  cursor:pointer;transition:all .15s ease;position:relative;
+  font-size:.86rem;
+  font-weight:500;
+  color:var(--text2);
+  cursor:pointer;
+  transition:all .15s ease;
+  position:relative;
 }
 .nav-item:hover{background:var(--border);color:var(--text)}
 .nav-item.active{
@@ -220,7 +243,15 @@ img{max-width:100%;display:block}
 .toggle-switch.on .toggle-knob{transform:translateX(16px)}
 
 /* MAIN */
-.main{flex:1;min-width:320px;display:flex;flex-direction:column;overflow:hidden}
+.main{
+  flex:1;
+  min-width:320px;
+  margin-left:var(--sidebar-w);
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  transition:margin-left .3s ease;
+}
 .topbar{
   height:64px;min-height:64px;
   padding:0 28px;
@@ -1024,7 +1055,7 @@ textarea{resize:vertical;min-height:70px}
     margin:0;
     border-top:1px solid var(--border);
   }
-  .main{min-width:0}
+  .main{min-width:0;margin-left:0}
   .hamburger{display:flex}
   /* En mobile, ocultar en el sidebar los items que ya están en el bottom nav */
   #nav-dashboard, #nav-analisis, #nav-billing, #nav-configuracion { display:none; }
