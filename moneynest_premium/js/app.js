@@ -14197,7 +14197,7 @@ window._mnCloseAuthModal  = _mnCloseAuthModal
 //  CUSTOM DEBT STRATEGY CALCULATOR — Modal premium con gráfico
 // ════════════════════════════════════════════════════════════════════
 
-function openCustomDebtModal() {
+window.openCustomDebtModal = function() {
   const pend = S.deudas.reduce((a,d) => a + Math.max(0,(Number(d.importeTotal)||0)-(Number(d.importePagado)||0)), 0)
   if (pend <= 0) {
     toast(t('sin_deudas_pendientes','No hay deudas pendientes para calcular'), 'info')
@@ -14277,7 +14277,7 @@ function openCustomDebtModal() {
   updateCustomCalc()
 }
 
-function closeCustomDebtModal() {
+window.closeCustomDebtModal = function() {
   const overlay = document.getElementById('customDebtModalOverlay')
   if (overlay) {
     overlay.classList.remove('active')
