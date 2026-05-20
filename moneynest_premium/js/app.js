@@ -2868,7 +2868,7 @@ function t(key) {
       top_categoria: 'Top categoría',
       mes_anterior_lbl: 'Mes anterior',
       por_categoria_mes: 'Por categoría (mes actual)',
-      evolucion_6m: 'Evolución 6 meses',
+      evolucion_6m: 'Evolución 12 meses',
       pendientes_cobro_titulo: 'Pendientes de cobro',
       ingresos_cobrados: 'Ingresos cobrados',
       cobrar_btn: '✓ Cobrado',
@@ -3128,7 +3128,7 @@ function t(key) {
       top_categoria: 'Top category',
       mes_anterior_lbl: 'Previous month',
       por_categoria_mes: 'By category (current month)',
-      evolucion_6m: 'Evolution 6 months',
+      evolucion_6m: 'Evolution 12 months',
       pendientes_cobro_titulo: 'Pending collection',
       ingresos_cobrados: 'Collected income',
       cobrar_btn: '✓ Collected',
@@ -8644,7 +8644,7 @@ function projectWealth(months) {
   const currentPat = calcPatrimonio()
   const months6    = getMonths(12)
 
-  // Calcular CF medio de los últimos 6 meses
+  // Calcular CF medio de los últimos 12 meses
   const cfHistory = months6.map(m => calcCashFlow(m)).filter(v => v !== 0)
   const avgCF     = cfHistory.length
     ? cfHistory.reduce((a, v) => a + v, 0) / cfHistory.length
@@ -9013,7 +9013,7 @@ function renderAnalisis() {
     </div>
     <div class="card">
       <div class="card-header">
-        <div><div class="card-title">📈 ${t('evolucion_patrimonio','Patrimonio neto')}</div><div class="card-subtitle">${t('ultimos_6_meses','Últimos 6 meses')}</div></div>
+        <div><div class="card-title">📈 ${t('evolucion_patrimonio','Patrimonio neto')}</div><div class="card-subtitle">${t('ultimos_12_meses','Últimos 12 meses')}</div></div>
       </div>
       <div class="chart-container" style="height:170px"><canvas id="chartAnalisisPatrimonio"></canvas></div>
     </div>
@@ -9022,7 +9022,7 @@ function renderAnalisis() {
   <!-- ── GRÁFICO INGvsGAS + HEATMAP ───────────────────────────── -->
   <div class="grid-2 mn-section">
     <div class="card">
-      <div class="card-header"><div class="card-title">🍩 ${t('analisis_ing_vs_gas','Ingresos vs Gastos')}</div><div class="card-subtitle">${t('tendencia_mensual','Tendencia 6 meses')}</div></div>
+      <div class="card-header"><div class="card-title">🍩 ${t('analisis_ing_vs_gas','Ingresos vs Gastos')}</div><div class="card-subtitle">${t('tendencia_mensual','Tendencia 12 meses')}</div></div>
       <div class="chart-container" style="height:170px"><canvas id="chartAnalisisTendencia"></canvas></div>
     </div>
     <div class="card">
