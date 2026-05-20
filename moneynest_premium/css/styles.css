@@ -253,17 +253,41 @@ img{max-width:100%;display:block}
   transition:margin-left .3s ease;
 }
 .topbar{
-  height:64px;min-height:64px;
+  height:64px;
+  min-height:64px;
   padding:0 28px;
-  display:flex;align-items:center;justify-content:space-between;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
   border-bottom:1px solid var(--border);
   background:var(--bg);
-  position:sticky;top:0;z-index:50;
+  position:sticky;
+  top:0;
+  z-index:50;
   gap:16px;
 }
-.topbar-left{display:flex;align-items:center;gap:12px}
-.page-title-bar{font-size:1.1rem;font-weight:700;color:var(--text)}
-.topbar-right{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.topbar-left{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  flex:1;
+  min-width:0;
+}
+.page-title-bar{
+  font-size:1.1rem;
+  font-weight:700;
+  color:var(--text);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.topbar-right{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-shrink:0;
+  flex-wrap:nowrap;
+}
 .dinero-display{
   display:flex;align-items:center;gap:8px;
   background:var(--accent-dim);
@@ -1070,12 +1094,49 @@ textarea{resize:vertical;min-height:70px}
   .form-row-2{grid-template-columns:1fr}
   .form-row-3{grid-template-columns:1fr}
   .content{padding:14px 16px;padding-bottom:90px}
-  .topbar{padding:0 16px;gap:10px;height:auto;min-height:56px;flex-wrap:wrap}
-  .topbar-left{flex:1;min-width:0}
-  .topbar-right{gap:8px;flex-wrap:wrap}
-  .dinero-display .dinero-label{display:none}
-  .page-title-bar{font-size:1.1rem}
-  .btn-export{font-size:0.75rem;padding:6px 10px}
+  .topbar{
+    padding:0 12px;
+    gap:8px;
+    height:auto;
+    min-height:56px;
+    flex-wrap:nowrap;
+  }
+  .topbar-left{
+    flex:1;
+    min-width:0;
+    gap:8px;
+  }
+  .topbar-right{
+    gap:6px;
+    flex-wrap:nowrap;
+  }
+  .page-title-bar{
+    font-size:1rem;
+    font-weight:700;
+  }
+  .dinero-display{
+    padding:4px 10px;
+    font-size:0.8rem;
+  }
+  .dinero-display .dinero-label{
+    display:none;
+  }
+  .dinero-value{
+    font-size:0.85rem;
+  }
+  .btn-export{
+    font-size:0.7rem;
+    padding:6px 10px;
+    white-space:nowrap;
+  }
+  #topThemeBtn{
+    padding:6px 8px !important;
+    font-size:0.85rem !important;
+  }
+  /* Ocultar botón exportar en páginas NO dashboard */
+  body:not([data-page="dashboard"]) .btn-export{
+    display:none;
+  }
   /* Touch targets mínimos 44px */
   .nav-item{min-height:44px;padding:10px 14px}
   .btn{min-height:44px}

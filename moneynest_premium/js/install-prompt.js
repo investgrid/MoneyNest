@@ -51,7 +51,9 @@
         box-shadow: 0 0 12px rgba(0,212,170,.15);
       }
       #mnAndroidBanner .mn-ab-icon img { width: 100%; height: 100%; object-fit: cover; }
-      #mnAndroidBanner .mn-ab-text { flex: 1; min-width: 0; }
+      #mnAndroidBanner .mn-ab-text {
+        flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center;
+      }
       #mnAndroidBanner .mn-ab-title {
         font-size: .88rem; font-weight: 800; color: #fff; letter-spacing: -.01em;
       }
@@ -144,7 +146,7 @@
       .mn-dm-feat {
         background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.06);
         border-radius: 12px; padding: 12px 8px;
-        display: flex; flex-direction: column; align-items: center; gap: 7px;
+        display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px;
         transition: border-color .2s, background .2s;
       }
       .mn-dm-feat:hover { background: rgba(0,212,170,.05); border-color: rgba(0,212,170,.2); }
