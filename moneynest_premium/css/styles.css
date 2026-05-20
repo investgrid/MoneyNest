@@ -1002,6 +1002,8 @@ textarea{resize:vertical;min-height:70px}
   .hamburger{display:flex}
   /* En mobile, ocultar en el sidebar los items que ya están en el bottom nav */
   #nav-dashboard, #nav-analisis, #nav-billing, #nav-configuracion { display:none; }
+  /* Ocultar el label "Principal" del sidebar en mobile (ya se ve en bottom nav) */
+  .sidebar .nav-section:first-of-type { display:none; }
   .kpi-grid-5{grid-template-columns:repeat(2,1fr)}
   .kpi-grid-4{grid-template-columns:repeat(2,1fr)}
   .kpi-grid-3{grid-template-columns:repeat(2,1fr)}

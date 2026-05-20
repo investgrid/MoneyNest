@@ -650,20 +650,13 @@ function _attachListeners(user) {
     if (window.MNPayment) MNPayment.open(MNStripeConfig.prices.local, email);
   });
 
-  // ── Bundle (Local + Pro) ──────────────────────────────────────
+  // ── Bundle (Local + Pro) — abre directamente el modal de Pro ─────
   _on('mn-buy-bundle-btn', () => {
     const email = window.MNSupabaseAuth?.getEmail() || user.email || '';
     closeAuthModal();
+    // Abre el modal de Pro directamente — el plan Pro ya incluye Local en su descripción
     if (window.MNPayment) {
-      MNPayment.open(MNStripeConfig.prices.local, email);
-      // After local payment success, auto-open pro
-      const onSuccess = (e) => {
-        if (e.detail?.plan === 'local_lifetime') {
-          document.removeEventListener('mn:paymentSuccess', onSuccess);
-          setTimeout(() => MNPayment.open(MNStripeConfig.prices.pro, email), 1800);
-        }
-      };
-      document.addEventListener('mn:paymentSuccess', onSuccess);
+      MNPayment.open(MNStripeConfig.prices.pro, email);
     }
   });
 

@@ -9,10 +9,17 @@
   "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
   "background_color": "#0A0E17",
   "theme_color": "#0A0E17",
+  "prefer_related_applications": false,
   "orientation": "any",
   "lang": "es",
   "categories": ["finance", "productivity"],
   "icons": [
+    {
+      "src": "./assets/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
     {
       "src": "./assets/icon-192.png",
       "sizes": "192x192",

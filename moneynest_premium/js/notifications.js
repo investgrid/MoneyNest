@@ -85,7 +85,8 @@
     const prefs = getPrefs();
     if (!prefs.budget) return;
     try {
-      const raw  = localStorage.getItem('mn_data');
+      // La app usa 'mn7_data' como clave de almacenamiento
+      const raw  = localStorage.getItem('mn7_data') || localStorage.getItem('mn_data');
       const data = raw ? JSON.parse(raw) : {};
       const pres = data.presupuestos || {};
       const gastos = data.gastos || [];
@@ -97,8 +98,8 @@
           .reduce((a, g) => a + (Number(g.importe) || 0), 0);
         if (spent > Number(limit) && Number(limit) > 0) {
           sendNotification(
-            `Presupuesto superado — ${cat}`,
-            `Has gastado ${_eur(spent)} de ${_eur(limit)} en ${cat} este mes.`,
+            _nt('notif_presupuesto_superado', 'Presupuesto superado') + ` — ${cat}`,
+            _nt('notif_presupuesto_body', 'Has gastado').replace('{spent}', _eur(spent)).replace('{limit}', _eur(limit)).replace('{cat}', cat) || `Has gastado ${_eur(spent)} de ${_eur(limit)} en ${cat} este mes.`,
             null,
             `budget-${cat}`
           );

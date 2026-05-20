@@ -275,17 +275,20 @@
       const dateStr = done
         ? new Date(store.unlocked[a.id].unlockedAt).toLocaleDateString('es-ES', { day:'numeric', month:'short' })
         : '';
+      const safeNombre = (a.nombre || '').replace(/'/g, "\\'");
+      const safeDesc   = (a.desc   || '').replace(/'/g, "\\'");
       return `
-        <div style="
-          background:${done ? 'rgba(0,212,170,0.08)' : 'rgba(255,255,255,0.03)'};
-          border:1px solid ${done ? 'rgba(0,212,170,0.3)' : 'rgba(255,255,255,0.07)'};
-          border-radius:12px;padding:14px;text-align:center;
-          transition:all .2s;${done ? '' : 'opacity:.45;filter:grayscale(1)'}
-        ">
+        <div onclick="window.MNGamification._showAchDetail('${a.emoji}','${safeNombre}','${safeDesc}','${done}','${dateStr}')"
+          style="
+            background:${done ? 'rgba(0,212,170,0.08)' : 'rgba(255,255,255,0.03)'};
+            border:1px solid ${done ? 'rgba(0,212,170,0.3)' : 'rgba(255,255,255,0.07)'};
+            border-radius:12px;padding:14px;text-align:center;cursor:pointer;
+            transition:all .2s;${done ? '' : 'opacity:.45;filter:grayscale(1)'}
+          " onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform=''">
           <div style="font-size:1.8rem;margin-bottom:6px">${a.emoji}</div>
           <div style="font-size:.8rem;font-weight:700;color:${done ? '#fff' : 'rgba(255,255,255,.5)'}">${a.nombre}</div>
           <div style="font-size:.68rem;color:rgba(255,255,255,.35);margin-top:3px">${a.desc}</div>
-          ${done ? `<div style="font-size:.65rem;color:#00D4AA;margin-top:6px;font-weight:600">✓ ${dateStr}</div>` : ''}
+          ${done ? `<div style="font-size:.65rem;color:#00D4AA;margin-top:6px;font-weight:600">✓ ${dateStr}</div>` : `<div style="font-size:.6rem;color:rgba(255,255,255,.2);margin-top:5px">Toca para saber cómo</div>`}
         </div>`;
     }
 
@@ -380,5 +383,37 @@
 
   checkAndUpdateStreak();
 
-  window.MNGamification = { checkAchievement, renderAchievementsPanel, getAchievements, isUnlocked };
+  // ─── Modal de detalle de logro ────────────────────────────────────
+  function _showAchDetail(emoji, nombre, desc, done, dateStr) {
+    const existing = document.getElementById('mn-ach-detail-overlay');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'mn-ach-detail-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:9900;display:flex;align-items:flex-end;justify-content:center;padding:24px;background:rgba(0,0,0,.6);backdrop-filter:blur(8px);animation:mnFadeIn .2s ease';
+    const isDone = done === 'true';
+    overlay.innerHTML = `
+      <div style="background:#0D1424;border:1px solid rgba(255,255,255,.09);border-radius:20px 20px 16px 16px;width:min(400px,100%);padding:24px;position:relative;animation:mnScaleIn .25s cubic-bezier(0.22,1,0.36,1)">
+        <button onclick="document.getElementById('mn-ach-detail-overlay').remove()" style="position:absolute;top:12px;right:12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);color:rgba(255,255,255,.4);width:26px;height:26px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.72rem;font-family:inherit">✕</button>
+        <div style="text-align:center;margin-bottom:16px">
+          <div style="font-size:3rem;margin-bottom:8px;${isDone?'':'filter:grayscale(1);opacity:.5'}">${emoji}</div>
+          <div style="font-size:1rem;font-weight:800;color:${isDone?'#fff':'rgba(255,255,255,.5)'};letter-spacing:-.02em">${nombre}</div>
+          ${isDone ? `<div style="font-size:.7rem;color:#00D4AA;margin-top:4px;font-weight:600">✓ ${_gt('logro_desbloqueado','Desbloqueado')} · ${dateStr}</div>` : `<div style="font-size:.7rem;color:rgba(255,255,255,.3);margin-top:4px">${_gt('logro_pendiente','Pendiente')}</div>`}
+        </div>
+        <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:14px 16px">
+          <div style="font-size:.7rem;font-weight:700;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">${isDone?_gt('logro_completado_como','Cómo lo conseguiste'):_gt('logro_como_completar','Cómo completarlo')}</div>
+          <div style="font-size:.82rem;color:rgba(255,255,255,.7);line-height:1.55">${desc}</div>
+        </div>
+      </div>`;
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+    document.body.appendChild(overlay);
+    if (!document.getElementById('mn-ach-style')) {
+      const s = document.createElement('style');
+      s.id = 'mn-ach-style';
+      s.textContent = `@keyframes mnFadeIn{from{opacity:0}to{opacity:1}}@keyframes mnScaleIn{from{opacity:0;transform:scale(.94) translateY(8px)}to{opacity:1;transform:none}}`;
+      document.head.appendChild(s);
+    }
+  }
+
+  window.MNGamification = { checkAchievement, renderAchievementsPanel, getAchievements, isUnlocked, _showAchDetail, _fireConfetti };
 })();
