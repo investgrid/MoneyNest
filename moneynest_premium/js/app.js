@@ -4131,9 +4131,6 @@ function renderDashboard() {
   <!-- ── MONTH SUMMARY BANNER (new month only) ────────────────── -->
   ${renderMonthSummaryBanner(monthlySummary)}
 
-  <!-- ── COMPACT HEALTH SCORE ─────────────────────────────────── -->
-  ${renderHealthScore()}
-
   <!-- ── PATRIMONIO HERO ───────────────────────────────────────── -->
   <div style="display:grid;grid-template-columns:1fr 270px;gap:14px;margin-bottom:14px" class="dash-hero-grid">
     <div class="patrimonio-hero" style="margin-bottom:0">
@@ -7320,23 +7317,24 @@ function confirmarLiquidacion() {
   // 1) Return full value to account
   cuenta.saldo = (Number(cuenta.saldo)||0) + valorFinal
 
-  // 2) Register gain as income or loss as expense (restando beneficios ya retirados)
+  // 2) Register gain as income or loss as expense
+  // Los beneficios ya retirados son ganancia realizada y NO se restan, se suman al total
   const beneficiosRetirados = (inv.beneficiosRetirados || []).reduce((sum, b) => sum + Number(b.importe), 0)
-  const gananciaFinal = ganancia - beneficiosRetirados
+  const gananciaFinal = ganancia + beneficiosRetirados // Suma la ganancia realizada previa
 
   if (gananciaFinal > 0) {
     S.ingresos.push({
       id: uid(), concepto: '💰 Ganancia final: ' + inv.nombre,
       importe: gananciaFinal, categoria: 'Dividendos',
       fecha: todayISO(), cuentaId,
-      notas: `ROI real: ${pct(roiReal)} · Capital: ${eur(Number(inv.importe))}${beneficiosRetirados > 0 ? ` · Beneficios ya retirados: ${eur(beneficiosRetirados)}` : ''}`
+      notas: `ROI real: ${pct(roiReal)} · Capital: ${eur(Number(inv.importe))}${beneficiosRetirados > 0 ? ` · Ganancia realizada previa: ${eur(beneficiosRetirados)}` : ''}`
     })
   } else if (gananciaFinal < 0) {
     S.gastos.push({
       id: uid(), concepto: '📉 Pérdida final: ' + inv.nombre,
       importe: Math.abs(gananciaFinal), categoria: 'Otro',
       fecha: todayISO(), cuentaId,
-      notas: `ROI real: ${pct(roiReal)} · Capital: ${eur(Number(inv.importe))}${beneficiosRetirados > 0 ? ` · Beneficios ya retirados: ${eur(beneficiosRetirados)}` : ''}`
+      notas: `ROI real: ${pct(roiReal)} · Capital: ${eur(Number(inv.importe))}${beneficiosRetirados > 0 ? ` · Ganancia realizada previa: ${eur(beneficiosRetirados)}` : ''}`
     })
   }
 
@@ -10790,7 +10788,7 @@ async function obNext() {
         await window.MNSupabaseAuth.signUp(email, pw)
         obData._registered = true
         _auth.upgradeTrial && _auth.upgradeTrial(email)
-        if (btn) { btn.disabled = false }
+        if (btn) { btn.disabled = false; btn.innerHTML = 'Siguiente <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="display:inline;vertical-align:middle"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' }
         // Continue to next step normally (no OTP required)
       } catch (err) {
         const code = err?.code || ''

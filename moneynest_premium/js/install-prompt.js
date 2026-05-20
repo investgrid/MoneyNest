@@ -587,13 +587,8 @@
   }
 
   function triggerInstall() {
-    // Si hay prompt nativo (Android/Windows/Chrome), dispararlo directamente
-    if (deferredPrompt && !isIOS()) {
-      _showInstallModal();
-    } else {
-      // iOS o sin prompt nativo — mostrar modal de confirmación con instrucciones
-      showInstallConfirmModal();
-    }
+    // Siempre mostrar modal de confirmación primero, después dispara el prompt si aplica
+    showInstallConfirmModal();
   }
 
   // ── PWA events ────────────────────────────────────────────────────
