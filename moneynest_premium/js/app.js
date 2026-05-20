@@ -271,7 +271,7 @@ const TRANSLATIONS = {
     ultimas_transacciones: 'Últimas transacciones',
     ver_todo: 'Ver todo →',
     evolucion_patrimonio: 'Evolución del patrimonio',
-    ultimos_6_meses: 'Últimos 6 meses',
+    ultimos_6_meses: 'Últimos 12 meses',
     gastos_categoria: 'Gastos por categoría',
     insights: 'Insights',
     basado_datos: 'Basado en tus datos reales',
@@ -732,7 +732,7 @@ const TRANSLATIONS = {
     ultimas_transacciones: 'Latest transactions',
     ver_todo: 'See all →',
     evolucion_patrimonio: 'Net Worth evolution',
-    ultimos_6_meses: 'Last 6 months',
+    ultimos_6_meses: 'Last 12 months',
     gastos_categoria: 'Expenses by category',
     insights: 'Insights',
     basado_datos: 'Based on your real data',
@@ -1172,7 +1172,7 @@ const TRANSLATIONS = {
     sin_movimientos: 'Nessuna transazione registrata',
     actividad_reciente: 'Attività recente', ultimas_transacciones: 'Ultime transazioni',
     ver_todo: 'Vedi tutto →', evolucion_patrimonio: 'Evoluzione del patrimonio',
-    ultimos_6_meses: 'Ultimi 6 mesi', gastos_categoria: 'Spese per categoria',
+    ultimos_6_meses: 'Ultimi 12 mesi', gastos_categoria: 'Spese per categoria',
     insights: 'Analisi', basado_datos: 'Basato sui tuoi dati reali',
     todo_orden: 'Tutto in ordine questo mese!', sigue_registrando: 'Continua a registrare le tue transazioni.',
     primer_mes: 'Primo mese', ingresos_año: 'Entrate', gastos_año: 'Spese',
@@ -2417,7 +2417,7 @@ const TRANSLATIONS = {
     sin_movimientos: 'Sem transações registadas',
     actividad_reciente: 'Atividade recente', ultimas_transacciones: 'Últimas transações',
     ver_todo: 'Ver tudo →', evolucion_patrimonio: 'Evolução do património',
-    ultimos_6_meses: 'Últimos 6 meses', gastos_categoria: 'Despesas por categoria',
+    ultimos_6_meses: 'Últimos 12 meses', gastos_categoria: 'Despesas por categoria',
     insights: 'Insights', basado_datos: 'Baseado nos seus dados reais',
     todo_orden: 'Tudo em ordem este mês!', sigue_registrando: 'Continue a registar as suas transações.',
     primer_mes: 'Primeiro mês', ingresos_año: 'Receitas', gastos_año: 'Despesas',
@@ -6220,7 +6220,7 @@ function renderChartPatrimonio() {
   const ctx = document.getElementById('chartPatrimonio')
   if (!ctx) return
   destroyChart('patrimonio')
-  const months = getMonths(6)
+  const months = getMonths(12)
   recordPatrimonio()
   const vals = months.map(m => {
     const h = S.patrimonio_hist.find(h => h.mes === m)
@@ -6281,7 +6281,7 @@ function renderChartCashFlow() {
   const ctx = document.getElementById('chartCashFlow')
   if (!ctx) return
   destroyChart('cashflow')
-  const months = getMonths(6)
+  const months = getMonths(12)
   const cfData = months.map(m => calcCashFlow(m))
   const lastPositive = cfData[cfData.length - 1] >= 0
   charts['cashflow'] = new Chart(ctx, {
@@ -6337,7 +6337,7 @@ function renderChartIngVsGas() {
   const ctx = document.getElementById('chartIngVsGas')
   if (!ctx) return
   destroyChart('ingvsgas')
-  const months = getMonths(6)
+  const months = getMonths(12)
   const ingData = months.map(m => calcIngresosMes(m))
   const gasData = months.map(m => calcGastosMes(m))
   const allVals = [...ingData, ...gasData].filter(v => v > 0)
@@ -6475,7 +6475,7 @@ function renderLineEvo(canvasId, type) {
   const ctx = document.getElementById(canvasId)
   if (!ctx) return
   destroyChart(canvasId)
-  const months = getMonths(6)
+  const months = getMonths(12)
   const color = type==='ingreso' ? '#10B981' : '#F43F5E'
   const fn = type==='ingreso' ? calcIngresosMes : calcGastosMes
   const vals = months.map(fn)
@@ -8413,7 +8413,7 @@ function abrirTaxModal() {
  * @returns {number} Importe recomendado
  */
 function calcEmergencyFund() {
-  const months = getMonths(6)
+  const months = getMonths(12)
   const gastosMensuales = months.map(m => calcGastosMes(m)).filter(v => v > 0)
   if (!gastosMensuales.length) return 0
   const mediaGastos = gastosMensuales.reduce((a, v) => a + v, 0) / gastosMensuales.length
@@ -8642,7 +8642,7 @@ function marcarIngresoCobrado(id) {
 function projectWealth(months) {
   months = months || 12
   const currentPat = calcPatrimonio()
-  const months6    = getMonths(6)
+  const months6    = getMonths(12)
 
   // Calcular CF medio de los últimos 6 meses
   const cfHistory = months6.map(m => calcCashFlow(m)).filter(v => v !== 0)
@@ -9118,7 +9118,7 @@ function renderAnalisis() {
     const patCtx = document.getElementById('chartAnalisisPatrimonio')
     if (patCtx) {
       destroyChart('analisisPat')
-      const meses = getMonths(6)
+      const meses = getMonths(12)
       const patVals = meses.map(mo => { const h = S.patrimonio_hist.find(x => x.mes === mo); return h ? h.valor : null })
       charts['analisisPat'] = new Chart(patCtx, {
         type: 'line',
@@ -9161,7 +9161,7 @@ function renderAnalisis() {
     const tendCtx = document.getElementById('chartAnalisisTendencia')
     if (tendCtx) {
       destroyChart('analisisTend')
-      const meses = getMonths(6)
+      const meses = getMonths(12)
       const mesesIngData = meses.map(calcIngresosMes)
       const mesesGasData = meses.map(calcGastosMes)
       const allVals = [...mesesIngData, ...mesesGasData].filter(v => v > 0)
