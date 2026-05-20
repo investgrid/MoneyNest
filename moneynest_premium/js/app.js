@@ -3780,7 +3780,7 @@ function prevMonth(m) {
 function deltaClass(n) { return n > 0 ? 'up' : n < 0 ? 'down' : 'neu' }
 function deltaIcon(n) { return n > 0 ? '↑' : n < 0 ? '↓' : '→' }
 function clamp(v,min,max) { return Math.min(max,Math.max(min,v)) }
-function getMonths(count=6) {
+function getMonths(count=12) {
   const months = []
   const d = new Date()
   for (let i=count-1; i>=0; i--) {
