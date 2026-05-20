@@ -3418,6 +3418,10 @@ function setLang(code) {
   _currentLang = code
   try { localStorage.setItem(LANG_STORAGE_KEY, code) } catch(e) {}
   document.documentElement.setAttribute('lang', code)
+  // Achievement: settings change
+  if (window.MNGamification && window.MNGamification.checkAchievement) {
+    window.MNGamification.checkAchievement('settings_change');
+  }
   // Brief fade transition
   const contentEl = document.getElementById('content')
   if (contentEl) {
@@ -3919,6 +3923,7 @@ const _pageKeyMap = {
 }
 function goTo(page) {
   currentPage = page
+  S._currentPage = page // Track for achievements
   document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'))
   const nav = document.getElementById('nav-'+page)
   if (nav) nav.classList.add('active')
@@ -3929,6 +3934,10 @@ function goTo(page) {
   render()
   _updateSidebarLang()
   updateDocTitle()
+  // Achievement tracking: page visits
+  if (window.MNGamification && window.MNGamification.checkAchievement) {
+    window.MNGamification.checkAchievement('page_visit');
+  }
   // Dynamic billing background
   if (window.MNBillingUI) {
     if (page === 'billing') {
@@ -8262,6 +8271,10 @@ function exportarExcel() {
 function toggleTheme() {
   S.theme = S.theme === 'dark' ? 'light' : 'dark'
   applyTheme(); save()
+  // Achievement: settings change
+  if (window.MNGamification && window.MNGamification.checkAchievement) {
+    window.MNGamification.checkAchievement('settings_change');
+  }
 }
 function applyTheme() {
   document.documentElement.setAttribute('data-theme', S.theme||'dark')
@@ -14263,6 +14276,11 @@ window.saveCustomStrategy = function() {
   try {
     localStorage.setItem('mn_custom_debt_strategy', JSON.stringify(window._customDebtStrategy))
   } catch(_) {}
+
+  // Achievement: custom debt strategy
+  if (window.MNGamification && window.MNGamification.checkAchievement) {
+    window.MNGamification.checkAchievement('custom_debt');
+  }
 
   toast(`✅ ${t('estrategia_guardada','Estrategia guardada')}: ${name}`, 'success')
   closeCustomDebtModal()

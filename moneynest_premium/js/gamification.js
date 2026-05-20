@@ -43,6 +43,12 @@
       { id:'madrugador',          emoji:'🌅', cat:'especial',  get nombre(){ return _w('ach_madrugador_n','Madrugador') },                get desc(){ return _w('ach_madrugador_d','Añade una transacción antes de las 7am') },           trigger:'ingreso_added'    },
       { id:'nocturno',            emoji:'🌙', cat:'especial',  get nombre(){ return _w('ach_nocturno_n','Noctámbulo') },                  get desc(){ return _w('ach_nocturno_d','Añade una transacción después de las 23h') },           trigger:'gasto_added'      },
       { id:'fin_de_semana',       emoji:'🎉', cat:'especial',  get nombre(){ return _w('ach_fin_semana_n','Fin de semana activo') },       get desc(){ return _w('ach_fin_semana_d','Usa la app un sábado o domingo') },                  trigger:'data_check'       },
+      // ── Explorador (nuevos) ──
+      { id:'analista',            emoji:'📊', cat:'explorador', get nombre(){ return _w('ach_analista_n','Analista') },                     get desc(){ return _w('ach_analista_d','Visita la página de Análisis') },                      trigger:'page_visit'       },
+      { id:'visualizador',        emoji:'📈', cat:'explorador', get nombre(){ return _w('ach_visualizador_n','Visualizador') },             get desc(){ return _w('ach_visualizador_d','Visita la página de Patrimonio') },                trigger:'page_visit'       },
+      { id:'estratega',           emoji:'🎯', cat:'explorador', get nombre(){ return _w('ach_estratega_n','Estratega') },                   get desc(){ return _w('ach_estratega_d','Crea una estrategia de pago de deudas') },            trigger:'custom_debt'      },
+      { id:'configurador',        emoji:'⚙️', cat:'explorador', get nombre(){ return _w('ach_configurador_n','Configurador') },             get desc(){ return _w('ach_configurador_d','Cambia el tema o idioma en Configuración') },      trigger:'settings_change'  },
+      { id:'completista',         emoji:'👑', cat:'explorador', get nombre(){ return _w('ach_completista_n','Completista') },               get desc(){ return _w('ach_completista_d','Desbloquea todos los demás logros') },              trigger:'data_check'       },
     ];
   }
   const ACHIEVEMENTS = _ach();
@@ -92,6 +98,13 @@
       if (trigger === 'cat_created')  unlock('personalizado');
       if (trigger === 'presupuesto_added') unlock('primer_presupuesto');
       if (trigger === 'objetivo_done') unlock('objetivo_completado');
+      if (trigger === 'custom_debt') unlock('estratega');
+      if (trigger === 'settings_change') unlock('configurador');
+      if (trigger === 'page_visit') {
+        const page = data._currentPage || '';
+        if (page === 'analisis') unlock('analista');
+        if (page === 'patrimonio') unlock('visualizador');
+      }
 
       if (trigger === 'deuda_updated') {
         const deudas = data.deudas || [];
@@ -159,6 +172,12 @@
     // Fin de semana activo
     const day = new Date().getDay();
     if (day === 0 || day === 6) unlock('fin_de_semana');
+
+    // Completista — all other achievements unlocked
+    const totalAchs = ACHIEVEMENTS.length;
+    const unlockedCount = Object.keys(getAchievements().unlocked).length;
+    // Completista itself is excluded from the count (30th achievement)
+    if (unlockedCount >= totalAchs - 1) unlock('completista');
   }
 
   function _checkStreakAchievements() {
@@ -247,12 +266,34 @@
   function _gt(k, fb) { return (typeof window.t === 'function' ? window.t(k) || fb : fb); }
 
   const CAT_META = {
-    inicio:    { label: () => _gt('logro_cat_inicio',    'Primeros pasos'),     icon: '🚀', color: '#6366F1' },
-    constancia:{ label: () => _gt('logro_cat_constancia','Constancia'),         icon: '🔥', color: '#F59E0B' },
-    volumen:   { label: () => _gt('logro_cat_volumen',   'Volumen'),            icon: '📦', color: '#10B981' },
-    finanzas:  { label: () => _gt('logro_cat_finanzas',  'Logros financieros'), icon: '💰', color: '#00D4AA' },
-    pro:       { label: () => 'Pro',                                            icon: '⚡', color: '#A855F7' },
-    especial:  { label: () => _gt('logro_cat_especial',  'Especiales'),         icon: '✨', color: '#F472B6' },
+    inicio:     { label: () => _gt('logro_cat_inicio',     'Primeros pasos'),     icon: '🚀', color: '#6366F1' },
+    constancia: { label: () => _gt('logro_cat_constancia', 'Constancia'),         icon: '🔥', color: '#F59E0B' },
+    volumen:    { label: () => _gt('logro_cat_volumen',    'Volumen'),            icon: '📦', color: '#10B981' },
+    finanzas:   { label: () => _gt('logro_cat_finanzas',   'Logros financieros'), icon: '💰', color: '#00D4AA' },
+    pro:        { label: () => 'Pro',                                             icon: '⚡', color: '#A855F7' },
+    especial:   { label: () => _gt('logro_cat_especial',   'Especiales'),         icon: '✨', color: '#F472B6' },
+    explorador: { label: () => _gt('logro_cat_explorador', 'Explorador'),         icon: '🧭', color: '#3B82F6' },
+  };
+
+  // ─── Achievement guides (roadmap + steps) ────────────────────────
+  const ACH_GUIDES = {
+    primer_ingreso:      { steps: ['Pulsa el botón "+" en la barra inferior', 'Selecciona "Ingreso"', 'Rellena importe y concepto', 'Guarda'] },
+    primer_gasto:        { steps: ['Pulsa el botón "+" en la barra inferior', 'Selecciona "Gasto"', 'Rellena importe y categoría', 'Guarda'] },
+    primera_deuda:       { steps: ['Ve a la sección "Deudas"', 'Pulsa "+ Nueva deuda"', 'Introduce los datos: nombre, importe, interés', 'Guarda'] },
+    primera_inversion:   { steps: ['Ve a la sección "Inversiones"', 'Pulsa "+ Nueva inversión"', 'Configura tipo, importe y fecha', 'Guarda'] },
+    primer_objetivo:     { steps: ['Ve a la sección "Objetivos"', 'Pulsa "+ Nuevo objetivo"', 'Define meta, plazo y aportación mensual', 'Guarda'] },
+    primer_presupuesto:  { steps: ['Ve a "Objetivos" → pestaña "Presupuestos"', 'Pulsa "Crear presupuesto"', 'Asigna límite por categoría', 'Activa'] },
+    streak_7:            { steps: ['Abre MoneyNest cada día', 'Registra al menos 1 transacción', 'No dejes pasar ningún día', 'Mantén la racha viva'] },
+    diez_ingresos:       { steps: ['Registra tus ingresos regularmente', 'Incluye salario, freelance, inversiones, etc.', 'Alcanza 10 registros totales'] },
+    cincuenta_gastos:    { steps: ['Registra todos tus gastos diarios', 'Categoriza correctamente', 'Sé constante — cada compra cuenta', 'Llega a 50'] },
+    sin_deudas:          { steps: ['Ve a "Deudas"', 'Registra pagos en cada deuda', 'Sigue una estrategia (Avalancha/Bola de nieve)', 'Salda todas'] },
+    objetivo_completado: { steps: ['Crea un objetivo realista', 'Aporta regularmente', 'Marca como "Completado" cuando llegues a la meta'] },
+    exportador:          { steps: ['Ve a Dashboard', 'Pulsa el botón "Exportar"', 'Elige PDF o Excel', 'Descarga tu reporte'] },
+    analista:            { steps: ['Pulsa en "Análisis" desde el menú lateral', 'Explora gráficos, KPIs y proyecciones'] },
+    visualizador:        { steps: ['Pulsa en "Patrimonio" desde el menú', 'Observa tu evolución de activos y pasivos'] },
+    estratega:           { steps: ['Ve a "Deudas"', 'Pulsa "Crear estrategia" (4ª tarjeta)', 'Introduce tu pago mensual personalizado', 'Guarda'] },
+    configurador:        { steps: ['Ve a "Configuración"', 'Cambia el tema (claro/oscuro) o el idioma', 'Los cambios se aplican automáticamente'] },
+    completista:         { steps: ['Desbloquea los 29 logros anteriores', 'Explora todas las secciones de MoneyNest', 'Usa todas las funcionalidades', '¡Serás un maestro!'] },
   };
 
   function renderAchievementsPanel(containerId) {
@@ -262,6 +303,13 @@
     const unlocked = Object.keys(store.unlocked).length;
     const pct      = Math.round(unlocked / ACHIEVEMENTS.length * 100);
 
+    // State for collapsed/expanded (persistent in sessionStorage)
+    if (!window._achCollapsedState) {
+      try {
+        window._achCollapsedState = JSON.parse(sessionStorage.getItem('mn_ach_collapsed') || '{}');
+      } catch { window._achCollapsedState = {}; }
+    }
+
     // Group by category
     const groups = {};
     for (const a of ACHIEVEMENTS) {
@@ -270,25 +318,56 @@
       groups[cat].push(a);
     }
 
-    function renderCard(a) {
+    // Render collapsed card (compact, single line with emoji + title + progress bar)
+    function renderCollapsed(a) {
       const done = !!store.unlocked[a.id];
-      const dateStr = done
-        ? new Date(store.unlocked[a.id].unlockedAt).toLocaleDateString('es-ES', { day:'numeric', month:'short' })
-        : '';
-      const safeNombre = (a.nombre || '').replace(/'/g, "\\'");
-      const safeDesc   = (a.desc   || '').replace(/'/g, "\\'");
+      const progress = done ? 100 : 0;
+      const safeId = a.id.replace(/[^a-z0-9_]/gi, '_');
       return `
-        <div onclick="window.MNGamification._showAchDetail('${a.emoji}','${safeNombre}','${safeDesc}','${done}','${dateStr}')"
-          style="
-            background:${done ? 'rgba(0,212,170,0.08)' : 'rgba(255,255,255,0.03)'};
-            border:1px solid ${done ? 'rgba(0,212,170,0.3)' : 'rgba(255,255,255,0.07)'};
-            border-radius:12px;padding:14px;text-align:center;cursor:pointer;
-            transition:all .2s;${done ? '' : 'opacity:.45;filter:grayscale(1)'}
-          " onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform=''">
-          <div style="font-size:1.8rem;margin-bottom:6px">${a.emoji}</div>
-          <div style="font-size:.8rem;font-weight:700;color:${done ? '#fff' : 'rgba(255,255,255,.5)'}">${a.nombre}</div>
-          <div style="font-size:.68rem;color:rgba(255,255,255,.35);margin-top:3px">${a.desc}</div>
-          ${done ? `<div style="font-size:.65rem;color:#00D4AA;margin-top:6px;font-weight:600">✓ ${dateStr}</div>` : `<div style="font-size:.6rem;color:rgba(255,255,255,.2);margin-top:5px">Toca para saber cómo</div>`}
+        <div class="mn-ach-collapsed" data-id="${safeId}" onclick="window.MNGamification._expandAch('${safeId}')">
+          <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
+            <span style="font-size:1.3rem;flex-shrink:0;${done?'':'filter:grayscale(1);opacity:.45'}">${a.emoji}</span>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:.82rem;font-weight:700;color:${done?'var(--text)':'var(--text2)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.nombre}</div>
+              <div style="height:4px;background:var(--border);border-radius:99px;margin-top:4px;overflow:hidden">
+                <div style="height:100%;width:${progress}%;background:${done?'linear-gradient(90deg,#00D4AA,#059669)':'var(--border2)'};border-radius:inherit;transition:width .3s"></div>
+              </div>
+            </div>
+          </div>
+          <button class="mn-ach-info-btn" onclick="event.stopPropagation();window.MNGamification._showAchGuide('${a.id}','${a.emoji}','${a.nombre.replace(/'/g,"\\'")}','${done}')" title="${_gt('logro_info','Más info')}">
+            ℹ️
+          </button>
+        </div>`;
+    }
+
+    // Render expanded card (roadmap + checklist + guide button)
+    function renderExpanded(a) {
+      const done = !!store.unlocked[a.id];
+      const guide = ACH_GUIDES[a.id] || { steps: [] };
+      const dateStr = done ? new Date(store.unlocked[a.id].unlockedAt).toLocaleDateString('es-ES', { day:'numeric', month:'short', year:'numeric' }) : '';
+      const safeId = a.id.replace(/[^a-z0-9_]/gi, '_');
+      return `
+        <div class="mn-ach-expanded" data-id="${safeId}" style="${done?'':'opacity:.8'}">
+          <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:14px">
+            <span style="font-size:2.2rem;flex-shrink:0;${done?'':'filter:grayscale(1);opacity:.45'}">${a.emoji}</span>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:1rem;font-weight:800;color:${done?'var(--accent)':'var(--text)'};margin-bottom:3px">${a.nombre}</div>
+              <div style="font-size:.78rem;color:var(--text2);line-height:1.45">${a.desc}</div>
+              ${done ? `<div style="font-size:.7rem;color:var(--accent);margin-top:6px;font-weight:700">✅ ${_gt('logro_completado','Completado')} · ${dateStr}</div>` : ''}
+            </div>
+            <button class="mn-ach-collapse-btn" onclick="window.MNGamification._collapseAch('${safeId}')" title="${_gt('logro_colapsar','Colapsar')}">▲</button>
+          </div>
+          ${guide.steps.length ? `
+            <div class="mn-ach-roadmap">
+              <div style="font-size:.7rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">${done?_gt('logro_roadmap_completado','🗺 Cómo lo hiciste'):_gt('logro_roadmap','🗺 Roadmap')}</div>
+              ${guide.steps.map((step,i)=>`
+                <div class="mn-ach-step">
+                  <div class="mn-ach-step-num">${i+1}</div>
+                  <div class="mn-ach-step-text">${step}</div>
+                </div>
+              `).join('')}
+            </div>
+          ` : ''}
         </div>`;
     }
 
@@ -296,15 +375,24 @@
       const items = groups[catKey];
       if (!items || items.length === 0) return '';
       const doneCount = items.filter(a => !!store.unlocked[a.id]).length;
+      const catId = `cat-${catKey}`;
+      const catCollapsed = window._achCollapsedState[catId] !== false; // default collapsed
       return `
-        <div style="margin-bottom:20px">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-            <span style="font-size:1rem">${meta.icon}</span>
-            <span style="font-size:.78rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:${meta.color}">${typeof meta.label === 'function' ? meta.label() : meta.label}</span>
-            <span style="font-size:.68rem;color:rgba(255,255,255,.3);margin-left:auto">${doneCount}/${items.length}</span>
+        <div class="mn-ach-category" style="margin-bottom:18px">
+          <div class="mn-ach-cat-header" onclick="window.MNGamification._toggleCategory('${catId}')">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:1.1rem">${meta.icon}</span>
+              <span style="font-size:.82rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:${meta.color}">${typeof meta.label === 'function' ? meta.label() : meta.label}</span>
+              <span style="font-size:.7rem;color:var(--text3);margin-left:6px">${doneCount}/${items.length}</span>
+            </div>
+            <span class="mn-ach-cat-arrow" style="transform:rotate(${catCollapsed?'0':'180deg'})"">▼</span>
           </div>
-          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px">
-            ${items.map(renderCard).join('')}
+          <div class="mn-ach-cat-body" id="${catId}" style="display:${catCollapsed?'none':'block'};margin-top:10px">
+            ${items.map(a => {
+              const safeId = a.id.replace(/[^a-z0-9_]/gi, '_');
+              const isExpanded = window._achCollapsedState[safeId] === true;
+              return isExpanded ? renderExpanded(a) : renderCollapsed(a);
+            }).join('')}
           </div>
         </div>`;
     }).join('');
@@ -312,16 +400,136 @@
     el.innerHTML = `
       <div style="margin-bottom:20px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <span style="font-size:.85rem;font-weight:700;color:var(--text,#fff)">${unlocked} / ${ACHIEVEMENTS.length} ${_gt('logros','logros')}</span>
-          <span style="font-size:.8rem;color:#00D4AA;font-weight:700">${pct}%</span>
+          <span style="font-size:.9rem;font-weight:700;color:var(--text)">${unlocked} / ${ACHIEVEMENTS.length} ${_gt('logros','logros')}</span>
+          <span style="font-size:.85rem;color:var(--accent);font-weight:800">${pct}%</span>
         </div>
-        <div style="height:6px;background:rgba(255,255,255,0.06);border-radius:99px;overflow:hidden">
-          <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#00D4AA,#6366F1);border-radius:inherit;transition:width .5s ease"></div>
+        <div style="height:7px;background:var(--border);border-radius:99px;overflow:hidden;box-shadow:inset 0 1px 3px rgba(0,0,0,.2)">
+          <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#00D4AA,#6366F1,#A855F7);border-radius:inherit;transition:width .5s cubic-bezier(0.22,1,0.36,1);box-shadow:0 0 12px rgba(0,212,170,.4)"></div>
         </div>
       </div>
       ${groupsHtml}
     `;
+
+    // Inject styles if not already present
+    if (!document.getElementById('mn-ach-ui-style')) {
+      const style = document.createElement('style');
+      style.id = 'mn-ach-ui-style';
+      style.textContent = `
+        .mn-ach-collapsed {
+          display:flex;align-items:center;gap:10px;padding:10px 14px;
+          background:var(--card2);border:1px solid var(--border);border-radius:10px;
+          cursor:pointer;transition:all .15s;margin-bottom:8px;
+        }
+        .mn-ach-collapsed:hover { background:var(--bg2);border-color:var(--border2);transform:translateX(2px); }
+        .mn-ach-expanded {
+          padding:16px;background:var(--card2);border:1.5px solid var(--border2);
+          border-radius:12px;margin-bottom:10px;
+        }
+        .mn-ach-info-btn {
+          flex-shrink:0;width:28px;height:28px;border-radius:50%;
+          background:var(--bg2);border:1px solid var(--border2);
+          color:var(--text3);font-size:.9rem;cursor:pointer;
+          display:flex;align-items:center;justify-content:center;
+          transition:all .15s;font-family:inherit;
+        }
+        .mn-ach-info-btn:hover { background:var(--accent-dim);border-color:var(--accent);color:var(--accent); }
+        .mn-ach-collapse-btn {
+          flex-shrink:0;width:26px;height:26px;border-radius:6px;
+          background:var(--bg2);border:1px solid var(--border);
+          color:var(--text3);font-size:.7rem;cursor:pointer;
+          display:flex;align-items:center;justify-content:center;
+          transition:all .15s;font-family:inherit;
+        }
+        .mn-ach-collapse-btn:hover { background:var(--border);color:var(--text); }
+        .mn-ach-roadmap {
+          background:var(--bg2);border:1px solid var(--border);
+          border-radius:10px;padding:12px 14px;
+        }
+        .mn-ach-step {
+          display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;
+        }
+        .mn-ach-step:last-child { margin-bottom:0; }
+        .mn-ach-step-num {
+          width:22px;height:22px;border-radius:50%;flex-shrink:0;
+          background:var(--accent-dim);border:1px solid var(--accent);
+          color:var(--accent);font-size:.7rem;font-weight:800;
+          display:flex;align-items:center;justify-content:center;
+        }
+        .mn-ach-step-text {
+          flex:1;font-size:.8rem;color:var(--text2);line-height:1.5;padding-top:2px;
+        }
+        .mn-ach-cat-header {
+          display:flex;align-items:center;justify-content:space-between;
+          padding:10px 14px;background:var(--card2);border:1px solid var(--border);
+          border-radius:10px;cursor:pointer;transition:all .15s;
+        }
+        .mn-ach-cat-header:hover { background:var(--bg2);border-color:var(--border2); }
+        .mn-ach-cat-arrow {
+          font-size:.7rem;color:var(--text3);transition:transform .2s;
+        }
+      `;
+      document.head.appendChild(style);
+    }
   }
+
+  // ─── Collapsed/Expanded interactions ────────────────────────────
+  window.MNGamification = window.MNGamification || {};
+  window.MNGamification._expandAch = function(id) {
+    window._achCollapsedState[id] = true;
+    try { sessionStorage.setItem('mn_ach_collapsed', JSON.stringify(window._achCollapsedState)); } catch {}
+    renderAchievementsPanel('achievementsContainer');
+  };
+  window.MNGamification._collapseAch = function(id) {
+    window._achCollapsedState[id] = false;
+    try { sessionStorage.setItem('mn_ach_collapsed', JSON.stringify(window._achCollapsedState)); } catch {}
+    renderAchievementsPanel('achievementsContainer');
+  };
+  window.MNGamification._toggleCategory = function(catId) {
+    const current = window._achCollapsedState[catId] !== false; // default collapsed
+    window._achCollapsedState[catId] = !current;
+    try { sessionStorage.setItem('mn_ach_collapsed', JSON.stringify(window._achCollapsedState)); } catch {}
+    const body = document.getElementById(catId);
+    const arrow = body?.previousElementSibling?.querySelector('.mn-ach-cat-arrow');
+    if (body) body.style.display = window._achCollapsedState[catId] ? 'block' : 'none';
+    if (arrow) arrow.style.transform = `rotate(${window._achCollapsedState[catId] ? '180deg' : '0'})`;
+  };
+  window.MNGamification._showAchGuide = function(id, emoji, nombre, done) {
+    const guide = ACH_GUIDES[id] || { steps: [] };
+    const isDone = done === 'true';
+    const ach = ACHIEVEMENTS.find(a => a.id === id);
+    const desc = ach ? ach.desc : '';
+
+    const existing = document.getElementById('mn-ach-guide-overlay');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'mn-ach-guide-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:9900;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(0,0,0,.7);backdrop-filter:blur(12px);animation:mnFadeIn .2s ease';
+    overlay.innerHTML = `
+      <div style="background:#0D1424;border:1px solid rgba(255,255,255,.09);border-radius:20px;width:min(480px,100%);max-height:90vh;overflow-y:auto;padding:28px;position:relative;animation:mnScaleIn .25s cubic-bezier(0.22,1,0.36,1)">
+        <button onclick="document.getElementById('mn-ach-guide-overlay').remove()" style="position:absolute;top:14px;right:14px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);color:rgba(255,255,255,.4);width:28px;height:28px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-family:inherit;transition:all .15s" onmouseover="this.style.background='var(--red-dim)';this.style.color='var(--red)'" onmouseout="this.style.background='rgba(255,255,255,.06)';this.style.color='rgba(255,255,255,.4)'">✕</button>
+        <div style="text-align:center;margin-bottom:20px">
+          <div style="font-size:3.2rem;margin-bottom:10px;${isDone?'':'filter:grayscale(1);opacity:.5'}">${emoji}</div>
+          <div style="font-size:1.15rem;font-weight:800;color:${isDone?'var(--accent)':'rgba(255,255,255,.6)'};letter-spacing:-.02em;margin-bottom:6px">${nombre}</div>
+          <div style="font-size:.82rem;color:var(--text2);line-height:1.5">${desc}</div>
+          ${isDone ? `<div style="font-size:.75rem;color:var(--accent);margin-top:8px;font-weight:700;display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:var(--accent-dim);border-radius:99px;border:1px solid var(--accent)">✅ ${_gt('logro_completado','Completado')}</div>` : ''}
+        </div>
+        ${guide.steps.length ? `
+          <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:18px 20px">
+            <div style="font-size:.75rem;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.08em;margin-bottom:14px">${isDone?_gt('logro_roadmap_completado','🗺 Cómo lo hiciste'):_gt('logro_roadmap','🗺 Roadmap paso a paso')}</div>
+            ${guide.steps.map((step,i)=>`
+              <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:${i===guide.steps.length-1?'0':'12px'}">
+                <div style="width:26px;height:26px;border-radius:50%;flex-shrink:0;background:${isDone?'rgba(0,212,170,.15)':'var(--indigo-dim)'};border:1.5px solid ${isDone?'var(--accent)':'var(--indigo)'};color:${isDone?'var(--accent)':'var(--indigo)'};font-size:.75rem;font-weight:800;display:flex;align-items:center;justify-content:center">${i+1}</div>
+                <div style="flex:1;font-size:.88rem;color:rgba(255,255,255,.75);line-height:1.6;padding-top:2px">${step}</div>
+              </div>
+            `).join('')}
+          </div>
+        ` : ''}
+        ${!isDone ? `<div style="margin-top:16px;padding:14px 16px;background:var(--accent-dim);border:1px solid var(--accent);border-radius:12px;font-size:.8rem;color:var(--text);line-height:1.5"><strong style="color:var(--accent)">💡 Tip:</strong> ${_gt('logro_tip','Completa los pasos del roadmap para desbloquear este logro.')}</div>` : ''}
+      </div>`;
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+    document.body.appendChild(overlay);
+  };
 
   // ─── Streak system ───────────────────────────────────────────────
   function _getStreak() {
@@ -415,5 +623,5 @@
     }
   }
 
-  window.MNGamification = { checkAchievement, renderAchievementsPanel, getAchievements, isUnlocked, _showAchDetail, _fireConfetti };
+  window.MNGamification = { checkAchievement, renderAchievementsPanel, getAchievements, isUnlocked, _showAchDetail, _fireConfetti, _expandAch, _collapseAch, _toggleCategory, _showAchGuide };
 })();
