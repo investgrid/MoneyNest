@@ -10791,8 +10791,11 @@ async function obNext() {
         await window.MNSupabaseAuth.signUp(email, pw)
         obData._registered = true
         _auth.upgradeTrial && _auth.upgradeTrial(email)
-        if (btn) { btn.disabled = false; btn.innerHTML = 'Siguiente <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="display:inline;vertical-align:middle"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' }
-        // Continue to next step normally (no OTP required)
+        showErr('✅ Cuenta creada. Continuando...', '#00D4AA')
+        // Continue to next step automatically after successful signup
+        obStep++
+        setTimeout(() => obRender('forward'), 500)
+        return
       } catch (err) {
         const code = err?.code || ''
         if (code === 'email_exists') {
