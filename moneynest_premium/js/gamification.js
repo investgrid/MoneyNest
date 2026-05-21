@@ -614,18 +614,19 @@
       groups[cat].push(a);
     }
 
-    // Render single achievement card (GRID style like before)
-    function renderAchCard(a) {
+    // Render single achievement item (LIST style — collapsible)
+    function renderAchItem(a) {
       const done = !!store.unlocked[a.id];
       const guide = ACH_GUIDES[a.id] || {};
       const guideText = guide.tip || _gt(`ach_${a.id}_guide`, 'Toca para saber cómo');
       return `
-        <div class="mn-ach-card ${done?'mn-ach-done':''}">
-          <div class="mn-ach-emoji">${a.emoji}</div>
-          <div class="mn-ach-name">${a.nombre}</div>
-          <div class="mn-ach-desc">${a.desc}</div>
-          ${done ? `<div class="mn-ach-badge">✓ ${_gt('completado','Completado')}</div>` : ''}
-          <button class="mn-ach-info-btn" onclick="event.stopPropagation();window.MNGamification._showAchGuide('${a.id}','${a.emoji}','${a.nombre.replace(/'/g,"\\'")}','${done}')" title="${guideText}">
+        <div class="mn-ach-item ${done?'mn-ach-done':''}">
+          <div class="mn-ach-item-icon">${a.emoji}</div>
+          <div class="mn-ach-item-content">
+            <div class="mn-ach-item-name">${a.nombre}</div>
+            <div class="mn-ach-item-desc">${a.desc}</div>
+          </div>
+          <button class="mn-ach-info-btn-inline" onclick="event.stopPropagation();window.MNGamification._showAchGuide('${a.id}','${a.emoji}','${a.nombre.replace(/'/g,"\\'")}','${done}')" title="${guideText}">
             ℹ️
           </button>
         </div>`;
@@ -635,15 +636,21 @@
       const items = groups[catKey];
       if (!items || items.length === 0) return '';
       const doneCount = items.filter(a => !!store.unlocked[a.id]).length;
+      const catId = `ach-cat-${catKey}`;
       return `
-        <div class="mn-ach-section">
-          <div class="mn-ach-section-header">
-            <span style="font-size:1.05rem;margin-right:8px">${meta.icon}</span>
-            <span style="color:${meta.color}">${typeof meta.label === 'function' ? meta.label() : meta.label}</span>
-            <span style="margin-left:8px;font-size:.8rem;color:var(--text3)">${doneCount}/${items.length}</span>
+        <div class="mn-ach-category">
+          <div class="mn-ach-category-header" onclick="window.MNGamification._toggleAchCategory('${catId}')">
+            <div style="display:flex;align-items:center;gap:10px;flex:1">
+              <span style="font-size:1.2rem">${meta.icon}</span>
+              <span style="font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:${meta.color};font-size:.88rem">${typeof meta.label === 'function' ? meta.label() : meta.label}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px">
+              <span style="font-size:.85rem;color:var(--text2);font-weight:600">${doneCount}/${items.length}</span>
+              <span class="mn-ach-chevron" id="${catId}-chevron">▼</span>
+            </div>
           </div>
-          <div class="mn-ach-grid">
-            ${items.map(renderAchCard).join('')}
+          <div class="mn-ach-category-content" id="${catId}" style="display:none">
+            ${items.map(renderAchItem).join('')}
           </div>
         </div>`;
     }).join('');
@@ -666,87 +673,98 @@
       const style = document.createElement('style');
       style.id = 'mn-ach-ui-style';
       style.textContent = `
-        .mn-ach-section {
-          margin-bottom:32px;
-        }
-        .mn-ach-section-header {
-          font-size:.85rem;font-weight:800;text-transform:uppercase;
-          letter-spacing:.08em;margin-bottom:16px;display:flex;align-items:center;
-        }
-        .mn-ach-grid {
-          display:grid;
-          grid-template-columns:repeat(auto-fill,minmax(160px,1fr));
-          gap:14px;
-        }
-        @media(max-width:900px){
-          .mn-ach-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}
-        }
-        .mn-ach-card {
-          position:relative;
+        .mn-ach-category {
+          margin-bottom:12px;
           background:var(--card2);
           border:1px solid var(--border);
           border-radius:12px;
-          padding:18px 14px;
-          text-align:center;
+          overflow:hidden;
           transition:all .2s;
-          cursor:default;
-          min-height:180px;
-          display:flex;
-          flex-direction:column;
-          align-items:center;
-          justify-content:flex-start;
         }
-        .mn-ach-card:hover {
+        .mn-ach-category:hover {
           border-color:var(--border2);
-          transform:translateY(-2px);
-          box-shadow:0 4px 16px rgba(0,0,0,.3);
         }
-        .mn-ach-card.mn-ach-done {
-          background:rgba(0,212,170,.04);
-          border-color:rgba(0,212,170,.25);
+        .mn-ach-category-header {
+          display:flex;
+          align-items:center;
+          justify-content:space-between;
+          padding:16px 18px;
+          cursor:pointer;
+          transition:background .15s;
+          user-select:none;
         }
-        .mn-ach-emoji {
-          font-size:2.5rem;
-          margin-bottom:10px;
+        .mn-ach-category-header:hover {
+          background:rgba(255,255,255,.02);
+        }
+        .mn-ach-chevron {
+          font-size:.75rem;
+          color:var(--text3);
+          transition:transform .25s cubic-bezier(0.22,1,0.36,1);
+        }
+        .mn-ach-chevron.open {
+          transform:rotate(-180deg);
+        }
+        .mn-ach-category-content {
+          border-top:1px solid var(--border);
+          max-height:0;
+          overflow:hidden;
+          transition:max-height .3s cubic-bezier(0.22,1,0.36,1);
+        }
+        .mn-ach-category-content.open {
+          max-height:3000px;
+        }
+        .mn-ach-item {
+          display:flex;
+          align-items:center;
+          gap:14px;
+          padding:14px 18px;
+          border-bottom:1px solid var(--border);
+          transition:background .15s;
+        }
+        .mn-ach-item:last-child {
+          border-bottom:none;
+        }
+        .mn-ach-item:hover {
+          background:rgba(255,255,255,.02);
+        }
+        .mn-ach-item-icon {
+          font-size:1.8rem;
+          width:42px;
+          height:42px;
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          flex-shrink:0;
           filter:grayscale(1);
           opacity:.4;
           transition:all .3s;
         }
-        .mn-ach-done .mn-ach-emoji {
+        .mn-ach-done .mn-ach-item-icon {
           filter:none;
           opacity:1;
         }
-        .mn-ach-name {
+        .mn-ach-item-content {
+          flex:1;
+          min-width:0;
+        }
+        .mn-ach-item-name {
           font-size:.9rem;
           font-weight:700;
           color:var(--text);
-          margin-bottom:8px;
+          margin-bottom:3px;
           line-height:1.3;
         }
-        .mn-ach-desc {
+        .mn-ach-item-desc {
           font-size:.75rem;
           color:var(--text3);
           line-height:1.4;
-          margin-bottom:10px;
-          flex:1;
         }
-        .mn-ach-badge {
-          font-size:.7rem;
-          color:var(--accent);
-          background:var(--accent-dim);
-          border:1px solid var(--accent);
-          border-radius:6px;
-          padding:4px 8px;
-          font-weight:700;
-          text-transform:uppercase;
-          letter-spacing:.05em;
+        .mn-ach-done {
+          background:rgba(0,212,170,.03);
         }
-        .mn-ach-info-btn {
-          position:absolute;
-          top:8px;
-          right:8px;
-          width:26px;
-          height:26px;
+        .mn-ach-info-btn-inline {
+          width:32px;
+          height:32px;
           border-radius:50%;
           background:var(--bg2);
           border:1px solid var(--border);
@@ -758,34 +776,35 @@
           justify-content:center;
           transition:all .15s;
           font-family:inherit;
-          z-index:10;
+          flex-shrink:0;
         }
-        .mn-ach-info-btn:hover {
+        .mn-ach-info-btn-inline:hover {
           background:var(--accent-dim);
           border-color:var(--accent);
           color:var(--accent);
-        }
-        .mn-ach-roadmap {
-          background:var(--bg2);border:1px solid var(--border);
-          border-radius:10px;padding:12px 14px;
-        }
-        .mn-ach-step {
-          display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;
-        }
-        .mn-ach-step:last-child { margin-bottom:0; }
-        .mn-ach-step-num {
-          width:22px;height:22px;border-radius:50%;flex-shrink:0;
-          background:var(--accent-dim);border:1px solid var(--accent);
-          color:var(--accent);font-size:.7rem;font-weight:800;
-          display:flex;align-items:center;justify-content:center;
-        }
-        .mn-ach-step-text {
-          flex:1;font-size:.8rem;color:var(--text2);line-height:1.5;padding-top:2px;
         }
       `;
       document.head.appendChild(style);
     }
   }
+
+  // ─── Toggle Category ────────────────────────────
+  window.MNGamification._toggleAchCategory = function(catId) {
+    const content = document.getElementById(catId);
+    const chevron = document.getElementById(catId + '-chevron');
+    if (!content || !chevron) return;
+
+    const isOpen = content.style.display !== 'none';
+    if (isOpen) {
+      content.style.display = 'none';
+      chevron.classList.remove('open');
+    } else {
+      content.style.display = 'block';
+      chevron.classList.add('open');
+      // Trigger layout reflow for smooth animation
+      setTimeout(() => content.classList.add('open'), 10);
+    }
+  };
 
   // ─── Guide Modal ────────────────────────────
   window.MNGamification._showAchGuide = function(id, emoji, nombre, done) {
