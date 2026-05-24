@@ -289,6 +289,38 @@
       toast_liquidado_neutro: 'Inversión liquidada',
       toast_espacio_insuficiente: '💾 Espacio insuficiente. Usa una imagen más pequeña.',
 
+      // ── LOADING STATES & TEMPORARY MESSAGES ──────────────────
+      loading_entrando: 'Entrando…',
+      loading_creando_cuenta: 'Creando cuenta…',
+      loading_verificando: 'Verificando…',
+      loading_enviando: 'Enviando…',
+      loading_enviado: '✓ Enviado',
+      btn_verificar_codigo: 'Verificar código',
+      btn_reenviar: 'Reenviar',
+      btn_enviar_email: '📧 Enviar por email',
+      btn_confirmar_venta: '💰 Confirmar venta',
+
+      // Auth errors
+      auth_email_requerido: '⚠ Introduce tu email primero.',
+      auth_enlace_enviado: '✅ Enlace enviado. Revisa tu email.',
+      auth_error_enviar: '⚠ Error al enviar el enlace.',
+      auth_error_reenviar: 'Error al reenviar.',
+
+      // Modal titles
+      modal_proveedor_nuevo: 'Nuevo Proveedor',
+      modal_proveedor_editar: 'Editar Proveedor',
+      modal_devengo_nuevo: 'Nuevo Devengo',
+      modal_devengo_editar: 'Editar Devengo',
+      modal_activo_nuevo: 'Nuevo Activo Físico',
+      modal_activo_editar: 'Editar Activo',
+
+      // Account hints
+      cuenta_hint_selecciona: 'Selecciona una cuenta para ver el saldo disponible',
+      cuenta_disponible: '💰 Disponible: ',
+
+      // Debt calculator
+      debt_importe_valido: 'Introduce un importe válido.',
+
       // ── VALIDATION ERRORS ────────────────────────────────────
       err_concepto_importe: 'Concepto e importe requeridos',
       err_selecciona_cuenta: 'Selecciona una cuenta',
@@ -924,6 +956,39 @@
       toast_liquidado_perdida: 'Investment closed · Loss recorded',
       toast_liquidado_neutro: 'Investment closed',
       toast_espacio_insuficiente: '💾 Not enough space. Use a smaller image.',
+
+      // ── LOADING STATES & TEMPORARY MESSAGES ──────────────────
+      loading_entrando: 'Signing in…',
+      loading_creando_cuenta: 'Creating account…',
+      loading_verificando: 'Verifying…',
+      loading_enviando: 'Sending…',
+      loading_enviado: '✓ Sent',
+      btn_verificar_codigo: 'Verify code',
+      btn_reenviar: 'Resend',
+      btn_enviar_email: '📧 Send by email',
+      btn_confirmar_venta: '💰 Confirm sale',
+
+      // Auth errors
+      auth_email_requerido: '⚠ Enter your email first.',
+      auth_enlace_enviado: '✅ Link sent. Check your email.',
+      auth_error_enviar: '⚠ Error sending link.',
+      auth_error_reenviar: 'Error resending.',
+
+      // Modal titles
+      modal_proveedor_nuevo: 'New Provider',
+      modal_proveedor_editar: 'Edit Provider',
+      modal_devengo_nuevo: 'New Accrual',
+      modal_devengo_editar: 'Edit Accrual',
+      modal_activo_nuevo: 'New Physical Asset',
+      modal_activo_editar: 'Edit Asset',
+
+      // Account hints
+      cuenta_hint_selecciona: 'Select an account to see available balance',
+      cuenta_disponible: '💰 Available: ',
+
+      // Debt calculator
+      debt_importe_valido: 'Enter a valid amount.',
+
       err_concepto_importe: 'Description and amount required',
       err_selecciona_cuenta: 'Select an account',
       err_nombre_requerido: 'Name required',

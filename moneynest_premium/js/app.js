@@ -10024,7 +10024,7 @@ function renderDebtAdvisor() {
 function calcDebtFree() {
   const monthly = parseFloat(document.getElementById('monthlyPayInput').value)
   const result  = document.getElementById('debtFreeResult')
-  if (!monthly || monthly <= 0) { result.textContent = 'Introduce un importe válido.'; return }
+  if (!monthly || monthly <= 0) { result.textContent = t('debt_importe_valido'); return }
   const months  = calcDebtFreeMonths(monthly)
   if (!months)  { result.innerHTML = '<span style="color:var(--green)">✅ Sin deudas pendientes.</span>'; return }
   result.innerHTML = `⏱ Estarías libre de deudas en aprox. <strong style="color:var(--accent)">${fmtMonths(months)}</strong> pagando <strong style="color:var(--text)">${eur(monthly)}/mes</strong>.`
@@ -10718,17 +10718,17 @@ async function _obForgotPassword() {
   const email = (document.getElementById('obEmail')?.value || '').trim()
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     const errEl = document.getElementById('obAccountError')
-    if (errEl) { errEl.textContent = '⚠ Introduce tu email primero.'; errEl.style.display = 'block' }
+    if (errEl) { errEl.textContent = t('auth_email_requerido'); errEl.style.display = 'block' }
     document.getElementById('obEmail')?.focus()
     return
   }
   try {
     await window.MNSupabaseAuth.resetPassword(email)
     const errEl = document.getElementById('obAccountError')
-    if (errEl) { errEl.textContent = '✅ Enlace enviado. Revisa tu email.'; errEl.style.display = 'block'; errEl.style.color = '#00D4AA' }
+    if (errEl) { errEl.textContent = t('auth_enlace_enviado'); errEl.style.display = 'block'; errEl.style.color = '#00D4AA' }
   } catch {
     const errEl = document.getElementById('obAccountError')
-    if (errEl) { errEl.textContent = '⚠ Error al enviar el enlace.'; errEl.style.display = 'block' }
+    if (errEl) { errEl.textContent = t('auth_error_enviar'); errEl.style.display = 'block' }
   }
 }
 
@@ -10762,7 +10762,7 @@ async function obNext() {
 
     if (isLogin) {
       const btn = document.querySelector('#obContentArea .ob-next-btn')
-      if (btn) { btn.disabled = true; btn.textContent = 'Entrando…' }
+      if (btn) { btn.disabled = true; btn.textContent = t('loading_entrando') }
       try {
         await window.MNSupabaseAuth.signIn(email, pw)
         _auth.upgradeTrial && _auth.upgradeTrial(email)
@@ -10786,7 +10786,7 @@ async function obNext() {
       }
     } else {
       const btn = document.querySelector('#obContentArea .ob-next-btn')
-      if (btn) { btn.disabled = true; btn.textContent = 'Creando cuenta…' }
+      if (btn) { btn.disabled = true; btn.textContent = t('loading_creando_cuenta') }
       try {
         await window.MNSupabaseAuth.signUp(email, pw)
         obData._registered = true
@@ -10982,7 +10982,7 @@ async function _obVerifyOtp() {
 
   const errEl = document.getElementById('obOtpError')
   const btn   = document.getElementById('obOtpVerifyBtn')
-  if (btn) { btn.disabled = true; btn.textContent = 'Verificando…' }
+  if (btn) { btn.disabled = true; btn.textContent = t('loading_verificando') }
   if (errEl) errEl.style.display = 'none'
 
   // Highlight inputs while verifying
@@ -11010,7 +11010,7 @@ async function _obVerifyOtp() {
       if (inp) { inp.style.borderColor = '#F43F5E'; inp.value = '' }
     }
     document.getElementById('obOtpD0')?.focus()
-    if (btn) { btn.disabled = false; btn.textContent = 'Verificar código' }
+    if (btn) { btn.disabled = false; btn.textContent = t('btn_verificar_codigo') }
   }
 }
 
@@ -11018,18 +11018,18 @@ async function _obResendOtp() {
   const email = obData.email
   const btn   = document.getElementById('obOtpResendBtn')
   if (!email || !window.MNSupabaseAuth) return
-  if (btn) { btn.disabled = true; btn.textContent = 'Enviando…' }
+  if (btn) { btn.disabled = true; btn.textContent = t('loading_enviando') }
   try {
     await window.MNSupabaseAuth.resendVerificationEmail(email)
     if (btn) {
-      btn.textContent = '✓ Enviado'
+      btn.textContent = t('loading_enviado')
       btn.style.color = '#00D4AA'
-      setTimeout(() => { if (btn) { btn.disabled = false; btn.textContent = 'Reenviar'; btn.style.color = '' } }, 30000)
+      setTimeout(() => { if (btn) { btn.disabled = false; btn.textContent = t('btn_reenviar'); btn.style.color = '' } }, 30000)
     }
   } catch (err) {
-    if (btn) { btn.disabled = false; btn.textContent = 'Reenviar' }
+    if (btn) { btn.disabled = false; btn.textContent = t('btn_reenviar') }
     const errEl = document.getElementById('obOtpError')
-    if (errEl) { errEl.textContent = '⚠ ' + (err?.message || 'Error al reenviar.'); errEl.style.display = 'block' }
+    if (errEl) { errEl.textContent = '⚠ ' + (err?.message || t('auth_error_reenviar')); errEl.style.display = 'block' }
   }
 }
 
@@ -11731,7 +11731,7 @@ function renderProveedores() { goTo('dashboard') }
 
 function resetProveedorForm() {
   document.getElementById("proveedorId").value = ""
-  document.getElementById("proveedorModalTitle").textContent = "Nuevo Proveedor"
+  document.getElementById("proveedorModalTitle").textContent = t('modal_proveedor_nuevo')
   ;["proveedorNombre","proveedorEmpresa","proveedorEmail","proveedorTelefono","proveedorCategoria","proveedorNotas"].forEach(function(id){ document.getElementById(id).value = "" })
   document.getElementById("proveedorColor").value = "#6366F1"
   document.getElementById("proveedorAvatar").value = ""
@@ -11745,7 +11745,7 @@ function editarProveedor(id) {
   if (!p) return
   resetProveedorForm()
   document.getElementById("proveedorId").value = id
-  document.getElementById("proveedorModalTitle").textContent = "Editar Proveedor"
+  document.getElementById("proveedorModalTitle").textContent = t('modal_proveedor_editar')
   document.getElementById("proveedorNombre").value = p.nombre||""
   document.getElementById("proveedorEmpresa").value = p.empresa||""
   document.getElementById("proveedorEmail").value = p.email||""
@@ -12061,7 +12061,7 @@ function enviarSugerenciaEmail() {
   const userEmail = window.MNSupabaseAuth?.getEmail() || MNAuth?.getUser()?.email || ''
 
   const btn = document.querySelector('[onclick="enviarSugerenciaEmail()"]')
-  if (btn) { btn.disabled = true; btn.textContent = 'Enviando…' }
+  if (btn) { btn.disabled = true; btn.textContent = t('loading_enviando') }
 
   fetch('https://jwddciqqhmfkbqhdrfre.supabase.co/functions/v1/send-email', {
     method: 'POST',
@@ -12080,7 +12080,7 @@ function enviarSugerenciaEmail() {
   })
   .catch(() => toast('⚠ ' + t('err_conexion','No se pudo enviar. Comprueba tu conexión.'), 'error'))
   .finally(() => {
-    if (btn) { btn.disabled = false; btn.textContent = '📧 Enviar por email' }
+    if (btn) { btn.disabled = false; btn.textContent = t('btn_enviar_email') }
   })
 }
 
@@ -12156,7 +12156,7 @@ function renderSugerencias() {
 
 function abrirDevengoModal() {
   document.getElementById("devengoId").value = ""
-  document.getElementById("devengoModalTitle").textContent = "Nuevo Devengo"
+  document.getElementById("devengoModalTitle").textContent = t('modal_devengo_nuevo')
   ;["devengoConcepto","devengoImporte","devengoNotas"].forEach(function(id){ document.getElementById(id).value = "" })
   document.getElementById("devengoTipo").value = "ingreso"
   document.getElementById("devengoFecha").value = todayISO()
@@ -12177,7 +12177,7 @@ function editarDevengo(id) {
   abrirDevengoModal()
   setTimeout(function(){
     document.getElementById("devengoId").value = id
-    document.getElementById("devengoModalTitle").textContent = "Editar Devengo"
+    document.getElementById("devengoModalTitle").textContent = t('modal_devengo_editar')
     document.getElementById("devengoConcepto").value = d.concepto||""
     document.getElementById("devengoImporte").value = d.importe||""
     document.getElementById("devengoTipo").value = d.tipo||"ingreso"
@@ -12341,11 +12341,11 @@ function mostrarSaldoCuenta() {
   const hint = document.getElementById('invCuentaSaldoHint')
   if (!sel || !hint) return
   const cuentaId = sel.value
-  if (!cuentaId) { hint.textContent = 'Selecciona una cuenta para ver el saldo disponible'; hint.style.color='var(--text3)'; return }
+  if (!cuentaId) { hint.textContent = t('cuenta_hint_selecciona'); hint.style.color='var(--text3)'; return }
   const cuenta = getCuenta(cuentaId)
   if (!cuenta) return
   const saldo = Number(cuenta.saldo)||0
-  hint.textContent = '💰 Disponible: ' + eur(saldo)
+  hint.textContent = t('cuenta_disponible') + eur(saldo)
   hint.style.color = saldo > 0 ? 'var(--green)' : 'var(--red)'
 }
 
@@ -12645,7 +12645,7 @@ function checkAssetCustomCat() {
 
 function resetAssetForm() {
   document.getElementById('assetId').value = ''
-  document.getElementById('assetModalTitle').textContent = 'Nuevo Activo Físico'
+  document.getElementById('assetModalTitle').textContent = t('modal_activo_nuevo')
   document.getElementById('assetNombre').value = ''
   document.getElementById('assetTipo').value = 'vehicle'
   document.getElementById('assetTipoCustom').style.display = 'none'
@@ -12676,7 +12676,7 @@ function editarAsset(id) {
   if (!a) return
   resetAssetForm()
   document.getElementById('assetId').value = id
-  document.getElementById('assetModalTitle').textContent = 'Editar Activo'
+  document.getElementById('assetModalTitle').textContent = t('modal_activo_editar')
   document.getElementById('assetNombre').value = a.nombre||''
   // Handle legacy tipo values
   const tipoVal = a.tipo==='car'?'vehicle':a.tipo==='house'?'property':a.tipo||'other'
@@ -12787,7 +12787,7 @@ function marcarAssetVendido(id) {
         </select>
       </div>
     </div>`
-  btn.textContent = '💰 Confirmar venta'
+  btn.textContent = t('btn_confirmar_venta')
   btn.className = 'btn btn-primary btn-sm'
   btn.onclick = () => {
     const saleVal  = parseFloat(document.getElementById('_saleValue')?.value) || 0
