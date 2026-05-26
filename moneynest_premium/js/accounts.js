@@ -17,7 +17,8 @@ const ACCOUNT_SCOPED_KEYS = [
   'mn_user',
   'mn7_lang',
   'mn7_demo_mode',
-  'mn7_ob_seen',
+  'mn7_ob_seen',       // legacy — kept for proxy completeness, excluded from migration
+  'mn7_ob_seen_v2',    // current onboarding flag
   'mn7_tut_done',
   'mn_billing_sub',
   'mn_billing_history',
@@ -77,7 +78,7 @@ function _deleteAccountKey(accountId, key) {
 // Onboarding and tutorial flags are device/session state, not user data —
 // migrating them would cause new users to skip onboarding if ANY previous
 // session had completed it on the same device.
-const MIGRATION_EXCLUDE = new Set(['mn7_ob_seen', 'mn7_tut_done'])
+const MIGRATION_EXCLUDE = new Set(['mn7_ob_seen', 'mn7_ob_seen_v2', 'mn7_tut_done'])
 
 function _migrateLegacyData(accountId) {
   let migrated = false

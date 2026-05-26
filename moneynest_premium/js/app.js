@@ -11561,8 +11561,10 @@ function skipOnboarding() {
 }
 
 // ─── ONBOARDING FLAGS (persistent, never fail silently) ────────
-const OB_FLAG_KEY  = 'mn7_ob_seen'    // 'true' after onboarding
-const TUT_FLAG_KEY = 'mn7_tut_done'   // 'true' after tutorial
+// v2 suffix forces all existing users to see onboarding once more
+// (old 'mn7_ob_seen' flag is ignored — only 'mn7_ob_seen_v2' counts)
+const OB_FLAG_KEY  = 'mn7_ob_seen_v2'
+const TUT_FLAG_KEY = 'mn7_tut_done'
 
 function _obFlagSeen()  { return localStorage.getItem(OB_FLAG_KEY)  === 'true' }
 function _tutFlagDone() { return localStorage.getItem(TUT_FLAG_KEY) === 'true' }
