@@ -73,12 +73,18 @@ function _deleteAccountKey(accountId, key) {
 }
 
 // ─── Migration: wrap legacy (no-account) data into account ─────
+// Keys that should NOT be migrated from legacy (non-namespaced) storage.
+// Onboarding and tutorial flags are device/session state, not user data —
+// migrating them would cause new users to skip onboarding if ANY previous
+// session had completed it on the same device.
+const MIGRATION_EXCLUDE = new Set(['mn7_ob_seen', 'mn7_tut_done'])
+
 function _migrateLegacyData(accountId) {
   let migrated = false
   for (const key of ACCOUNT_SCOPED_KEYS) {
+    if (MIGRATION_EXCLUDE.has(key)) continue  // Never migrate onboarding flags
     const val = _ls(key)
     if (val !== null) {
-      // Only migrate if destination is empty
       const dest = _nsKey(accountId, key)
       if (_ls(dest) === null) {
         _lsSet(dest, val)

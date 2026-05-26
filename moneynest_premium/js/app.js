@@ -11537,27 +11537,34 @@ function _setObSeen()   { try { localStorage.setItem(OB_FLAG_KEY,  'true') } cat
 function _setTutDone()  { try { localStorage.setItem(TUT_FLAG_KEY, 'true') } catch(e){} }
 
 function checkOnboarding() {
-  // Check if user has completed onboarding (via localStorage flag)
-  // Users with Supabase session still need to complete onboarding on first login
-  if (_obFlagSeen()) {
-    return // Already completed onboarding
+  // Determine if this is truly a first-time user.
+  // The ob_seen flag can be incorrectly set by legacy data migration in accounts.js
+  // (copying a previous session's flag into the new account namespace).
+  // So we validate: if ob_seen is true but the account has no email AND no data,
+  // it means the flag was migrated from a different session — treat as first-time.
+  const flagSeen = _obFlagSeen()
+  const hasEmail = !!(S?.usuario?.email)
+  const hasData  = !!(S?.ingresos?.length || S?.gastos?.length || S?.cuentas?.filter(c => c.id !== 'c1' && c.id !== 'dc1').length)
+
+  if (flagSeen && (hasEmail || hasData)) {
+    return // Legitimate returning user — skip onboarding
   }
 
-  // First time user or user who hasn't completed onboarding
-  if (!_obFlagSeen()) {
-    obStep = 1
-    obData = { nombre:'', email:'', password:'', mode:'personal', lang:'es', theme:'dark', startTutorial:false, loadDemo:false }
-    // Run cinematic intro first, then reveal onboarding
-    runCinematicIntro(() => {
-      obRender()
-      const ov = document.getElementById('onboardingOverlay')
-      if (ov) {
-        ov.style.display = 'flex'
-        requestAnimationFrame(() => ov.classList.add('ob-visible'))
-        document.body.style.overflow = 'hidden'
-      }
-    })
-  }
+  // First-time user (or stale flag with no real data) — show onboarding
+  // Clear any stale flag so the flow is clean
+  try { localStorage.removeItem(OB_FLAG_KEY) } catch(_) {}
+
+  obStep = 1
+  obData = { nombre:'', email:'', password:'', mode:'personal', lang: _currentLang || 'es', theme: S?.theme || 'dark', startTutorial:false, loadDemo:false }
+  runCinematicIntro(() => {
+    obRender()
+    const ov = document.getElementById('onboardingOverlay')
+    if (ov) {
+      ov.style.display = 'flex'
+      requestAnimationFrame(() => ov.classList.add('ob-visible'))
+      document.body.style.overflow = 'hidden'
+    }
+  })
 }
 
 // ════════════════════════════════════════════════════════════════
