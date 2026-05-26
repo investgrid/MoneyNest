@@ -1,19 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#111827"/>
-      <stop offset="100%" stop-color="#0A0E17"/>
-    </linearGradient>
-    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#00D4AA"/>
-      <stop offset="100%" stop-color="#00A882"/>
-    </linearGradient>
-  </defs>
-  <!-- Rounded square background -->
-  <rect width="512" height="512" fill="url(#bg)" rx="112"/>
-  <!-- M shape (stylized, bold) -->
-  <path d="M96 340 L96 172 L176 172 L256 268 L336 172 L416 172 L416 340 L356 340 L356 248 L276 344 L236 344 L156 248 L156 340 Z"
-        fill="url(#accent)"/>
-  <!-- Accent dot bottom-right -->
-  <circle cx="384" cy="368" r="32" fill="#00D4AA" opacity="0.9"/>
+  <!-- Background matching the logo -->
+  <rect width="512" height="512" fill="#1a1a1a" rx="80"/>
+  <!-- M lettermark — matches the logo shape: wide outer legs, pointed center valley -->
+  <path d="M96 380 L96 160 L148 160 L256 290 L364 160 L416 160 L416 380 L364 380 L364 248 L280 352 L232 352 L148 248 L148 380 Z"
+        fill="#ffffff"/>
+  <!-- Small diamond accent bottom-right (matches logo) -->
+  <path d="M420 408 L430 420 L420 432 L410 420 Z" fill="rgba(255,255,255,0.6)"/>
 </svg>
