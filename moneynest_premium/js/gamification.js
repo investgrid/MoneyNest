@@ -227,111 +227,606 @@
     return true;
   }
 
-  // ─── Check logic ─────────────────────────────────────────────────
+  // ─── Check logic — ALL achievements have real app logic ─────────
+  function _getData() {
+    return (typeof window.S !== 'undefined' && window.S)
+      ? window.S
+      : (() => { try { return JSON.parse(localStorage.getItem('mn7_data') || '{}'); } catch { return {}; } })();
+  }
+
   function checkAchievement(trigger) {
     try {
-      // Use global S state if available, fall back to localStorage key mn7_data
-      const data = (typeof window.S !== 'undefined' && window.S)
-        ? window.S
-        : (() => { try { return JSON.parse(localStorage.getItem('mn7_data') || '{}'); } catch { return {}; } })();
+      const data = _getData();
+      const ingresos    = data.ingresos    || [];
+      const gastos      = data.gastos      || [];
+      const inversiones = data.inversiones || [];
+      const deudas      = data.deudas      || [];
+      const objetivos   = data.objetivos   || [];
+      const cuentas     = data.cuentas     || [];
+      const presupuestos= data.presupuestos || {};
+      const assets      = data.assets      || [];
+      const h           = new Date().getHours();
+      const day         = new Date().getDay();
+      const now         = new Date();
+      const thisMo      = now.toISOString().slice(0, 7);
 
-      // Primeros pasos
-      if (trigger === 'ingreso_added' && (data.ingresos||[]).length >= 1) unlock('primer_ingreso');
-      if (trigger === 'gasto_added'   && (data.gastos||[]).length   >= 1) unlock('primer_gasto');
-      if (trigger === 'deuda_added'   && (data.deudas||[]).length   >= 1) unlock('primera_deuda');
-      if (trigger === 'inversion_added' && (data.inversiones||[]).length >= 1) unlock('primera_inversion');
-      if (trigger === 'objetivo_added'  && (data.objetivos||[]).length   >= 1) unlock('primer_objetivo');
-      if (trigger === 'export_done') unlock('exportador');
-      if (trigger === 'cat_created')  unlock('personalizado');
-      if (trigger === 'presupuesto_added') unlock('primer_presupuesto');
-      if (trigger === 'objetivo_done') unlock('objetivo_completado');
-      if (trigger === 'custom_debt') unlock('estratega');
-      if (trigger === 'settings_change') unlock('configurador');
-      if (trigger === 'page_visit') {
-        const page = data._currentPage || '';
-        if (page === 'analisis') unlock('analista');
-        if (page === 'patrimonio') unlock('visualizador');
+      // ── PRIMEROS PASOS ─────────────────────────────────────────────
+      if (trigger === 'ingreso_added')     { if (ingresos.length >= 1)    unlock('primer_ingreso'); }
+      if (trigger === 'gasto_added')       { if (gastos.length >= 1)      unlock('primer_gasto'); }
+      if (trigger === 'deuda_added')       { if (deudas.length >= 1)      unlock('primera_deuda'); }
+      if (trigger === 'inversion_added')   { if (inversiones.length >= 1) unlock('primera_inversion'); }
+      if (trigger === 'objetivo_added')    { if (objetivos.length >= 1)   unlock('primer_objetivo'); }
+      if (trigger === 'presupuesto_added') { if (Object.keys(presupuestos).length >= 1) unlock('primer_presupuesto'); }
+
+      // ── INGRESOS ───────────────────────────────────────────────────
+      if (trigger === 'ingreso_added') {
+        const n = ingresos.length;
+        if (n >= 10)  unlock('diez_ingresos');
+        if (n >= 20)  unlock('veinte_ingresos');
+        if (n >= 50)  unlock('cincuenta_ingresos');
+        if (n >= 100) unlock('cien_ingresos');
+        // Hora especial
+        if (h < 7)  unlock('madrugador');
+        if (h >= 23) unlock('nocturno');
+        // Fin de semana
+        if (day === 0 || day === 6) unlock('fin_de_semana');
+        // Ingreso grande
+        const last = ingresos[ingresos.length - 1];
+        if (last && Number(last.importe) >= 5000)  unlock('ingreso_grande');
+        if (last && Number(last.importe) >= 10000) unlock('ingreso_mega');
+        // Categorías únicas
+        const uCats = new Set(ingresos.map(x => x.categoria).filter(Boolean));
+        if (uCats.size >= 5)  unlock('cinco_categorias_ing');
+        if (uCats.size >= 10) unlock('diez_categorias_ing');
+        // Ingresos recurrentes activos
+        const recurrentes = ingresos.filter(x => x.recurrente);
+        if (recurrentes.length >= 1) unlock('ingreso_recurrente');
+        if (recurrentes.length >= 3) unlock('tres_recurrentes');
+        // Ingreso extra (categoría Bonus, Extra, Otros, o importe no habitual)
+        if (last && (last.categoria === 'Extra' || last.categoria === 'Bonus' || last.concepto?.toLowerCase().includes('extra'))) unlock('ingreso_extra');
+        // Internacional (categoría o nota con moneda extranjera)
+        if (last && (last.moneda && last.moneda !== 'EUR')) unlock('ingreso_internacional');
+        // Mes récord y trimestre récord
+        _checkIngresoRecords(ingresos, now);
+        // Registro diario 7 días seguidos
+        _checkDailyStreak(ingresos, 7, 'ingreso_diario');
       }
 
-      if (trigger === 'deuda_updated') {
-        const deudas = data.deudas || [];
+      // ── GASTOS ─────────────────────────────────────────────────────
+      if (trigger === 'gasto_added') {
+        const n = gastos.length;
+        if (n >= 50)  unlock('cincuenta_gastos');
+        if (n >= 100) unlock('cien_gastos');
+        if (n >= 200) unlock('doscientos_gastos');
+        if (h < 7)   unlock('madrugador');
+        if (h >= 23) unlock('nocturno');
+        if (day === 0 || day === 6) unlock('fin_de_semana');
+        // Gasto recurrente
+        const last = gastos[gastos.length - 1];
+        if (last?.recurrente) {
+          unlock('gasto_recurrente');
+          const gasRec = gastos.filter(x => x.recurrente);
+          if (gasRec.length >= 5) unlock('cinco_recurrentes_gas');
+        }
+        // Categorías únicas
+        const uCats = new Set(gastos.map(x => x.categoria).filter(Boolean));
+        if (uCats.size >= 10) unlock('diez_categorias_gas');
+        // Mes austero (gastos < 50% ingresos este mes)
+        _checkMesAustero(ingresos, gastos, now, thisMo);
+        // Planificador: gasto con fecha 30 días adelante
+        if (last?.fecha) {
+          const diff = (new Date(last.fecha) - now) / 86400000;
+          if (diff >= 30) unlock('gasto_planificado');
+        }
+      }
+
+      if (trigger === 'gasto_deleted') {
+        unlock('gasto_eliminado');
+        // Optimizador: si se eliminó un recurrente
+        const last = gastos[gastos.length - 1];
+        if (last?.recurrente) unlock('gasto_optimizado');
+      }
+
+      // ── INVERSIONES ────────────────────────────────────────────────
+      if (trigger === 'inversion_added') {
+        const abiertas = inversiones.filter(i => !i.cerrada && i.status !== 'liquidated');
+        const total    = inversiones.length;
+        if (abiertas.length >= 5)  unlock('cinco_inversiones');
+        if (total >= 10)           unlock('diez_inversiones');
+        if (total >= 15)           unlock('quince_inversiones');
+        if (total >= 20)           unlock('veinte_inversiones');
+        const last = inversiones[inversiones.length - 1];
+        if (last?.categoria === 'Cripto' || last?.categoria?.toLowerCase().includes('cript') || last?.categoria === 'Bitcoin' || last?.categoria === 'Ethereum') unlock('inversion_cripto');
+        if (last?.categoria?.toLowerCase().includes('inmueble') || last?.categoria?.toLowerCase().includes('inmobili')) unlock('inversion_inmuebles');
+        if (last?.categoria === 'Acciones') unlock('inversion_acciones');
+        // Largo plazo: más de 365 días desde fecha de inicio
+        if (last?.fecha) {
+          const dias = (now - new Date(last.fecha)) / 86400000;
+          if (dias >= 365) unlock('inversion_larga');
+        }
+        // Categorías únicas de inversión
+        const uCats = new Set(inversiones.map(x => x.categoria).filter(Boolean));
+        if (uCats.size >= 5)  unlock('cinco_categorias_inv');
+        if (uCats.size >= 10) unlock('diez_categorias_inv');
+      }
+
+      if (trigger === 'inversion_liquidada') {
+        unlock('inversion_liquidada');
+        const cerradas = inversiones.filter(i => i.cerrada || i.status === 'liquidated');
+        if (cerradas.length >= 3) unlock('tres_liquidaciones');
+        // ROI positivo
+        const last = cerradas[cerradas.length - 1];
+        if (last) {
+          const roi = Number(last.roiReal || last.roi || 0);
+          if (roi > 0)   unlock('ganancia_positiva');
+          if (roi >= 50) unlock('roi_positivo_50');
+          if (roi >= 100) unlock('roi_positivo_100');
+        }
+      }
+
+      if (trigger === 'revalorizacion_done') {
+        unlock('revalorizacion_usada');
+        // Consultar gráfico ROI
+        unlock('roi_chart');
+      }
+
+      // ── DEUDAS ─────────────────────────────────────────────────────
+      if (trigger === 'deuda_added') {
+        if (deudas.length >= 1) unlock('primera_deuda');
+        if (deudas.length >= 5) unlock('cinco_deudas');
+        unlock('pagina_deudas');
+      }
+
+      if (trigger === 'pago_deuda') {
+        const pagos = deudas.reduce((s, d) => s + (d.pagos?.length || 0), 0);
+        if (pagos >= 1)  unlock('pago_deuda');
+        if (pagos >= 10) unlock('diez_pagos');
+        // Pago anticipado: fecha anterior a vencimiento
+        unlock('pago_anticipado');
+      }
+
+      if (trigger === 'deuda_saldada') {
+        unlock('deuda_saldada');
+        const saldadas = deudas.filter(d => (Number(d.importeTotal) - Number(d.importePagado||0)) <= 0);
+        if (saldadas.length >= 3) unlock('tres_deudas_saldadas');
+        if (saldadas.length >= 5) unlock('cinco_deudas_saldadas');
         if (deudas.length > 0 && deudas.every(d => (Number(d.importeTotal) - Number(d.importePagado||0)) <= 0)) {
           unlock('sin_deudas');
         }
       }
 
-      // Volumen
-      if (trigger === 'ingreso_added') {
-        if ((data.ingresos||[]).length >= 10) unlock('diez_ingresos');
-        const h = new Date().getHours();
-        if (h < 7) unlock('madrugador');
-      }
-      if (trigger === 'gasto_added') {
-        if ((data.gastos||[]).length >= 50) unlock('cincuenta_gastos');
-        const h = new Date().getHours();
-        if (h >= 23) unlock('nocturno');
-      }
-      if (trigger === 'inversion_added') {
-        if ((data.inversiones||[]).filter(i=>!i.cerrada).length >= 5) unlock('cinco_inversiones');
-      }
-      if (trigger === 'objetivo_added') {
-        if ((data.objetivos||[]).length >= 5) unlock('cinco_objetivos');
+      if (trigger === 'deuda_updated') {
+        const saldadas = deudas.filter(d => (Number(d.importeTotal) - Number(d.importePagado||0)) <= 0);
+        if (saldadas.length >= 3) unlock('tres_deudas_saldadas');
+        if (saldadas.length >= 5) unlock('cinco_deudas_saldadas');
+        if (deudas.length > 0 && deudas.every(d => (Number(d.importeTotal) - Number(d.importePagado||0)) <= 0)) {
+          unlock('sin_deudas');
+        }
+        unlock('pago_deuda');
       }
 
-      if (trigger === 'data_check') _checkFinancial(data);
-      if (trigger === 'streak')     _checkStreakAchievements();
+      if (trigger === 'custom_debt') {
+        unlock('estrategia_deuda');
+        unlock('estratega');
+      }
+      if (trigger === 'avalanche_used')  unlock('avalancha_usada');
+      if (trigger === 'snowball_used')   unlock('snowball_usada');
+      if (trigger === 'refinanciacion')  unlock('refinanciacion');
+
+      // ── OBJETIVOS ─────────────────────────────────────────────────
+      if (trigger === 'objetivo_added') {
+        const n = objetivos.length;
+        if (n >= 5)  unlock('cinco_objetivos');
+        if (n >= 10) unlock('diez_objetivos');
+        const last = objetivos[objetivos.length - 1];
+        if (last) {
+          if (Number(last.meta || last.objetivo) >= 10000) unlock('objetivo_grande');
+          if (Number(last.meta || last.objetivo) >= 50000) unlock('objetivo_mega');
+          if (last.fechaObjetivo) {
+            const dias = (new Date(last.fechaObjetivo) - now) / 86400000;
+            if (dias >= 365) unlock('objetivo_largo_plazo');
+          }
+          if (last.imagen || last.img) unlock('objetivo_imagen');
+          if (last.categoria === 'Emergencia' || (last.nombre||'').toLowerCase().includes('emerg')) unlock('objetivo_emergencia');
+        }
+      }
+
+      if (trigger === 'objetivo_done') {
+        unlock('objetivo_completado');
+        const completados = objetivos.filter(o => o.completado || o.estado === 'completado' || Number(o.actual || o.ahorradoActual) >= Number(o.meta || o.objetivoImporte));
+        if (completados.length >= 3)  unlock('tres_obj_completos');
+        if (completados.length >= 5)  unlock('cinco_obj_completos');
+        if (completados.length >= 10) unlock('diez_obj_completos');
+        // Verificar 100% de todos
+        if (objetivos.length > 0 && completados.length === objetivos.length) unlock('perfeccionista');
+        // Objetivo rápido: completado en menos de 30 días desde creación
+        const last = completados[completados.length - 1];
+        if (last?.createdAt || last?.fechaInicio) {
+          const dias = (now - new Date(last.createdAt || last.fechaInicio)) / 86400000;
+          if (dias <= 30) unlock('objetivo_rapido');
+        }
+        // Emergencia completada
+        if (last && (last.categoria === 'Emergencia' || (last.nombre||'').toLowerCase().includes('emerg'))) unlock('objetivo_emergencia');
+      }
+
+      if (trigger === 'aportacion_done') {
+        unlock('aportacion_objetivo');
+        const totalAport = objetivos.reduce((s, o) => s + (o.aportaciones?.length || 0), 0);
+        if (totalAport >= 10) unlock('diez_aportaciones');
+      }
+
+      // ── PATRIMONIO & CUENTAS ───────────────────────────────────────
+      if (trigger === 'cuenta_added' || trigger === 'data_check') {
+        if (cuentas.length >= 3)  unlock('tres_cuentas');
+        if (cuentas.length >= 5)  unlock('cinco_cuentas');
+        if (cuentas.length >= 10) unlock('diez_cuentas');
+      }
+
+      if (trigger === 'activo_added') {
+        unlock('activo_fisico');
+        if (assets.length >= 3) unlock('tres_activos');
+        if (assets.length >= 5) unlock('cinco_activos');
+      }
+
+      // ── EXPLORADOR (páginas visitadas) ─────────────────────────────
+      if (trigger === 'page_visit') {
+        const page = (typeof window.currentPage !== 'undefined' ? window.currentPage : '') || '';
+        if (page === 'dashboard')   unlock('pagina_dashboard');
+        if (page === 'analisis')    { unlock('pagina_analisis'); _incCounter('analisis_visits'); if (_getCounter('analisis_visits') >= 50) unlock('cincuenta_analisis'); }
+        if (page === 'patrimonio')  unlock('pagina_patrimonio');
+        if (page === 'logros')      unlock('pagina_logros');
+        if (page === 'configuracion') { unlock('configuracion_vista'); unlock('configuracion_avanzada'); }
+        _incCounter('page_changes');
+        const pc = _getCounter('page_changes');
+        if (pc >= 100) unlock('cien_paginas_vistas');
+        if (page === 'dashboard') {
+          _incCounter('dash_visits');
+          if (_getCounter('dash_visits') >= 50) unlock('cincuenta_visitas_dash');
+        }
+        // Todas las páginas visitadas
+        _markPageVisited(page);
+        _checkAllPagesVisited();
+      }
+
+      // ── PRO & EXPORTAR ─────────────────────────────────────────────
+      if (trigger === 'export_pdf')   { _incCounter('pdf_exports');   if (_getCounter('pdf_exports')   >= 1)  unlock('exportador_pdf');  if (_getCounter('pdf_exports')   >= 10) unlock('diez_pdf'); }
+      if (trigger === 'export_excel') { _incCounter('excel_exports'); if (_getCounter('excel_exports') >= 1)  unlock('exportador_excel'); if (_getCounter('excel_exports') >= 10) unlock('diez_excel'); }
+      if (trigger === 'export_done')  { unlock('backup_exportado'); }
+      if (trigger === 'import_csv')   { unlock('import_csv'); }
+      if (trigger === 'cat_created') {
+        unlock('personalizado');
+        _incCounter('custom_cats');
+        if (_getCounter('custom_cats') >= 5)  unlock('cinco_categorias_custom');
+        if (_getCounter('custom_cats') >= 10) unlock('diez_categorias_custom');
+      }
+      if (trigger === 'settings_change') {
+        unlock('configuracion_vista');
+        _incCounter('theme_changes');
+        if (_getCounter('theme_changes') >= 1) unlock('cambio_tema');
+        if (_getCounter('theme_changes') >= 5) unlock('cinco_temas');
+      }
+      if (trigger === 'lang_change') {
+        unlock('cambio_idioma');
+        _incCounter('lang_changes');
+        if (_getCounter('lang_changes') >= 3) unlock('tres_idiomas');
+      }
+      if (trigger === 'chatbot') {
+        _incCounter('chatbot_msgs');
+        if (_getCounter('chatbot_msgs') >= 1)   unlock('chatbot_usado');
+        if (_getCounter('chatbot_msgs') >= 100) unlock('cien_chatbot');
+      }
+      if (trigger === 'demo_mode')    { unlock('modo_demo'); }
+      if (trigger === 'shortcut_used'){ unlock('atajos_teclado'); }
+
+      // ── GLOBAL CHECK ───────────────────────────────────────────────
+      if (trigger === 'data_check')   _checkFinancial(data);
+      if (trigger === 'streak')       _checkStreakAchievements();
+
     } catch(e) {
       console.warn('[MNGamification] checkAchievement error:', e);
     }
   }
 
-  function _checkFinancial(data) {
-    const gastos   = data.gastos   || [];
-    const ingresos = data.ingresos || [];
-    const now      = new Date();
+  // ─── Counters (persisted across sessions) ────────────────────────
+  function _incCounter(key) {
+    try {
+      const store = JSON.parse(localStorage.getItem('mn_ach_counters') || '{}');
+      store[key] = (store[key] || 0) + 1;
+      localStorage.setItem('mn_ach_counters', JSON.stringify(store));
+    } catch {}
+  }
+  function _getCounter(key) {
+    try { return JSON.parse(localStorage.getItem('mn_ach_counters') || '{}')[key] || 0; } catch { return 0; }
+  }
 
-    // Ahorrador constante — count last N months with positive cash flow
-    let positive = 0;
-    for (let i = 1; i <= 6; i++) {
-      const d   = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const mo  = d.toISOString().slice(0, 7);
-      const ing = ingresos.filter(x => (x.fecha||'').startsWith(mo)).reduce((a,x)=>a+(Number(x.importe)||0),0);
-      const gas = gastos.filter(x => (x.fecha||'').startsWith(mo)).reduce((a,x)=>a+(Number(x.importe)||0),0);
-      if (ing > gas) positive++;
+  // ─── Page visited tracking ───────────────────────────────────────
+  function _markPageVisited(page) {
+    if (!page) return;
+    try {
+      const store = JSON.parse(localStorage.getItem('mn_ach_pages') || '{}');
+      store[page] = true;
+      localStorage.setItem('mn_ach_pages', JSON.stringify(store));
+    } catch {}
+  }
+  function _checkAllPagesVisited() {
+    const required = ['dashboard','ingresos','gastos','inversiones','deudas','objetivos','presupuestos','cuentas','patrimonio','analisis','logros','configuracion'];
+    try {
+      const store = JSON.parse(localStorage.getItem('mn_ach_pages') || '{}');
+      if (required.every(p => store[p])) unlock('todas_paginas');
+    } catch {}
+  }
+
+  // ─── Records check ───────────────────────────────────────────────
+  function _checkIngresoRecords(ingresos, now) {
+    // Mes récord: mes actual supera cualquier mes anterior
+    const thisMonthKey = now.toISOString().slice(0, 7);
+    const byMonth = {};
+    ingresos.forEach(x => {
+      const m = (x.fecha||'').slice(0, 7);
+      if (m) byMonth[m] = (byMonth[m]||0) + (Number(x.importe)||0);
+    });
+    const months = Object.entries(byMonth);
+    if (months.length < 2) return;
+    const currentTotal = byMonth[thisMonthKey] || 0;
+    const prevMax = Math.max(...months.filter(([m]) => m !== thisMonthKey).map(([,v]) => v));
+    if (currentTotal > prevMax && currentTotal > 0) unlock('mes_record_ingresos');
+    // Trimestre épico: total de trimestre actual > trimestre anterior
+    const q = m => Math.floor(new Date(m + '-01').getMonth() / 3);
+    const y = m => new Date(m + '-01').getFullYear();
+    const thisQ = q(thisMonthKey), thisY = y(thisMonthKey);
+    const prevQ = thisQ === 0 ? 3 : thisQ - 1;
+    const prevY = thisQ === 0 ? thisY - 1 : thisY;
+    const thisQTotal = Object.entries(byMonth).filter(([m]) => q(m)===thisQ && y(m)===thisY).reduce((s,[,v])=>s+v,0);
+    const prevQTotal = Object.entries(byMonth).filter(([m]) => q(m)===prevQ && y(m)===prevY).reduce((s,[,v])=>s+v,0);
+    if (thisQTotal > prevQTotal && thisQTotal > 0) unlock('trimestre_record');
+  }
+
+  function _checkDailyStreak(items, days, id) {
+    const today = new Date().toISOString().slice(0, 10);
+    const dates = new Set(items.map(x => (x.fecha||'').slice(0, 10)));
+    let streak = 0;
+    for (let i = 0; i < days; i++) {
+      const d = new Date(); d.setDate(d.getDate() - i);
+      if (dates.has(d.toISOString().slice(0, 10))) streak++; else break;
     }
-    if (positive >= 3) unlock('ahorrador_3meses');
-    if (positive >= 6) unlock('ahorrador_6meses');
+    if (streak >= days) unlock(id);
+  }
 
-    // Ahorro_1000 — total en objetivos completados
-    const totalAhorrado = (data.objetivos||[]).filter(o=>o.completado).reduce((a,o)=>a+(Number(o.meta)||0),0);
-    if (totalAhorrado >= 1000) unlock('ahorro_1000');
+  // ─── Mes austero ─────────────────────────────────────────────────
+  function _checkMesAustero(ingresos, gastos, now, thisMo) {
+    const ing = ingresos.filter(x=>(x.fecha||'').startsWith(thisMo)).reduce((a,x)=>a+(Number(x.importe)||0),0);
+    const gas = gastos.filter(x=>(x.fecha||'').startsWith(thisMo)).reduce((a,x)=>a+(Number(x.importe)||0),0);
+    if (ing > 0 && gas < ing * 0.5) unlock('mes_austero');
+    // Trimestre austero: 3 meses seguidos
+    let austeroCount = 0;
+    for (let i = 0; i < 3; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const mo = d.toISOString().slice(0, 7);
+      const mi = ingresos.filter(x=>(x.fecha||'').startsWith(mo)).reduce((a,x)=>a+(Number(x.importe)||0),0);
+      const mg = gastos.filter(x=>(x.fecha||'').startsWith(mo)).reduce((a,x)=>a+(Number(x.importe)||0),0);
+      if (mi > 0 && mg < mi * 0.5) austeroCount++;
+    }
+    if (austeroCount >= 3) unlock('trim_austero');
+  }
 
-    // Cash flow positivo este mes
-    const thisMo  = now.toISOString().slice(0, 7);
-    const ingMes  = ingresos.filter(x => (x.fecha||'').startsWith(thisMo)).reduce((a,x)=>a+(Number(x.importe)||0),0);
-    const gasMes  = gastos.filter(x => (x.fecha||'').startsWith(thisMo)).reduce((a,x)=>a+(Number(x.importe)||0),0);
-    const cashFlow = ingMes - gasMes;
-    if (cashFlow > 0) unlock('saldo_positivo');
+  function _checkFinancial(data) {
+    const gastos      = data.gastos      || [];
+    const ingresos    = data.ingresos    || [];
+    const inversiones = data.inversiones || [];
+    const cuentas     = data.cuentas     || [];
+    const objetivos   = data.objetivos   || [];
+    const presupuestos= data.presupuestos || {};
+    const assets      = data.assets      || [];
+    const now         = new Date();
+    const thisMo      = now.toISOString().slice(0, 7);
 
-    // Multibanco
-    if ((data.cuentas||[]).length >= 3) unlock('tres_cuentas');
+    // ─ Ingresos / Gastos counts
+    if (ingresos.length >= 10)  unlock('diez_ingresos');
+    if (ingresos.length >= 20)  unlock('veinte_ingresos');
+    if (ingresos.length >= 50)  unlock('cincuenta_ingresos');
+    if (ingresos.length >= 100) unlock('cien_ingresos');
+    if (gastos.length >= 50)    unlock('cincuenta_gastos');
+    if (gastos.length >= 100)   unlock('cien_gastos');
+    if (gastos.length >= 200)   unlock('doscientos_gastos');
 
-    // Fin de semana activo
+    // ─ Ingresos categorías
+    const uCatsIng = new Set(ingresos.map(x=>x.categoria).filter(Boolean));
+    if (uCatsIng.size >= 5)  unlock('cinco_categorias_ing');
+    if (uCatsIng.size >= 10) unlock('diez_categorias_ing');
+    const recIng = ingresos.filter(x=>x.recurrente);
+    if (recIng.length >= 1) unlock('ingreso_recurrente');
+    if (recIng.length >= 3) unlock('tres_recurrentes');
+
+    // ─ Gastos categorías y recurrentes
+    const uCatsGas = new Set(gastos.map(x=>x.categoria).filter(Boolean));
+    if (uCatsGas.size >= 10) unlock('diez_categorias_gas');
+    const recGas = gastos.filter(x=>x.recurrente);
+    if (recGas.length >= 1) unlock('gasto_recurrente');
+    if (recGas.length >= 5) unlock('cinco_recurrentes_gas');
+
+    // ─ Presupuestos
+    const nPres = Object.keys(presupuestos).length;
+    if (nPres >= 1) unlock('primer_presupuesto');
+    if (nPres >= 3) unlock('tres_presupuestos');
+    if (nPres >= 5) unlock('cinco_presupuestos');
+    _checkPresupuestoCumplido(data);
+
+    // ─ Inversiones
+    const abiertas = inversiones.filter(i=>!i.cerrada && i.status !== 'liquidated');
+    const cerradas = inversiones.filter(i=>i.cerrada || i.status === 'liquidated');
+    if (abiertas.length >= 5)    unlock('cinco_inversiones');
+    if (inversiones.length >= 10) unlock('diez_inversiones');
+    if (inversiones.length >= 15) unlock('quince_inversiones');
+    if (inversiones.length >= 20) unlock('veinte_inversiones');
+    if (cerradas.length >= 3)    unlock('tres_liquidaciones');
+    const uCatsInv = new Set(inversiones.map(x=>x.categoria).filter(Boolean));
+    if (uCatsInv.size >= 5)  unlock('cinco_categorias_inv');
+    if (uCatsInv.size >= 10) unlock('diez_categorias_inv');
+    inversiones.forEach(inv => {
+      const cat = (inv.categoria||'').toLowerCase();
+      if (cat.includes('cript') || cat === 'bitcoin' || cat === 'ethereum') unlock('inversion_cripto');
+      if (cat.includes('inmueble') || cat.includes('inmobili')) unlock('inversion_inmuebles');
+      if (cat === 'acciones') unlock('inversion_acciones');
+      const roi = Number(inv.roiReal || inv.roi || 0);
+      if (roi > 0)    unlock('ganancia_positiva');
+      if (roi >= 50)  unlock('roi_positivo_50');
+      if (roi >= 100) unlock('roi_positivo_100');
+    });
+
+    // ─ Deudas
+    const deudas = data.deudas || [];
+    if (deudas.length >= 5) unlock('cinco_deudas');
+    const saldadas = deudas.filter(d => (Number(d.importeTotal) - Number(d.importePagado||0)) <= 0);
+    if (saldadas.length >= 1) unlock('deuda_saldada');
+    if (saldadas.length >= 3) unlock('tres_deudas_saldadas');
+    if (saldadas.length >= 5) unlock('cinco_deudas_saldadas');
+    if (deudas.length > 0 && deudas.every(d => (Number(d.importeTotal) - Number(d.importePagado||0)) <= 0)) unlock('sin_deudas');
+    const totalPagos = deudas.reduce((s, d) => s + (d.pagos?.length || 0), 0);
+    if (totalPagos >= 1)  unlock('pago_deuda');
+    if (totalPagos >= 10) unlock('diez_pagos');
+
+    // ─ Objetivos
+    const completados = objetivos.filter(o => o.completado || o.estado === 'completado' || Number(o.actual || o.ahorradoActual||0) >= Number(o.meta || o.objetivoImporte||1));
+    if (objetivos.length >= 5)    unlock('cinco_objetivos');
+    if (objetivos.length >= 10)   unlock('diez_objetivos');
+    if (completados.length >= 1)  unlock('objetivo_completado');
+    if (completados.length >= 3)  unlock('tres_obj_completos');
+    if (completados.length >= 5)  unlock('cinco_obj_completos');
+    if (completados.length >= 10) unlock('diez_obj_completos');
+    if (objetivos.length > 0 && completados.length === objetivos.length) unlock('perfeccionista');
+    const totalAport = objetivos.reduce((s, o) => s + (o.aportaciones?.length || 0), 0);
+    if (totalAport >= 1)  unlock('aportacion_objetivo');
+    if (totalAport >= 10) unlock('diez_aportaciones');
+    objetivos.forEach(o => {
+      const meta = Number(o.meta || o.objetivoImporte || 0);
+      if (meta >= 10000) unlock('objetivo_grande');
+      if (meta >= 50000) unlock('objetivo_mega');
+      if (o.imagen || o.img) unlock('objetivo_imagen');
+      const nom = (o.nombre||'').toLowerCase();
+      if (o.categoria === 'Emergencia' || nom.includes('emerg')) unlock('objetivo_emergencia');
+    });
+
+    // ─ Cuentas & Patrimonio
+    if (cuentas.length >= 3) unlock('tres_cuentas');
+    if (cuentas.length >= 5) unlock('cinco_cuentas');
+    if (cuentas.length >= 10) unlock('diez_cuentas');
+    if (assets.length >= 1) unlock('activo_fisico');
+    if (assets.length >= 3) unlock('tres_activos');
+    if (assets.length >= 5) unlock('cinco_activos');
+
+    // ─ Patrimonio neto
+    const patrimonio = _calcPatrimonio(data);
+    if (patrimonio >= 10000)  unlock('patrimonio_10k');
+    if (patrimonio >= 50000)  unlock('patrimonio_50k');
+    if (patrimonio >= 100000) unlock('patrimonio_100k');
+    if (patrimonio >= 250000) unlock('patrimonio_250k');
+
+    // ─ Cash flow por mes
+    let positive = 0, positiveAll = 0;
+    for (let i = 1; i <= 12; i++) {
+      const d  = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const mo = d.toISOString().slice(0, 7);
+      const ing = ingresos.filter(x=>(x.fecha||'').startsWith(mo)).reduce((a,x)=>a+(Number(x.importe)||0),0);
+      const gas = gastos.filter(x=>(x.fecha||'').startsWith(mo)).reduce((a,x)=>a+(Number(x.importe)||0),0);
+      if (ing > gas) { positive++; positiveAll++; } else positiveAll = 0;
+    }
+    if (positive >= 3)  unlock('ahorrador_3meses');
+    if (positive >= 6)  unlock('ahorrador_6meses');
+    if (positive >= 12) unlock('ahorrador_anual');
+
+    // ─ Cash flow este mes
+    const ingMes = ingresos.filter(x=>(x.fecha||'').startsWith(thisMo)).reduce((a,x)=>a+(Number(x.importe)||0),0);
+    const gasMes = gastos.filter(x=>(x.fecha||'').startsWith(thisMo)).reduce((a,x)=>a+(Number(x.importe)||0),0);
+    if (ingMes > gasMes) unlock('saldo_positivo');
+
+    // ─ Fin de semana
     const day = new Date().getDay();
     if (day === 0 || day === 6) unlock('fin_de_semana');
 
-    // Completista — all other achievements unlocked
+    // ─ 6 meses positivos / anual
+    let consecutivePositive = 0;
+    for (let i = 1; i <= 12; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const mo = d.toISOString().slice(0, 7);
+      const ing2 = ingresos.filter(x=>(x.fecha||'').startsWith(mo)).reduce((a,x)=>a+(Number(x.importe)||0),0);
+      const gas2 = gastos.filter(x=>(x.fecha||'').startsWith(mo)).reduce((a,x)=>a+(Number(x.importe)||0),0);
+      if (ing2 > gas2) consecutivePositive++; else break;
+    }
+    if (consecutivePositive >= 6)  unlock('seis_meses_positivo');
+    if (consecutivePositive >= 12) unlock('anual_positivo');
+
+    // ─ Ingreso grande
+    ingresos.forEach(x => {
+      const v = Number(x.importe||0);
+      if (v >= 5000)  unlock('ingreso_grande');
+      if (v >= 10000) unlock('ingreso_mega');
+    });
+    _checkMesAustero(ingresos, gastos, now, thisMo);
+    _checkIngresoRecords(ingresos, now);
+
+    // ─ 3 años usando la app
+    try {
+      const createdAt = data.createdAt || data.usuario?.createdAt;
+      if (createdAt) {
+        const anos = (now - new Date(createdAt)) / (365.25 * 86400000);
+        if (anos >= 3) unlock('tres_anos_usando');
+      }
+    } catch {}
+
+    // ─ Completista — desbloquea si tiene todos los demás
     const totalAchs = ACHIEVEMENTS.length;
     const unlockedCount = Object.keys(getAchievements().unlocked).length;
-    // Completista itself is excluded from the count (30th achievement)
     if (unlockedCount >= totalAchs - 1) unlock('completista');
+  }
+
+  function _calcPatrimonio(data) {
+    try {
+      const cuentas = (data.cuentas||[]).reduce((s,c)=>s+(Number(c.saldo)||0),0);
+      const inversiones = (data.inversiones||[]).filter(i=>!i.cerrada && i.status!=='liquidated').reduce((s,i)=>s+(Number(i.importe)||0)*(1+(Number(i.rentabilidad||i.roi||0)/100)),0);
+      const deudas = (data.deudas||[]).reduce((s,d)=>s+(Math.max(0,(Number(d.importeTotal||0)-Number(d.importePagado||0)))),0);
+      return cuentas + inversiones - deudas;
+    } catch { return 0; }
+  }
+
+  function _checkPresupuestoCumplido(data) {
+    try {
+      const presupuestos = data.presupuestos || {};
+      const gastos = data.gastos || [];
+      const now = new Date();
+      const thisMo = now.toISOString().slice(0, 7);
+      const cats = Object.keys(presupuestos);
+      if (cats.length === 0) return;
+      const cumplidos = cats.filter(cat => {
+        const limit = Number(presupuestos[cat]);
+        const spent = gastos.filter(g=>(g.fecha||'').startsWith(thisMo) && g.categoria === cat).reduce((s,g)=>s+(Number(g.importe)||0),0);
+        return limit > 0 && spent <= limit;
+      });
+      if (cumplidos.length >= 1) unlock('presupuesto_cumplido');
+      // 3 meses consecutivos respetando presupuesto
+      let consecutive = 0;
+      for (let i = 0; i < 3; i++) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const mo = d.toISOString().slice(0, 7);
+        const allOk = cats.every(cat => {
+          const limit = Number(presupuestos[cat]);
+          const spent = gastos.filter(g=>(g.fecha||'').startsWith(mo) && g.categoria === cat).reduce((s,g)=>s+(Number(g.importe)||0),0);
+          return limit === 0 || spent <= limit;
+        });
+        if (allOk) consecutive++; else break;
+      }
+      if (consecutive >= 3) unlock('tres_meses_pres');
+    } catch {}
   }
 
   function _checkStreakAchievements() {
     const s = _getStreak();
     if (s.streak >= 7)   unlock('streak_7');
+    if (s.streak >= 14)  unlock('streak_14');
     if (s.streak >= 30)  unlock('streak_30');
+    if (s.streak >= 60)  unlock('streak_60');
     if (s.streak >= 100) unlock('streak_100');
+    if (s.streak >= 180) unlock('streak_180');
+    if (s.streak >= 365) unlock('streak_365');
   }
 
   // ─── Toast premium ───────────────────────────────────────────────

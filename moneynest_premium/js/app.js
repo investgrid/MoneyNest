@@ -3438,9 +3438,9 @@ function setLang(code) {
   _currentLang = code
   try { localStorage.setItem(LANG_STORAGE_KEY, code) } catch(e) {}
   document.documentElement.setAttribute('lang', code)
-  // Achievement: settings change
   if (window.MNGamification && window.MNGamification.checkAchievement) {
     window.MNGamification.checkAchievement('settings_change');
+    window.MNGamification.checkAchievement('lang_change');
   }
   // Brief fade transition
   const contentEl = document.getElementById('content')
@@ -6046,6 +6046,7 @@ function guardarCuenta() {
   } else {
     S.cuentas.push({id:uid(),...data})
   }
+  if (window.MNGamification) { MNGamification.checkAchievement('cuenta_added'); MNGamification.checkAchievement('data_check'); }
   save(); closeModal("cuentaModal"); _unlock(); render(); toast(t('toast_cuenta_guardada'))
 }
 function borrarCuenta(id) {
@@ -7141,6 +7142,7 @@ function guardarGasto() {
 function borrarGasto(id) {
   confirmar(t('confirm_eliminar_gasto'), ()=>{
     S.gastos = S.gastos.filter(x=>x.id!==id)
+    if (window.MNGamification) MNGamification.checkAchievement('gasto_deleted')
     save(); render(); toast(t('toast_gasto_eliminado'))
   }, {titulo:t('confirm_eliminar_gasto_titulo'),icono:'🗑️'})
 }
@@ -7584,6 +7586,7 @@ function confirmarRevalorizacion() {
 
     const signo = cambio >= 0 ? '+' : ''
     toast(`📊 ${t('toast_revalorizacion_guardada','Revalorización guardada')} · ${signo}${eur(cambio)} (${signo}${pct(pctCambio)})`, cambio >= 0 ? 'success' : 'warning')
+    if (window.MNGamification) MNGamification.checkAchievement('revalorizacion_done')
 
   } else {
     // Retiro de beneficio
@@ -7710,6 +7713,12 @@ function registrarPago() {
       if (window.MNConfetti) window.MNConfetti.fire('debt')
       document.dispatchEvent(new CustomEvent('mn:deuda:saldada', { detail: { deuda: S.deudas[idx] } }))
     }, 300)
+  }
+  if (window.MNGamification) {
+    MNGamification.checkAchievement('pago_deuda')
+    MNGamification.checkAchievement('deuda_updated')
+    if (deudaSaldada) MNGamification.checkAchievement('deuda_saldada')
+    MNGamification.checkAchievement('data_check')
   }
   save(); closeModal('pagoModal'); render(); toast(eur(importe) + ' – ' + t('toast_pago_registrado'))
 }
@@ -7884,6 +7893,11 @@ function confirmarAportar() {
     }, 300)
   }
 
+  if (window.MNGamification) {
+    MNGamification.checkAchievement('aportacion_done')
+    MNGamification.checkAchievement('data_check')
+    if (isNowComplete) MNGamification.checkAchievement('objetivo_done')
+  }
   save(); closeModal('aportarModal'); render(); toast(eur(importe) + ' ' + t('toast_aportado_ok'))
 }
 
@@ -11143,6 +11157,7 @@ function isDemoMode() { try { return localStorage.getItem(DEMO_FLAG) === 'true' 
 function loadDemoData(scenario, nombreOverride) {
   try {
     localStorage.setItem(DEMO_FLAG, 'true')
+    if (window.MNGamification) MNGamification.checkAchievement('demo_mode')
     // Guardar el nombre real del usuario antes de entrar al modo demo
     if (S.usuario.nombre && S.usuario.nombre !== 'Demo' && S.usuario.nombre !== 'Usuario') {
       localStorage.setItem('mn_real_user_name', S.usuario.nombre)
