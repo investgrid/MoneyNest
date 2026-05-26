@@ -7320,24 +7320,24 @@ function confirmarLiquidacion() {
   // 1) Return full value to account
   cuenta.saldo = (Number(cuenta.saldo)||0) + valorFinal
 
-  // 2) Register gain as income or loss as expense
-  // Los beneficios ya retirados son ganancia realizada y NO se restan, se suman al total
+  // 2) Register only the REMAINING gain (total gain minus already-withdrawn benefits).
+  // beneficiosRetirados were already booked as income when withdrawn — don't double-count.
   const beneficiosRetirados = (inv.beneficiosRetirados || []).reduce((sum, b) => sum + Number(b.importe), 0)
-  const gananciaFinal = ganancia + beneficiosRetirados // Suma la ganancia realizada previa
+  const gananciaFinal = ganancia - beneficiosRetirados // Only book the portion not yet realized
 
   if (gananciaFinal > 0) {
     S.ingresos.push({
       id: uid(), concepto: '💰 Ganancia final: ' + inv.nombre,
       importe: gananciaFinal, categoria: 'Dividendos',
       fecha: todayISO(), cuentaId,
-      notas: `ROI real: ${pct(roiReal)} · Capital: ${eur(Number(inv.importe))}${beneficiosRetirados > 0 ? ` · Ganancia realizada previa: ${eur(beneficiosRetirados)}` : ''}`
+      notas: `ROI real: ${pct(roiReal)} · Capital: ${eur(Number(inv.importe))}${beneficiosRetirados > 0 ? ` · Ya retirado previamente: ${eur(beneficiosRetirados)}` : ''}`
     })
   } else if (gananciaFinal < 0) {
     S.gastos.push({
       id: uid(), concepto: '📉 Pérdida final: ' + inv.nombre,
       importe: Math.abs(gananciaFinal), categoria: 'Otro',
       fecha: todayISO(), cuentaId,
-      notas: `ROI real: ${pct(roiReal)} · Capital: ${eur(Number(inv.importe))}${beneficiosRetirados > 0 ? ` · Ganancia realizada previa: ${eur(beneficiosRetirados)}` : ''}`
+      notas: `ROI real: ${pct(roiReal)} · Capital: ${eur(Number(inv.importe))}${beneficiosRetirados > 0 ? ` · Ya retirado previamente: ${eur(beneficiosRetirados)}` : ''}`
     })
   }
 
