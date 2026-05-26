@@ -6200,6 +6200,7 @@ function renderConfiguracion() {
         <div class="stat-row"><span class="stat-key">👥 ${t('nav_clientes') || 'Clientes'}</span><span class="stat-val">${(S.clientes||[]).length}</span></div>
         <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn btn-secondary btn-sm" onclick="lanzarTutorial()">${t('cfg_ver_tutorial')}</button>
+          <button class="btn btn-ghost btn-sm" onclick="if(confirm('¿Repetir el onboarding inicial? Se recargará la página.')){localStorage.removeItem('${OB_FLAG_KEY}');localStorage.removeItem('${TUT_FLAG_KEY}');location.reload()}" title="Volver a ver el onboarding completo">🔄 Repetir onboarding</button>
         </div>
       </div>
     </div>
@@ -7286,12 +7287,13 @@ function syncLiq(from) {
   const inv = S.inversiones.find(x=>x.id===document.getElementById('liqInvId').value)
   if (!inv) return
   const importe = Number(inv.importe)||0
+  // Use plain toFixed (dot decimal) for <input type="number"> — fmt() uses locale commas which are invalid
   if (from === 'valor') {
     const val = parseFloat(document.getElementById('liqValor').value)||0
-    if (importe > 0) document.getElementById('liqRentPct').value = fmt(((val-importe)/importe)*100, 2)
+    if (importe > 0) document.getElementById('liqRentPct').value = (((val-importe)/importe)*100).toFixed(2)
   } else {
     const pctVal = parseFloat(document.getElementById('liqRentPct').value)||0
-    document.getElementById('liqValor').value = fmt(importe*(1+pctVal/100),2)
+    document.getElementById('liqValor').value = (importe*(1+pctVal/100)).toFixed(2)
   }
   updateLiqPreview()
 }
@@ -7324,10 +7326,15 @@ function updateLiqPreview() {
       <span style="color:${totalColor}"><strong>${gananciaTotal>=0?'+':''}${eur(gananciaTotal)}</strong></span>
     </div>
     <div class="liq-preview-row"><span>ROI total</span><span style="color:${totalColor}">${roiReal>=0?'+':''}${pct(roiReal)}</span></div>
-    ${beneficiosRetirados > 0 ? `
+    ${beneficiosRetirados > 0 && pendienteRegistrar !== 0 ? `
       <div class="liq-preview-row" style="margin-top:6px;font-size:.78rem;color:var(--text2)">
-        <span>Se registrará ahora</span>
+        <span>${pendienteRegistrar > 0 ? 'Ganancia adicional a registrar' : 'Pérdida a registrar'}</span>
         <span style="color:${pendColor}">${pendienteRegistrar>=0?'+':''}${eur(pendienteRegistrar)}</span>
+      </div>
+    ` : beneficiosRetirados > 0 ? `
+      <div class="liq-preview-row" style="margin-top:6px;font-size:.78rem;color:var(--text2)">
+        <span>✓ Toda la ganancia ya fue retirada</span>
+        <span style="color:var(--text3)">—</span>
       </div>
     ` : ''}`
 }

@@ -10,7 +10,12 @@
 
   // ─── Achievement definitions — nombres y descs via t() ───────────
   function _ach() {
-    const _w = (k, fb) => (typeof window.t === 'function' ? window.t(k) || fb : fb);
+    // _w: translate key with fallback. If t() returns the key itself (not found), use fallback.
+    const _w = (k, fb) => {
+      if (typeof window.t !== 'function') return fb;
+      const r = window.t(k);
+      return (r && r !== k) ? r : fb;
+    };
     return [
       // ── Primeros pasos (6) ──
       { id:'primer_ingreso',      emoji:'💰', cat:'inicio',    get nombre(){ return _w('ach_primer_ingreso_n','Primer ingreso') },         get desc(){ return _w('ach_primer_ingreso_d','Añade tu primer ingreso') }},
@@ -405,7 +410,11 @@
   }
 
   // ─── Achievements panel ──────────────────────────────────────────
-  function _gt(k, fb) { return (typeof window.t === 'function' ? window.t(k) || fb : fb); }
+  function _gt(k, fb) {
+    if (typeof window.t !== 'function') return fb;
+    const r = window.t(k);
+    return (r && r !== k) ? r : fb;
+  }
 
   const CAT_META = {
     inicio:      { label: () => _gt('logro_cat_inicio',      'Primeros pasos'),    icon: '🚀', color: '#6366F1' },
