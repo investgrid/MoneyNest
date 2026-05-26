@@ -165,3 +165,37 @@ ROI = (gananciaTotal / capitalInicial) * 100
 - Sync Supabase: pendiente de integración completa
 - i18n: los módulos nuevos tienen textos en ES hardcodeado, falta EN/CA en algunos
 - Botón + quick add en bottom nav: verificar que `openQuickAdd()` funciona
+
+---
+
+## AUDITORÍA COMPLETA — 2026-05-27
+
+### Estado verificado con Playwright + screenshots
+
+| Sección | Estado | Notas |
+|---------|--------|-------|
+| Dashboard | ✅ | KPIs, actividad reciente, gráficos OK |
+| Ingresos | ✅ | Tabla, filtros, período OK |
+| Gastos | ✅ | Tabla, filtros, período OK |
+| Inversiones | ✅ | Abiertas siempre visibles; cerradas filtra por fechaCierre |
+| Deudas | ✅ | Estrategias, pago, período OK |
+| Objetivos | ✅ | Progreso, aportaciones OK |
+| Presupuestos | ✅ | Barras progreso, alertas OK |
+| Cuentas | ✅ | Cards, movimientos OK |
+| Patrimonio | ✅ | Cálculo correcto OK |
+| Análisis | ✅ | Gráficos, métricas OK |
+| Logros | ✅ | 140 cards con nombres correctos |
+| Configuración | ✅ | Idioma, tema, categorías OK |
+
+### Bugs adicionales arreglados hoy
+- **Topbar "GuardaGuarda"**: botones estáticos del HTML se acumulaban con los dinámicos de data-manager.js → eliminados del HTML
+- **Inversiones vacías con período**: posiciones abiertas siempre visibles (span múltiples meses)
+
+### Funcionalidad verificada
+- Añadir ingreso, gasto, deuda, objetivo: ✅ OK
+- Quick add: ✅ OK (display=flex)
+- Toggle tema: ✅ OK
+- Export fn: ✅ OK
+- Período filter ingresos: ✅ OK (all=1, month=1 con datos de prueba)
+- Logros: ✅ 140 cards cargadas
+- JS Errors: 0
