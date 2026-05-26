@@ -4461,13 +4461,12 @@ function renderIngresos() {
   const receivedIngs = [...S.ingresos]
     .filter(i => {
       if (i.status === 'pending') return false
-      // Month filter takes priority; if none, show all (not period-filtered)
+      // Month filter (legacy per-month dropdown) takes priority
       if (_ingMesFilter) {
-        // Month filter active — use it exclusively, skip global period
         if (!i.fecha || !i.fecha.startsWith(_ingMesFilter)) return false
       } else {
-        // No month filter — show ALL received incomes (no period restriction)
-        // This ensures newly added incomes are always visible
+        // Use global period filter (this month / last month / this year / all / custom)
+        if (!_gDateInPeriod(i.fecha)) return false
       }
       const q = _ingSearch.toLowerCase()
       if (q && !(i.concepto||'').toLowerCase().includes(q)) return false
@@ -11571,22 +11570,10 @@ function _setObSeen()   { try { localStorage.setItem(OB_FLAG_KEY,  'true') } cat
 function _setTutDone()  { try { localStorage.setItem(TUT_FLAG_KEY, 'true') } catch(e){} }
 
 function checkOnboarding() {
-  // Determine if this is truly a first-time user.
-  // The ob_seen flag can be incorrectly set by legacy data migration in accounts.js
-  // (copying a previous session's flag into the new account namespace).
-  // So we validate: if ob_seen is true but the account has no email AND no data,
-  // it means the flag was migrated from a different session — treat as first-time.
-  const flagSeen = _obFlagSeen()
-  const hasEmail = !!(S?.usuario?.email)
-  const hasData  = !!(S?.ingresos?.length || S?.gastos?.length || S?.cuentas?.filter(c => c.id !== 'c1' && c.id !== 'dc1').length)
-
-  if (flagSeen && (hasEmail || hasData)) {
-    return // Legitimate returning user — skip onboarding
-  }
-
-  // First-time user (or stale flag with no real data) — show onboarding
-  // Clear any stale flag so the flow is clean
-  try { localStorage.removeItem(OB_FLAG_KEY) } catch(_) {}
+  // If the flag exists, the user already completed onboarding — skip it.
+  // The migration bug in accounts.js is already fixed (MIGRATION_EXCLUDE).
+  // New accounts start without the flag, so they always see onboarding.
+  if (_obFlagSeen()) return
 
   obStep = 1
   obData = { nombre:'', email:'', password:'', mode:'personal', lang: _currentLang || 'es', theme: S?.theme || 'dark', startTutorial:false, loadDemo:false }
