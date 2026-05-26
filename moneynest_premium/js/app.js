@@ -4857,6 +4857,8 @@ function renderInversiones() {
     if (_invFiltro === 'abiertas' && inv.cerrada) return false
     if (_invFiltro === 'cerradas' && !inv.cerrada) return false
     if (_invCat && inv.categoria !== _invCat) return false
+    // Period filter: by start date (or all if period is 'all')
+    if (_gTimePeriod !== 'all' && inv.fecha && !_gDateInPeriod(inv.fecha)) return false
     return true
   })
 
@@ -5150,6 +5152,13 @@ function renderDeudas() {
       const q = _deudaSearch.toLowerCase()
       if (q && !( (d.nombre||'').toLowerCase().includes(q) || (d.categoria||'').toLowerCase().includes(q) )) return false
       if (_deudaCatFilter && d.categoria !== _deudaCatFilter) return false
+      // Period filter: show debts that have payments or vencimiento in the period,
+      // or show all active debts when period is 'all' or 'month' (most useful view)
+      if (_gTimePeriod !== 'all' && _gTimePeriod !== 'month') {
+        const hasPeriodActivity = (d.pagos||[]).some(p => _gDateInPeriod(p.fecha))
+        const vencEnPeriod = d.vencimiento && _gDateInPeriod(d.vencimiento)
+        if (!hasPeriodActivity && !vencEnPeriod) return false
+      }
       return true
     })
 
@@ -5598,6 +5607,13 @@ function renderObjetivos() {
     const q = _objSearch.toLowerCase()
     if (q && !((o.nombre||'').toLowerCase().includes(q))) return false
     if (_objCatFilter && o.categoria !== _objCatFilter) return false
+    // Period filter: show goals with activity (aportaciones) in the period,
+    // or goals whose target date falls in the period. 'month'/'all' show all.
+    if (_gTimePeriod !== 'all' && _gTimePeriod !== 'month') {
+      const hasAportacion = (o.aportaciones||[]).some(a => _gDateInPeriod(a.fecha))
+      const targetInPeriod = o.fechaObjetivo && _gDateInPeriod(o.fechaObjetivo)
+      if (!hasAportacion && !targetInPeriod) return false
+    }
     return true
   })
 
@@ -5821,7 +5837,8 @@ function confirmarObjAvatar() {
 
 // ─── PRESUPUESTOS ──────────────────────────────────────────────
 function renderPresupuestos() {
-  const m = currentMonth()
+  // Use selected period month for budget comparison
+  const m = _gTimePeriod === 'lastmonth' ? prevMonth(currentMonth()) : currentMonth()
   const catMap = gastosMesByCat(m)
   const cats = Object.keys(S.presupuestos)
   const totalLimite = cats.reduce((a,c)=>a+(Number(S.presupuestos[c])||0),0)

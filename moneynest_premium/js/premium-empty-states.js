@@ -234,6 +234,12 @@
         text-align: center;
         padding: 48px 24px 40px;
         gap: 0;
+        width: 100%;
+        box-sizing: border-box;
+        margin: 0 auto;
+        /* Works inside grids, flex containers and table cells */
+        align-self: center;
+        justify-self: center;
         animation: mnEmptyIn 400ms var(--ease-out, cubic-bezier(0.16,1,0.3,1)) both;
       }
       @keyframes mnEmptyIn {
@@ -271,16 +277,34 @@
         animation: mnEmptyIn 300ms ease 300ms both;
       }
 
-      /* Inside table cells — force full-width centered block */
+      /* Inside table cells */
       tr td .mn-empty-state {
         padding: 48px 16px;
         width: 100%;
+        max-width: 100%;
         display: flex;
         margin: 0 auto;
       }
-      tr td { text-align: center; }
+      tr td {
+        text-align: center;
+        width: 100%;
+      }
       tr td .mn-empty-illustration svg { width: 56px; height: 56px; }
       tr td .mn-empty-title { font-size: .92rem; }
+
+      /* Inside CSS grid (inversiones, deudas, objetivos, presupuestos) */
+      [style*="grid-column:1/-1"] .mn-empty-state,
+      [style*="grid-column: 1 / -1"] .mn-empty-state {
+        width: 100%;
+      }
+
+      /* Wrapper div approach (deudas, inversiones use div wrapper) */
+      .mn-empty-wrapper {
+        width: 100%;
+        grid-column: 1 / -1;
+        display: flex;
+        justify-content: center;
+      }
 
       /* Light mode */
       [data-theme="light"] .mn-empty-title { color: var(--text, #0F172A); }
