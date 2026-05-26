@@ -60,6 +60,15 @@
         const perm = await Notification.requestPermission();
         localStorage.setItem(PERM_KEY, perm);
         resolve(perm === 'granted');
+        // Re-render settings UI so permission state is reflected immediately
+        if (typeof renderConfiguracion === 'function') renderConfiguracion();
+        else {
+          // Fallback: re-render any open notification settings containers
+          ['notifSettingsContainer','mn-notif-settings'].forEach(id => {
+            const c = document.getElementById(id);
+            if (c) renderSettingsUI(id);
+          });
+        }
       };
     });
   }

@@ -893,7 +893,7 @@ function injectTopbarButtons() {
   // Trial pill — solo visible en plan trial
   const trialPill = document.createElement('div');
   trialPill.id = 'dm-trial-pill';
-  trialPill.style.cssText = 'display:none;align-items:center;gap:8px;padding:5px 12px 5px 10px;border-radius:99px;background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.3);font-size:.72rem;font-weight:700;color:#A5B4FC;cursor:pointer;transition:all .18s;white-space:nowrap';
+  trialPill.style.cssText = 'display:none;align-items:center;gap:5px;padding:3px 8px;border-radius:99px;background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.22);font-size:.7rem;font-weight:600;color:#A5B4FC;cursor:pointer;transition:all .18s;white-space:nowrap;letter-spacing:.01em';
   trialPill.onclick = () => { if(window.MNAuthUI) MNAuthUI.showAuthModal('plan'); };
   right.insertBefore(trialPill, right.firstChild);
   _updateTrialPill();
@@ -923,7 +923,8 @@ function _updateTrialPill() {
   pill.style.color = color;
   pill.style.background = bg;
   pill.style.border = `1px solid ${border}`;
-  pill.innerHTML = `<span style="font-size:.9rem">${urgent?'🚨':warn?'⚠️':'⏳'}</span> <span>Trial: <strong style="color:#fff">${label}</strong></span> <span style="font-size:.68rem;padding:2px 8px;border-radius:99px;background:${color};color:#0A0E17;font-weight:800">${_dm('dm_pill_desbloquear','Desbloquear →')}</span>`;
+  // Compact, minimal pill — emoji + time + subtle CTA text, no filled badge
+  pill.innerHTML = `<span style="font-size:.78rem;line-height:1">${urgent?'🚨':warn?'⚠️':'⏳'}</span><span style="color:var(--text2);font-weight:600">${label}</span><span style="color:${color};font-size:.65rem;font-weight:700;opacity:.85">${_dm('dm_pill_desbloquear','Upgrade')}</span>`;
 
   // Lock import button visually during trial
   const importBtn = document.getElementById('dm-import-topbtn');

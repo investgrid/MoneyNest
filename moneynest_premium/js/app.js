@@ -10766,14 +10766,34 @@ async function obNext() {
       try {
         await window.MNSupabaseAuth.signIn(email, pw)
         _auth.upgradeTrial && _auth.upgradeTrial(email)
-        // Login exitoso — usuarios existentes pueden saltar onboarding
-        // pero solo si ya tienen datos (returning users)
-        _setObSeen() // Mark as seen for returning users
-        _setTutDone()
-        document.getElementById('onboardingOverlay').style.display = 'none'
-        document.body.style.overflow = ''
-        render()
-        toast(`${t('bienvenido_de_vuelta', 'Bienvenido de vuelta')}! 👋`)
+        // After login: try to load cloud data first.
+        // Only skip onboarding if the user already has financial data
+        // (returning user). New users must go through onboarding steps.
+        let hasCloudData = false
+        try {
+          if (window.MNSync && typeof window.MNSync.loadFromCloud === 'function') {
+            hasCloudData = await window.MNSync.loadFromCloud()
+          }
+        } catch(e) {}
+        const hasLocalData = (S.ingresos?.length > 0 || S.gastos?.length > 0 || S.cuentas?.length > 0)
+        if (hasCloudData || hasLocalData) {
+          // Returning user — skip onboarding
+          _setObSeen()
+          _setTutDone()
+          document.getElementById('onboardingOverlay').style.display = 'none'
+          document.body.style.overflow = ''
+          render()
+          toast(`${t('bienvenido_de_vuelta', 'Bienvenido de vuelta')}! 👋`)
+        } else {
+          // New user — continue onboarding from next step
+          document.getElementById('onboardingOverlay').style.display = 'none'
+          document.body.style.overflow = ''
+          obData._registered = true
+          obStep = Math.max(obStep + 1, 3) // Jump to preferences/demo choice
+          obRender()
+          document.getElementById('onboardingOverlay').style.display = 'flex'
+          document.body.style.overflow = 'hidden'
+        }
         return
       } catch (err) {
         const code = err?.code || ''
