@@ -4857,7 +4857,13 @@ function renderInversiones() {
     if (_invFiltro === 'cerradas' && !inv.cerrada) return false
     if (_invCat && inv.categoria !== _invCat) return false
     // Period filter: by start date (or all if period is 'all')
-    if (_gTimePeriod !== 'all' && inv.fecha && !_gDateInPeriod(inv.fecha)) return false
+    // Open positions are always visible regardless of period (they span multiple months)
+    // Closed positions: filter by liquidation date if available
+    if (!inv.cerrada && inv.status !== 'liquidated') return true // always show open
+    if (_gTimePeriod !== 'all') {
+      const closeDate = inv.fechaCierre || inv.liquidatedAt || inv.fecha
+      if (closeDate && !_gDateInPeriod(closeDate)) return false
+    }
     return true
   })
 
