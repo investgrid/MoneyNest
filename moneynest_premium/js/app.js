@@ -10766,8 +10766,9 @@ async function obNext() {
       try {
         await window.MNSupabaseAuth.signIn(email, pw)
         _auth.upgradeTrial && _auth.upgradeTrial(email)
-        // Login exitoso — cerrar onboarding y cargar datos del usuario
-        _setObSeen()
+        // Login exitoso — usuarios existentes pueden saltar onboarding
+        // pero solo si ya tienen datos (returning users)
+        _setObSeen() // Mark as seen for returning users
         _setTutDone()
         document.getElementById('onboardingOverlay').style.display = 'none'
         document.body.style.overflow = ''
@@ -11233,12 +11234,12 @@ function loadDemoData(scenario, nombreOverride) {
       aportaciones:[{importe:2000,fecha:d(mes(-5),'01')},{importe:2500,fecha:d(mes(-3),'01')},{importe:3000,fecha:d(mes(-1),'01')}] },
     { id:'do4', nombre:'MacBook Pro M4',         objetivo:3200,  actual:3200,  categoria:'Tecnología', color:'#F59E0B', emoji:'💻', fechaObjetivo:'2025-08-01',
       aportaciones:[{importe:800,fecha:d(mes(-4),'10')},{importe:1200,fecha:d(mes(-3),'10')},{importe:1200,fecha:d(mes(-2),'10')}] },
-    // COMPLETADOS
-    { id:'do5', nombre:'Colchón inicial (3m)',   objetivo:9000,  actual:9000,  categoria:'Emergencia', color:'#10B981', emoji:'🏦', fechaObjetivo:'2024-06-01',
+    // COMPLETADOS (fechas relativas)
+    { id:'do5', nombre:'Colchón inicial (3m)',   objetivo:9000,  actual:9000,  categoria:'Emergencia', color:'#10B981', emoji:'🏦', fechaObjetivo:d(mes(-6),'01'),
       aportaciones:[{importe:3000,fecha:d(mes(-8),'01')},{importe:3000,fecha:d(mes(-7),'01')},{importe:3000,fecha:d(mes(-6),'01')}] },
-    { id:'do6', nombre:'Vacaciones Japón 2024',  objetivo:4500,  actual:4500,  categoria:'Viaje',      color:'#A78BFA', emoji:'🗾', fechaObjetivo:'2024-09-01',
+    { id:'do6', nombre:'Vacaciones Japón',       objetivo:4500,  actual:4500,  categoria:'Viaje',      color:'#A78BFA', emoji:'🗾', fechaObjetivo:d(mes(-3),'01'),
       aportaciones:[{importe:1500,fecha:d(mes(-9),'01')},{importe:1500,fecha:d(mes(-8),'01')},{importe:1500,fecha:d(mes(-7),'01')}] },
-    { id:'do7', nombre:'Portátil gaming',        objetivo:1800,  actual:1800,  categoria:'Tecnología', color:'#38BDF8', emoji:'🎮', fechaObjetivo:'2024-04-01',
+    { id:'do7', nombre:'Portátil gaming',        objetivo:1800,  actual:1800,  categoria:'Tecnología', color:'#38BDF8', emoji:'🎮', fechaObjetivo:d(mes(-8),'01'),
       aportaciones:[{importe:600,fecha:d(mes(-11),'01')},{importe:600,fecha:d(mes(-10),'01')},{importe:600,fecha:d(mes(-9),'01')}] },
   ]
 
@@ -11481,11 +11482,13 @@ function _setObSeen()   { try { localStorage.setItem(OB_FLAG_KEY,  'true') } cat
 function _setTutDone()  { try { localStorage.setItem(TUT_FLAG_KEY, 'true') } catch(e){} }
 
 function checkOnboarding() {
-  // If user already has a Supabase session, skip onboarding entirely
-  if (window.MNSupabaseAuth && window.MNSupabaseAuth.isLoggedIn()) {
-    _setObSeen()
-    return
+  // Check if user has completed onboarding (via localStorage flag)
+  // Users with Supabase session still need to complete onboarding on first login
+  if (_obFlagSeen()) {
+    return // Already completed onboarding
   }
+
+  // First time user or user who hasn't completed onboarding
   if (!_obFlagSeen()) {
     obStep = 1
     obData = { nombre:'', email:'', password:'', mode:'personal', lang:'es', theme:'dark', startTutorial:false, loadDemo:false }

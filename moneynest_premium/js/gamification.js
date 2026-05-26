@@ -96,6 +96,101 @@
       { id:'fin_de_semana',       emoji:'🎉', cat:'especial',  get nombre(){ return _w('ach_fin_semana_n','Weekend warrior') },            get desc(){ return _w('ach_fin_semana_d','Usa la app un fin de semana') }},
       { id:'perfeccionista',      emoji:'💯', cat:'especial',  get nombre(){ return _w('ach_perfect_n','Perfeccionista') },                get desc(){ return _w('ach_perfect_d','Completa 100% de tus objetivos') }},
       { id:'completista',         emoji:'👑', cat:'especial',  get nombre(){ return _w('ach_completista_n','Leyenda') },                   get desc(){ return _w('ach_completista_d','Desbloquea TODOS los logros') }},
+
+      // ── Ingresos avanzados (10) ──
+      { id:'veinte_ingresos',     emoji:'💸', cat:'ingresos',  get nombre(){ return _w('ach_veinte_ing_n','Flujo imparable') },            get desc(){ return _w('ach_veinte_ing_d','20 ingresos registrados') }},
+      { id:'cincuenta_ingresos',  emoji:'💰', cat:'ingresos',  get nombre(){ return _w('ach_cincuenta_ing_n','Generador de ingresos') },   get desc(){ return _w('ach_cincuenta_ing_d','50 ingresos registrados') }},
+      { id:'cien_ingresos',       emoji:'🏆', cat:'ingresos',  get nombre(){ return _w('ach_cien_ing_n','Máquina de dinero') },            get desc(){ return _w('ach_cien_ing_d','100 ingresos registrados') }},
+      { id:'ingreso_diario',      emoji:'⏰', cat:'ingresos',  get nombre(){ return _w('ach_ing_diario_n','Diario') },                     get desc(){ return _w('ach_ing_diario_d','Registra ingresos 7 días seguidos') }},
+      { id:'tres_recurrentes',    emoji:'🔄', cat:'ingresos',  get nombre(){ return _w('ach_3rec_ing_n','Múltiples fuentes') },            get desc(){ return _w('ach_3rec_ing_d','3 ingresos recurrentes activos') }},
+      { id:'ingreso_mega',        emoji:'💎', cat:'ingresos',  get nombre(){ return _w('ach_ing_mega_n','Mega ingreso') },                 get desc(){ return _w('ach_ing_mega_d','Registra un ingreso de +10.000€') }},
+      { id:'diez_categorias_ing', emoji:'🌈', cat:'ingresos',  get nombre(){ return _w('ach_10cat_ing_n','Master diversificación') },      get desc(){ return _w('ach_10cat_ing_d','Usa 10 categorías diferentes') }},
+      { id:'trimestre_record',    emoji:'📊', cat:'ingresos',  get nombre(){ return _w('ach_trim_record_n','Trimestre épico') },           get desc(){ return _w('ach_trim_record_d','Tu mejor trimestre de ingresos') }},
+      { id:'ingreso_internacional',emoji:'🌍', cat:'ingresos', get nombre(){ return _w('ach_ing_inter_n','Internacional') },               get desc(){ return _w('ach_ing_inter_d','Registra ingresos en moneda extranjera') }},
+      { id:'ingreso_extra',       emoji:'✨', cat:'ingresos',  get nombre(){ return _w('ach_ing_extra_n','Ingreso inesperado') },          get desc(){ return _w('ach_ing_extra_d','Registra un ingreso extra') }},
+
+      // ── Gastos avanzados (10) ──
+      { id:'cien_gastos',         emoji:'📋', cat:'gastos',    get nombre(){ return _w('ach_cien_gas_n','Contador experto') },             get desc(){ return _w('ach_cien_gas_d','100 gastos registrados') }},
+      { id:'doscientos_gastos',   emoji:'🔖', cat:'gastos',    get nombre(){ return _w('ach_200gas_n','Analista financiero') },            get desc(){ return _w('ach_200gas_d','200 gastos registrados') }},
+      { id:'cinco_presupuestos',  emoji:'📊', cat:'gastos',    get nombre(){ return _w('ach_5pres_n','Estratega presupuestal') },          get desc(){ return _w('ach_5pres_d','5 presupuestos activos') }},
+      { id:'tres_meses_pres',     emoji:'🎯', cat:'gastos',    get nombre(){ return _w('ach_3m_pres_n','Disciplina férrea') },             get desc(){ return _w('ach_3m_pres_d','Respeta presupuesto 3 meses seguidos') }},
+      { id:'gasto_optimizado',    emoji:'⚡', cat:'gastos',    get nombre(){ return _w('ach_gas_opt_n','Optimizador') },                   get desc(){ return _w('ach_gas_opt_d','Reduce un gasto recurrente') }},
+      { id:'diez_categorias_gas', emoji:'🏷️', cat:'gastos',    get nombre(){ return _w('ach_10cat_gas_n','Categorías completas') },        get desc(){ return _w('ach_10cat_gas_d','Usa 10 categorías diferentes') }},
+      { id:'mes_cero_gastos',     emoji:'🚫', cat:'gastos',    get nombre(){ return _w('ach_cero_gas_n','Mes minimalista') },              get desc(){ return _w('ach_cero_gas_d','Menos de 10 gastos en un mes') }},
+      { id:'gasto_planificado',   emoji:'📅', cat:'gastos',    get nombre(){ return _w('ach_gas_plan_n','Planificador maestro') },         get desc(){ return _w('ach_gas_plan_d','Planifica gastos con 30 días antelación') }},
+      { id:'trim_austero',        emoji:'🌿', cat:'gastos',    get nombre(){ return _w('ach_trim_austero_n','Trimestre austero') },        get desc(){ return _w('ach_trim_austero_d','3 meses con gastos <50% ingresos') }},
+      { id:'cinco_recurrentes_gas',emoji:'🔁', cat:'gastos',   get nombre(){ return _w('ach_5rec_gas_n','Suscripciones bajo control') },   get desc(){ return _w('ach_5rec_gas_d','5 gastos recurrentes activos') }},
+
+      // ── Inversiones avanzadas (10) ──
+      { id:'quince_inversiones',  emoji:'💼', cat:'inversiones',get nombre(){ return _w('ach_15inv_n','Cartera profesional') },            get desc(){ return _w('ach_15inv_d','15 inversiones activas') }},
+      { id:'veinte_inversiones',  emoji:'🏦', cat:'inversiones',get nombre(){ return _w('ach_20inv_n','Portfolio institucional') },        get desc(){ return _w('ach_20inv_d','20 inversiones registradas') }},
+      { id:'tres_liquidaciones',  emoji:'💵', cat:'inversiones',get nombre(){ return _w('ach_3liq_n','Liquidador serial') },               get desc(){ return _w('ach_3liq_d','Liquida 3 inversiones') }},
+      { id:'roi_positivo_50',     emoji:'📈', cat:'inversiones',get nombre(){ return _w('ach_roi_50_n','ROI +50%') },                       get desc(){ return _w('ach_roi_50_d','Inversión con ROI superior a 50%') }},
+      { id:'roi_positivo_100',    emoji:'🚀', cat:'inversiones',get nombre(){ return _w('ach_roi_100_n','ROI +100%') },                     get desc(){ return _w('ach_roi_100_d','Inversión con ROI superior a 100%') }},
+      { id:'diez_categorias_inv', emoji:'🎨', cat:'inversiones',get nombre(){ return _w('ach_10cat_inv_n','Diversificación total') },      get desc(){ return _w('ach_10cat_inv_d','10 categorías diferentes') }},
+      { id:'inversion_larga',     emoji:'⏳', cat:'inversiones',get nombre(){ return _w('ach_inv_larga_n','Inversor de largo plazo') },    get desc(){ return _w('ach_inv_larga_d','Inversión activa por +365 días') }},
+      { id:'inversion_inmuebles', emoji:'🏡', cat:'inversiones',get nombre(){ return _w('ach_inv_inmuebles_n','Inversor inmobiliario') },  get desc(){ return _w('ach_inv_inmuebles_d','Inversión en inmuebles') }},
+      { id:'inversion_acciones',  emoji:'📊', cat:'inversiones',get nombre(){ return _w('ach_inv_acciones_n','Accionista') },              get desc(){ return _w('ach_inv_acciones_d','Inversión en acciones') }},
+      { id:'revalorizacion_usada',emoji:'📊', cat:'inversiones',get nombre(){ return _w('ach_reval_n','Revalorizador') },                   get desc(){ return _w('ach_reval_d','Usa el sistema de revalorización') }},
+
+      // ── Deudas avanzadas (8) ──
+      { id:'cinco_deudas',        emoji:'💳', cat:'deudas',    get nombre(){ return _w('ach_cinco_deudas_n','Gestor de deudas') },         get desc(){ return _w('ach_cinco_deudas_d','5 deudas registradas') }},
+      { id:'diez_pagos',          emoji:'💸', cat:'deudas',    get nombre(){ return _w('ach_10pagos_n','Pagador constante') },             get desc(){ return _w('ach_10pagos_d','10 pagos a deudas registrados') }},
+      { id:'tres_deudas_saldadas',emoji:'🎊', cat:'deudas',    get nombre(){ return _w('ach_3deudas_ok_n','Saldador múltiple') },          get desc(){ return _w('ach_3deudas_ok_d','Salda 3 deudas completamente') }},
+      { id:'cinco_deudas_saldadas',emoji:'👑', cat:'deudas',   get nombre(){ return _w('ach_5deudas_ok_n','Master saldador') },            get desc(){ return _w('ach_5deudas_ok_d','Salda 5 deudas completamente') }},
+      { id:'pago_anticipado',     emoji:'⚡', cat:'deudas',    get nombre(){ return _w('ach_pago_antic_n','Pago anticipado') },            get desc(){ return _w('ach_pago_antic_d','Paga antes de la fecha límite') }},
+      { id:'refinanciacion',      emoji:'🔄', cat:'deudas',    get nombre(){ return _w('ach_refi_n','Refinanciador') },                    get desc(){ return _w('ach_refi_d','Refinancia una deuda') }},
+      { id:'avalancha_usada',     emoji:'⛰️', cat:'deudas',    get nombre(){ return _w('ach_avalancha_n','Método avalancha') },            get desc(){ return _w('ach_avalancha_d','Usa simulador método avalancha') }},
+      { id:'snowball_usada',      emoji:'⛄', cat:'deudas',    get nombre(){ return _w('ach_snowball_n','Método bola de nieve') },         get desc(){ return _w('ach_snowball_d','Usa simulador método snowball') }},
+
+      // ── Objetivos avanzados (8) ──
+      { id:'diez_objetivos',      emoji:'🌠', cat:'objetivos', get nombre(){ return _w('ach_diez_obj_n','Soñador profesional') },          get desc(){ return _w('ach_diez_obj_d','10 objetivos creados') }},
+      { id:'cinco_obj_completos', emoji:'🏆', cat:'objetivos', get nombre(){ return _w('ach_5obj_n','Maestro de objetivos') },              get desc(){ return _w('ach_5obj_d','Completa 5 objetivos') }},
+      { id:'diez_obj_completos',  emoji:'👑', cat:'objetivos', get nombre(){ return _w('ach_10obj_n','Leyenda de objetivos') },            get desc(){ return _w('ach_10obj_d','Completa 10 objetivos') }},
+      { id:'diez_aportaciones',   emoji:'💰', cat:'objetivos', get nombre(){ return _w('ach_10aport_n','Aportador serial') },              get desc(){ return _w('ach_10aport_d','10 aportaciones a objetivos') }},
+      { id:'objetivo_mega',       emoji:'💎', cat:'objetivos', get nombre(){ return _w('ach_obj_mega_n','Ambición ilimitada') },           get desc(){ return _w('ach_obj_mega_d','Objetivo de +50.000€') }},
+      { id:'objetivo_emergencia', emoji:'🚨', cat:'objetivos', get nombre(){ return _w('ach_obj_emer_n','Fondo de emergencia') },          get desc(){ return _w('ach_obj_emer_d','Objetivo tipo emergencia completado') }},
+      { id:'objetivo_imagen',     emoji:'🖼️', cat:'objetivos', get nombre(){ return _w('ach_obj_img_n','Visual') },                         get desc(){ return _w('ach_obj_img_d','Sube imagen a un objetivo') }},
+      { id:'objetivo_largo_plazo',emoji:'🗓️', cat:'objetivos', get nombre(){ return _w('ach_obj_largo_n','Planificador de largo plazo') }, get desc(){ return _w('ach_obj_largo_d','Objetivo con fecha +1 año') }},
+
+      // ── Patrimonio & Cuentas avanzadas (8) ──
+      { id:'cinco_cuentas',       emoji:'🏦', cat:'patrimonio',get nombre(){ return _w('ach_cinco_cuentas_n','Multibancario') },           get desc(){ return _w('ach_cinco_cuentas_d','5 o más cuentas') }},
+      { id:'diez_cuentas',        emoji:'🏛️', cat:'patrimonio',get nombre(){ return _w('ach_diez_cuentas_n','Empire bancario') },         get desc(){ return _w('ach_diez_cuentas_d','10 o más cuentas') }},
+      { id:'patrimonio_100k',     emoji:'💰', cat:'patrimonio',get nombre(){ return _w('ach_patr_100k_n','100K club') },                   get desc(){ return _w('ach_patr_100k_d','Patrimonio neto supera 100K€') }},
+      { id:'patrimonio_250k',     emoji:'💎', cat:'patrimonio',get nombre(){ return _w('ach_patr_250k_n','250K club') },                   get desc(){ return _w('ach_patr_250k_d','Patrimonio neto supera 250K€') }},
+      { id:'seis_meses_positivo', emoji:'📊', cat:'patrimonio',get nombre(){ return _w('ach_6m_pos_n','6 meses en positivo') },            get desc(){ return _w('ach_6m_pos_d','Cash flow positivo 6 meses') }},
+      { id:'anual_positivo',      emoji:'📈', cat:'patrimonio',get nombre(){ return _w('ach_anual_pos_n','Año completo en positivo') },    get desc(){ return _w('ach_anual_pos_d','Cash flow positivo 12 meses') }},
+      { id:'tres_activos',        emoji:'🏠', cat:'patrimonio',get nombre(){ return _w('ach_3activos_n','Portfolio de activos') },         get desc(){ return _w('ach_3activos_d','3 activos físicos registrados') }},
+      { id:'cinco_activos',       emoji:'🏰', cat:'patrimonio',get nombre(){ return _w('ach_5activos_n','Coleccionista de activos') },     get desc(){ return _w('ach_5activos_d','5 activos físicos registrados') }},
+
+      // ── Constancia avanzada (8) ──
+      { id:'streak_14',           emoji:'🔥', cat:'constancia',get nombre(){ return _w('ach_streak_14_n','2 semanas de racha') },          get desc(){ return _w('ach_streak_14_d','14 días de racha') }},
+      { id:'streak_60',           emoji:'💪', cat:'constancia',get nombre(){ return _w('ach_streak_60_n','2 meses de racha') },            get desc(){ return _w('ach_streak_60_d','60 días de racha') }},
+      { id:'streak_180',          emoji:'🏅', cat:'constancia',get nombre(){ return _w('ach_streak_180_n','Medio año imparable') },        get desc(){ return _w('ach_streak_180_d','180 días de racha') }},
+      { id:'streak_365',          emoji:'👑', cat:'constancia',get nombre(){ return _w('ach_streak_365_n','Un año completo') },            get desc(){ return _w('ach_streak_365_d','365 días de racha — épico') }},
+      { id:'ahorrador_anual',     emoji:'🌲', cat:'constancia',get nombre(){ return _w('ach_ahorrador_anual_n','Ahorrador anual') },       get desc(){ return _w('ach_ahorrador_anual_d','12 meses con ahorro positivo') }},
+      { id:'entrada_diaria_7',    emoji:'⏰', cat:'constancia',get nombre(){ return _w('ach_diario_7_n','Rutina semanal') },               get desc(){ return _w('ach_diario_7_d','Registro diario 7 días') }},
+      { id:'entrada_diaria_30',   emoji:'📅', cat:'constancia',get nombre(){ return _w('ach_diario_30_n','Rutina mensual') },             get desc(){ return _w('ach_diario_30_d','Registro diario 30 días') }},
+      { id:'tres_anos_usando',    emoji:'🎖️', cat:'constancia',get nombre(){ return _w('ach_3anos_n','Usuario veterano') },               get desc(){ return _w('ach_3anos_d','3 años usando MoneyNest') }},
+
+      // ── Herramientas Pro avanzadas (10) ──
+      { id:'diez_pdf',            emoji:'📄', cat:'pro',       get nombre(){ return _w('ach_10pdf_n','PDF Power User') },                  get desc(){ return _w('ach_10pdf_d','10 exportaciones PDF') }},
+      { id:'diez_excel',          emoji:'📊', cat:'pro',       get nombre(){ return _w('ach_10excel_n','Excel Expert') },                  get desc(){ return _w('ach_10excel_d','10 exportaciones Excel') }},
+      { id:'cinco_categorias_custom',emoji:'🎨', cat:'pro',    get nombre(){ return _w('ach_5custom_n','Creador de categorías') },        get desc(){ return _w('ach_5custom_d','5 categorías personalizadas') }},
+      { id:'diez_categorias_custom',emoji:'🌈', cat:'pro',     get nombre(){ return _w('ach_10custom_n','Master personalización') },      get desc(){ return _w('ach_10custom_d','10 categorías personalizadas') }},
+      { id:'cien_chatbot',        emoji:'🤖', cat:'pro',       get nombre(){ return _w('ach_100chat_n','Chatbot Power User') },            get desc(){ return _w('ach_100chat_d','100 mensajes con chatbot IA') }},
+      { id:'cincuenta_analisis',  emoji:'📊', cat:'pro',       get nombre(){ return _w('ach_50analisis_n','Analista experto') },           get desc(){ return _w('ach_50analisis_d','50 visitas a Análisis') }},
+      { id:'backup_exportado',    emoji:'💾', cat:'pro',       get nombre(){ return _w('ach_backup_n','Backup master') },                  get desc(){ return _w('ach_backup_d','Exporta backup completo') }},
+      { id:'import_csv',          emoji:'📥', cat:'pro',       get nombre(){ return _w('ach_import_n','Importador') },                     get desc(){ return _w('ach_import_d','Importa datos desde CSV') }},
+      { id:'cinco_temas',         emoji:'🎨', cat:'pro',       get nombre(){ return _w('ach_5temas_n','Cambiador de looks') },             get desc(){ return _w('ach_5temas_d','Cambia el tema 5 veces') }},
+      { id:'tres_idiomas',        emoji:'🌐', cat:'pro',       get nombre(){ return _w('ach_3idiomas_n','Trilingüe') },                    get desc(){ return _w('ach_3idiomas_d','Usa los 3 idiomas disponibles') }},
+
+      // ── Explorador avanzado (5) ──
+      { id:'cincuenta_visitas_dash',emoji:'🏠', cat:'explorador',get nombre(){ return _w('ach_50dash_n','Dashboard fan') },              get desc(){ return _w('ach_50dash_d','50 visitas al Dashboard') }},
+      { id:'cien_paginas_vistas', emoji:'🗺️', cat:'explorador',get nombre(){ return _w('ach_100pag_n','Explorador incansable') },        get desc(){ return _w('ach_100pag_d','100 cambios de página') }},
+      { id:'todas_secciones_5',   emoji:'🌟', cat:'explorador',get nombre(){ return _w('ach_todo5_n','Usuario completo') },              get desc(){ return _w('ach_todo5_d','Visita todas las secciones 5 veces') }},
+      { id:'configuracion_avanzada',emoji:'⚙️', cat:'explorador',get nombre(){ return _w('ach_config_av_n','Configurador avanzado') },  get desc(){ return _w('ach_config_av_d','Explora configuración avanzada') }},
+      { id:'atajos_teclado',      emoji:'⌨️', cat:'explorador',get nombre(){ return _w('ach_atajos_n','Power user') },                  get desc(){ return _w('ach_atajos_d','Usa atajos de teclado') }},
     ];
   }
   const ACHIEVEMENTS = _ach();
@@ -669,65 +764,85 @@
         }
         .mn-ach-grid {
           display:grid;
-          grid-template-columns:repeat(auto-fill,minmax(140px,1fr));
-          gap:12px;
+          grid-template-columns:repeat(auto-fill,minmax(130px,1fr));
+          gap:10px;
         }
         @media(max-width:900px){
-          .mn-ach-grid{grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px}
+          .mn-ach-grid{grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px}
         }
         .mn-ach-card {
           position:relative;
           background:var(--card2);
           border:1px solid var(--border);
-          border-radius:12px;
-          padding:16px 12px;
+          border-radius:10px;
+          padding:14px 10px;
           text-align:center;
-          transition:all .2s;
+          transition:all .18s cubic-bezier(0.16, 1, 0.3, 1);
           cursor:pointer;
-          min-height:140px;
+          min-height:120px;
           display:flex;
           flex-direction:column;
           align-items:center;
           justify-content:center;
-          gap:8px;
+          gap:6px;
+          will-change:transform;
         }
         .mn-ach-card:hover {
           border-color:var(--border2);
-          transform:translateY(-2px);
-          box-shadow:0 4px 16px rgba(0,0,0,.3);
+          transform:translateY(-3px);
+          box-shadow:0 6px 20px rgba(0,0,0,.35);
+        }
+        .mn-ach-card:active {
+          transform:translateY(-1px);
         }
         .mn-ach-card.mn-ach-done {
-          background:rgba(0,212,170,.04);
-          border-color:rgba(0,212,170,.25);
+          background:rgba(0,212,170,.05);
+          border-color:rgba(0,212,170,.3);
+        }
+        .mn-ach-card.mn-ach-done:hover {
+          border-color:rgba(0,212,170,.5);
+          box-shadow:0 6px 20px rgba(0,212,170,.2);
         }
         .mn-ach-emoji {
-          font-size:2.2rem;
+          font-size:2rem;
           filter:grayscale(1);
-          opacity:.4;
-          transition:all .3s;
+          opacity:.35;
+          transition:all .25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .mn-ach-card:hover .mn-ach-emoji {
+          filter:grayscale(0.7);
+          opacity:.5;
+          transform:scale(1.08);
         }
         .mn-ach-done .mn-ach-emoji {
           filter:none;
           opacity:1;
         }
+        .mn-ach-done:hover .mn-ach-emoji {
+          transform:scale(1.12);
+        }
         .mn-ach-name {
-          font-size:.85rem;
+          font-size:.8rem;
           font-weight:700;
           color:var(--text);
-          line-height:1.3;
+          line-height:1.25;
           text-align:center;
+          display:-webkit-box;
+          -webkit-line-clamp:2;
+          -webkit-box-orient:vertical;
+          overflow:hidden;
         }
         .mn-ach-badge {
-          font-size:.65rem;
+          font-size:.62rem;
           color:var(--accent);
           background:var(--accent-dim);
           border:1px solid var(--accent);
-          border-radius:6px;
-          padding:3px 7px;
+          border-radius:5px;
+          padding:2px 6px;
           font-weight:700;
           text-transform:uppercase;
-          letter-spacing:.05em;
-          margin-top:4px;
+          letter-spacing:.04em;
+          margin-top:2px;
         }
       `;
       document.head.appendChild(style);
