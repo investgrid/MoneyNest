@@ -343,11 +343,14 @@ window.dmExportMoneynest = function() {
     const fileName = `datos_${safeUserName}_${currentYear}${DM_EXT}`;
 
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url  = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
+    a.href = url;
     a.download = fileName;
+    a.style.display = 'none';
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(a.href);
+    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 500);
     dmToast(_dm('dm_exportado_moneynest', '✅ Archivo .moneynest exportado correctamente'), 'success');
     _showExportSuccess(fileName);
   } catch(e) {
@@ -359,11 +362,14 @@ window.dmExportJSON = function() {
   try {
     const state = (typeof S !== 'undefined') ? S : {};
     const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+    const url  = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
+    a.href = url;
     a.download = `MoneyNest_backup_${_today()}.json`;
+    a.style.display = 'none';
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(a.href);
+    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 500);
     dmToast(_dm('dm_json_exportado', '📦 JSON exportado'), 'success');
   } catch(e) {
     dmToast(_dm('dm_error_exportar_json', '❌ Error al exportar JSON'), 'error');
@@ -893,7 +899,7 @@ function injectTopbarButtons() {
   // Trial pill — solo visible en plan trial
   const trialPill = document.createElement('div');
   trialPill.id = 'dm-trial-pill';
-  trialPill.style.cssText = 'display:none;align-items:center;gap:5px;padding:3px 8px;border-radius:99px;background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.22);font-size:.7rem;font-weight:600;color:#A5B4FC;cursor:pointer;transition:all .18s;white-space:nowrap;letter-spacing:.01em';
+  trialPill.style.cssText = 'display:none;align-items:center;gap:8px;padding:5px 14px;border-radius:99px;background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.25);font-size:.85rem;font-weight:600;color:#A5B4FC;cursor:pointer;transition:all .18s;white-space:nowrap';
   trialPill.onclick = () => { if(window.MNAuthUI) MNAuthUI.showAuthModal('plan'); };
   right.insertBefore(trialPill, right.firstChild);
   _updateTrialPill();
@@ -924,7 +930,7 @@ function _updateTrialPill() {
   pill.style.background = bg;
   pill.style.border = `1px solid ${border}`;
   // Compact, minimal pill — emoji + time + subtle CTA text, no filled badge
-  pill.innerHTML = `<span style="font-size:.78rem;line-height:1">${urgent?'🚨':warn?'⚠️':'⏳'}</span><span style="color:var(--text2);font-weight:600">${label}</span><span style="color:${color};font-size:.65rem;font-weight:700;opacity:.85">${_dm('dm_pill_desbloquear','Upgrade')}</span>`;
+  pill.innerHTML = `<span style="opacity:.8">${urgent?'🚨':warn?'⚠️':'⏳'}</span><span style="color:var(--text);font-weight:700">${_dm('dm_pill_trial','Trial:')}</span><span style="color:#fff;font-weight:700">${label}</span><span style="color:${color};font-size:.75rem;font-weight:700">· ${_dm('dm_pill_desbloquear','Desbloquear')}</span>`;
 
   // Lock import button visually during trial
   const importBtn = document.getElementById('dm-import-topbtn');

@@ -2831,6 +2831,26 @@ function t(key) {
 ;(function _extendTranslations() {
   const EXT = {
     es: {
+      // ── Análisis — proyección patrimonial ───────────────────
+      proyeccion_titulo: 'Proyección patrimonial',
+      proyeccion_sub: 'Media últimos 3 meses',
+      escenario_conservador: 'Conservador',
+      escenario_moderado: 'Moderado',
+      escenario_optimista: 'Optimista',
+      proyeccion_negativa: 'Proyección negativa',
+      proyeccion_negativa_msg: 'Reducir gastos o aumentar ingresos.',
+      proyeccion_excelente: 'Proyección excelente',
+      proyeccion_excelente_msg: 'Considera invertir el excedente.',
+      de_ingresos: 'de ingresos',
+      mes_lbl: 'mes',
+
+      // ── Deudas — estrategias ────────────────────────────────
+      crear_estrategia: 'Crear estrategia',
+      personaliza_pago: 'Personaliza tu pago mensual',
+
+      // ── Auth ─────────────────────────────────────────────────
+      desbloquear: 'Desbloquear',
+
       // ── Saludo Dashboard (bug fix: sin doble coma) ──────────
       hola_sin_coma: 'Hola',          // usado internamente
       dias_streak: 'días',
@@ -6211,12 +6231,20 @@ function renderLogros() {
     <div><div class="page-h1">🏆 ${t('nav_logros') || 'Logros'}</div><div class="page-sub">${t('nav_sub_logros') || 'Tu progreso en MoneyNest'}</div></div>
   </div>
   <div id="achievementsContainer"></div>`
-  if (window.MNGamification && window.MNGamification.renderAchievementsPanel) {
-    MNGamification.renderAchievementsPanel('achievementsContainer')
-  } else {
-    const ac = document.getElementById('achievementsContainer')
-    if (ac) ac.innerHTML = '<div class="empty"><div class="empty-icon">🏆</div><div class="empty-title">Sistema de logros cargando...</div></div>'
+
+  function _tryRender(attempt) {
+    if (window.MNGamification && window.MNGamification.renderAchievementsPanel) {
+      const ac = document.getElementById('achievementsContainer')
+      if (ac) MNGamification.renderAchievementsPanel('achievementsContainer')
+    } else if (attempt < 10) {
+      // Retry up to 10 times (max 1s wait)
+      setTimeout(() => _tryRender(attempt + 1), 100)
+    } else {
+      const ac = document.getElementById('achievementsContainer')
+      if (ac) ac.innerHTML = '<div class="empty"><div class="empty-icon">🏆</div><div class="empty-title">No se pudo cargar el sistema de logros</div><div class="empty-sub">Recarga la página para intentarlo de nuevo.</div></div>'
+    }
   }
+  _tryRender(0)
 }
 
 // ─── CHARTS ────────────────────────────────────────────────────
@@ -7274,21 +7302,34 @@ function updateLiqPreview() {
   const importe = Number(inv.importe)||0
   if (!valorFinal) { document.getElementById('liqPreview').style.display='none'; return }
 
-  // Restar beneficios ya retirados
   const beneficiosRetirados = (inv.beneficiosRetirados || []).reduce((sum, b) => sum + Number(b.importe), 0)
-  const ganancia = valorFinal - importe
-  const gananciaFinal = ganancia - beneficiosRetirados
-  const roiReal = importe ? (ganancia/importe)*100 : 0
-  const ganColor = gananciaFinal>=0?'var(--green)':'var(--red)'
+  const ganancia = valorFinal - importe                          // ganancia/pérdida del precio
+  const gananciaTotal = ganancia + beneficiosRetirados           // beneficio real total de la inversión
+  const pendienteRegistrar = ganancia - beneficiosRetirados      // lo que se registrará ahora como ingreso/gasto
+  // ROI sobre capital total: (precio final - precio entrada + ya retirado) / capital
+  const roiReal = importe ? (gananciaTotal / importe) * 100 : 0
+  const totalColor = gananciaTotal >= 0 ? 'var(--green)' : 'var(--red)'
+  const pendColor  = pendienteRegistrar >= 0 ? 'var(--green)' : 'var(--red)'
 
   document.getElementById('liqPreview').style.display = 'block'
   document.getElementById('liqPreview').innerHTML = `
     <div class="liq-preview-row"><span>Capital inicial</span><span>${eur(importe)}</span></div>
     <div class="liq-preview-row"><span>Valor de salida</span><span>${eur(valorFinal)}</span></div>
-    ${beneficiosRetirados > 0 ? `<div class="liq-preview-row"><span>Beneficios ya retirados</span><span style="color:var(--green)">-${eur(beneficiosRetirados)}</span></div>` : ''}
+    ${beneficiosRetirados > 0 ? `
+      <div class="liq-preview-row"><span>Beneficios ya retirados</span><span style="color:var(--green)">+${eur(beneficiosRetirados)}</span></div>
+    ` : ''}
     <hr class="liq-preview-divider">
-    <div class="liq-preview-row liq-ganancia"><span><strong>${beneficiosRetirados > 0 ? 'Ganancia restante' : 'Ganancia / Pérdida'}</strong></span><span style="color:${ganColor}"><strong>${gananciaFinal>=0?'+':''}${eur(gananciaFinal)}</strong></span></div>
-    <div class="liq-preview-row"><span>ROI real total</span><span style="color:${ganColor}">${ganancia>=0?'+':''}${pct(roiReal)}</span></div>`
+    <div class="liq-preview-row liq-ganancia">
+      <span><strong>Beneficio total real</strong></span>
+      <span style="color:${totalColor}"><strong>${gananciaTotal>=0?'+':''}${eur(gananciaTotal)}</strong></span>
+    </div>
+    <div class="liq-preview-row"><span>ROI total</span><span style="color:${totalColor}">${roiReal>=0?'+':''}${pct(roiReal)}</span></div>
+    ${beneficiosRetirados > 0 ? `
+      <div class="liq-preview-row" style="margin-top:6px;font-size:.78rem;color:var(--text2)">
+        <span>Se registrará ahora</span>
+        <span style="color:${pendColor}">${pendienteRegistrar>=0?'+':''}${eur(pendienteRegistrar)}</span>
+      </div>
+    ` : ''}`
 }
 function spawnMoneyParticles(x, y) {
   const emojis = ['💰','✨','📈','🤑','💵']
@@ -10766,34 +10807,15 @@ async function obNext() {
       try {
         await window.MNSupabaseAuth.signIn(email, pw)
         _auth.upgradeTrial && _auth.upgradeTrial(email)
-        // After login: try to load cloud data first.
-        // Only skip onboarding if the user already has financial data
-        // (returning user). New users must go through onboarding steps.
-        let hasCloudData = false
-        try {
-          if (window.MNSync && typeof window.MNSync.loadFromCloud === 'function') {
-            hasCloudData = await window.MNSync.loadFromCloud()
-          }
-        } catch(e) {}
-        const hasLocalData = (S.ingresos?.length > 0 || S.gastos?.length > 0 || S.cuentas?.length > 0)
-        if (hasCloudData || hasLocalData) {
-          // Returning user — skip onboarding
-          _setObSeen()
-          _setTutDone()
-          document.getElementById('onboardingOverlay').style.display = 'none'
-          document.body.style.overflow = ''
-          render()
-          toast(`${t('bienvenido_de_vuelta', 'Bienvenido de vuelta')}! 👋`)
-        } else {
-          // New user — continue onboarding from next step
-          document.getElementById('onboardingOverlay').style.display = 'none'
-          document.body.style.overflow = ''
-          obData._registered = true
-          obStep = Math.max(obStep + 1, 3) // Jump to preferences/demo choice
-          obRender()
-          document.getElementById('onboardingOverlay').style.display = 'flex'
-          document.body.style.overflow = 'hidden'
-        }
+        // Login = returning user who already created an account.
+        // They may not have completed onboarding on this device,
+        // but they chose to log in → mark onboarding done and go to dashboard.
+        _setObSeen()
+        _setTutDone()
+        document.getElementById('onboardingOverlay').style.display = 'none'
+        document.body.style.overflow = ''
+        render()
+        toast(`${t('bienvenido_de_vuelta', 'Bienvenido de vuelta')}! 👋`)
         return
       } catch (err) {
         const code = err?.code || ''
@@ -11331,7 +11353,13 @@ function showDemoChip() { _renderDemoFab() }  // Alias kept for compatibility
 // ─── DEMO FAB & PANEL ──────────────────────────────────────────
 let _demoPanelOpen = false
 
+let _renderDemoFabPending = false
 function _renderDemoFab() {
+  // Debounce: if called multiple times in the same tick, only run once
+  if (_renderDemoFabPending) return
+  _renderDemoFabPending = true
+  setTimeout(() => { _renderDemoFabPending = false }, 50)
+
   // Remove any existing FABs or chips
   ['demo-mode-chip','demoFab','demoFabReal','demoPanelModal'].forEach(id => {
     const el = document.getElementById(id)

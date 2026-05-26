@@ -230,15 +230,20 @@
   }
 
   function _sendTest() {
-    if (Notification.permission !== 'granted') { requestPermission(); return; }
-    // Force send even if visible
+    if (Notification.permission !== 'granted') {
+      requestPermission();
+      return;
+    }
     try {
       new Notification(_nt('notif_test_title','MoneyNest — Prueba ✅'), {
         body: _nt('notif_test_body','¡Las notificaciones funcionan correctamente!'),
         icon: './assets/icon-192.png',
         tag:  'test',
       });
-    } catch {}
+      if (typeof toast === 'function') toast(_nt('notif_test_sent','✅ Notificación de prueba enviada'), 'success');
+    } catch(e) {
+      if (typeof toast === 'function') toast('❌ Error al enviar notificación: ' + (e?.message || e), 'error');
+    }
   }
 
   // ─── Auto listeners ───────────────────────────────────────────────

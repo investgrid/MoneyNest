@@ -1,18 +1,19 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <!-- Fondo negro puro, relación 1:1 -->
-  <rect width="512" height="512" fill="#0A0E17" rx="96"/>
-  <!-- Logo centrado — gráfico de velas con gradiente verde -->
   <defs>
-    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#111827"/>
+      <stop offset="100%" stop-color="#0A0E17"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#00D4AA"/>
       <stop offset="100%" stop-color="#00A882"/>
     </linearGradient>
   </defs>
-  <!-- Base platform -->
-  <path d="M140 360 Q256 390 372 360" stroke="rgba(255,255,255,0.5)" stroke-width="18" fill="none" stroke-linecap="round"/>
-  <path d="M165 330 Q256 355 347 330" stroke="rgba(255,255,255,0.3)" stroke-width="12" fill="none" stroke-linecap="round"/>
-  <!-- Chart line -->
-  <polyline points="155,320 210,240 275,275 355,155" stroke="url(#g)" stroke-width="22" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-  <!-- Arrow head -->
-  <polyline points="315,148 355,155 348,195" stroke="url(#g)" stroke-width="22" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Rounded square background -->
+  <rect width="512" height="512" fill="url(#bg)" rx="112"/>
+  <!-- M shape (stylized, bold) -->
+  <path d="M96 340 L96 172 L176 172 L256 268 L336 172 L416 172 L416 340 L356 340 L356 248 L276 344 L236 344 L156 248 L156 340 Z"
+        fill="url(#accent)"/>
+  <!-- Accent dot bottom-right -->
+  <circle cx="384" cy="368" r="32" fill="#00D4AA" opacity="0.9"/>
 </svg>

@@ -267,8 +267,14 @@
         animation: mnEmptyIn 300ms ease 300ms both;
       }
 
-      /* Inside table cells */
-      tr td .mn-empty-state { padding: 32px 16px; }
+      /* Inside table cells — force full-width centered block */
+      tr td .mn-empty-state {
+        padding: 48px 16px;
+        width: 100%;
+        display: flex;
+        margin: 0 auto;
+      }
+      tr td { text-align: center; }
       tr td .mn-empty-illustration svg { width: 56px; height: 56px; }
       tr td .mn-empty-title { font-size: .92rem; }
 

@@ -116,12 +116,15 @@ function renderTrialPill(containerId = 'trialPillContainer') {
   if (user.plan !== 'trial' || !obSeen) { el.innerHTML = ''; return; }
   const label = _auth.trialTimeLeftLabel ? _auth.trialTimeLeftLabel() : '—';
   el.innerHTML = `
-    <div style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;
+    <div style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;
       background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.25);
-      color:${C.indigo};font-size:.72rem;font-weight:700;
-      padding:5px 12px;border-radius:99px;transition:all .18s;"
+      font-size:.85rem;font-weight:600;
+      padding:5px 14px;border-radius:99px;transition:all .18s;"
       onclick="MNAuthUI.showAuthModal()" title="${_t('auth_trial_restante','Tiempo de prueba restante')}">
-      ⏳ Trial: ${label}
+      <span style="opacity:.8">⏳</span>
+      <span style="color:var(--text);font-weight:700">Prueba PRO:</span>
+      <span style="color:#fff;font-weight:700">${label}</span>
+      <span style="color:${C.indigo};font-size:.75rem;font-weight:700">· ${_t('desbloquear','Desbloquear')}</span>
     </div>`;
   if (!el._mnTimerId) {
     el._mnTimerId = setInterval(() => renderTrialPill(containerId), 60_000);
