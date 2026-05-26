@@ -260,8 +260,12 @@
         font-size: .82rem;
         color: var(--text2, #94A3B8);
         line-height: 1.6;
-        max-width: 340px;
+        max-width: min(340px, 90vw);
+        width: 100%;
         margin: 0 auto 20px;
+        text-align: center;
+        word-break: break-word;
+        overflow-wrap: break-word;
       }
       .mn-empty-cta {
         animation: mnEmptyIn 300ms ease 300ms both;

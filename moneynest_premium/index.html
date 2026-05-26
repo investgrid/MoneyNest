@@ -2,9 +2,9 @@
 <html lang="es" data-theme="dark">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="MoneyNest">
 <meta name="theme-color" content="#0A0E17" media="(prefers-color-scheme: dark)">
 <meta name="theme-color" content="#F1F5F9" media="(prefers-color-scheme: light)">
@@ -168,19 +168,26 @@
 <!-- SIDEBAR OVERLAY -->
 <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
 
-<!-- BOTTOM NAV (mobile) — 4 items: Dashboard, Análisis, Facturación, Config -->
+<!-- BOTTOM NAV (mobile) — 5 items with SVG icons -->
 <nav class="bottom-nav" id="bottomNav" aria-label="Navegación principal">
   <div class="bottom-nav-item" onclick="goTo('dashboard');closeSidebar()" id="bn-dashboard">
-    <span class="bn-icon">🏠</span><span data-i18n="bn_inicio">Inicio</span>
+    <span class="bn-icon"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg></span>
+    <span data-i18n="bn_inicio">Inicio</span>
+  </div>
+  <div class="bottom-nav-item" onclick="goTo('gastos');closeSidebar()" id="bn-gastos">
+    <span class="bn-icon"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></span>
+    <span data-i18n="nav_gastos">Gastos</span>
+  </div>
+  <div class="bottom-nav-item bottom-nav-add" onclick="openQuickAdd();closeSidebar()" id="bn-add" aria-label="Añadir">
+    <span class="bn-icon" style="font-size:1.6rem;font-weight:800;line-height:1">+</span>
   </div>
   <div class="bottom-nav-item" onclick="goTo('analisis');closeSidebar()" id="bn-analisis">
-    <span class="bn-icon">📊</span><span data-i18n="bn_analisis">Análisis</span>
-  </div>
-  <div class="bottom-nav-item" onclick="goTo('billing');closeSidebar()" id="bn-billing">
-    <span class="bn-icon">💳</span><span data-i18n="nav_billing">Facturación</span>
+    <span class="bn-icon"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg></span>
+    <span data-i18n="bn_analisis">Análisis</span>
   </div>
   <div class="bottom-nav-item" onclick="goTo('configuracion');closeSidebar()" id="bn-config">
-    <span class="bn-icon">⚙️</span><span data-i18n="bn_config">Config</span>
+    <span class="bn-icon"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></span>
+    <span data-i18n="bn_config">Config</span>
   </div>
 </nav>
 

@@ -3464,10 +3464,12 @@ function loadLang() {
   try {
     const saved = localStorage.getItem(LANG_STORAGE_KEY)
     if (saved && TRANSLATIONS[saved]) { _currentLang = saved; return }
-    // Auto-detect from browser if no saved preference
+    // Auto-detect from browser only if no saved preference.
+    // Default to 'es' so iOS/Safari users (often 'en') don't get English
+    // unexpectedly. The user can always change it in Settings.
     const nav = (navigator.language || navigator.userLanguage || 'es').toLowerCase().slice(0,2)
-    if (TRANSLATIONS[nav]) _currentLang = nav
-  } catch(e) {}
+    _currentLang = TRANSLATIONS[nav] ? nav : 'es'
+  } catch(e) { _currentLang = 'es' }
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -13336,7 +13338,13 @@ function animateCounter(el, target) {
 
 // ─── BOTTOM NAV SYNC ───────────────────────────────────────────
 function syncBottomNav(page) {
-  const map = { dashboard:'bn-dashboard', analisis:'bn-analisis', billing:'bn-billing', configuracion:'bn-config' }
+  const map = {
+    dashboard:    'bn-dashboard',
+    gastos:       'bn-gastos',
+    analisis:     'bn-analisis',
+    billing:      'bn-billing',
+    configuracion:'bn-config'
+  }
   document.querySelectorAll('.bottom-nav-item').forEach(el => el.classList.remove('active'))
   const id = map[page]
   if (id) { const el = document.getElementById(id); if (el) el.classList.add('active') }
