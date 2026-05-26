@@ -11360,8 +11360,8 @@ function _renderDemoFab() {
   _renderDemoFabPending = true
   setTimeout(() => { _renderDemoFabPending = false }, 50)
 
-  // Remove any existing FABs or chips
-  ['demo-mode-chip','demoFab','demoFabReal','demoPanelModal'].forEach(id => {
+  // Remove any existing FABs or chips — semicolon needed to avoid ASI issue with leading [
+  ;['demo-mode-chip','demoFab','demoFabReal','demoPanelModal'].forEach(id => {
     const el = document.getElementById(id)
     if (el) el.remove()
   })

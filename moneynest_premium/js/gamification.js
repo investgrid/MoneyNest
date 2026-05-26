@@ -850,6 +850,7 @@
   }
 
   // ─── Guide Modal ────────────────────────────
+  window.MNGamification = window.MNGamification || {};
   window.MNGamification._showAchGuide = function(id, emoji, nombre, done) {
     const guide = ACH_GUIDES[id] || { steps: [], tip: '' };
     const isDone = done === 'true';
