@@ -3637,31 +3637,31 @@ const _formGuard = {
   }
 }
 
-let _gTimePeriod = 'month'   // default: this month
-// En modo demo siempre forzar 'all' para que se vean todos los datos históricos
-let _gDateFrom   = ''        // ISO date string (for custom)
-let _gDateTo     = ''        // ISO date string (for custom)
+// Global period filter (must be on window for onclick handlers to work)
+window.window._gTimePeriod = 'month'   // default: this month
+window.window._gDateFrom   = ''        // ISO date string (for custom)
+window.window._gDateTo     = ''        // ISO date string (for custom)
 
 function _gPeriodLabel() {
   const m = currentMonth()
-  if (_gTimePeriod === 'month')     return monthLabel(m)
-  if (_gTimePeriod === 'lastmonth') return monthLabel(prevMonth(m))
-  if (_gTimePeriod === 'year')      return new Date().getFullYear() + ''
-  if (_gTimePeriod === 'all')       return t('todo')
-  if (_gTimePeriod === 'custom')    return (_gDateFrom||'') + ' → ' + (_gDateTo||'')
+  if (window._gTimePeriod === 'month')     return monthLabel(m)
+  if (window._gTimePeriod === 'lastmonth') return monthLabel(prevMonth(m))
+  if (window._gTimePeriod === 'year')      return new Date().getFullYear() + ''
+  if (window._gTimePeriod === 'all')       return t('todo')
+  if (window._gTimePeriod === 'custom')    return (window._gDateFrom||'') + ' → ' + (window._gDateTo||'')
   return monthLabel(m)
 }
 
 function _gDateInPeriod(dateStr) {
   if (!dateStr) return false
   const m = currentMonth()
-  if (_gTimePeriod === 'month')     return dateStr.startsWith(m)
-  if (_gTimePeriod === 'lastmonth') return dateStr.startsWith(prevMonth(m))
-  if (_gTimePeriod === 'year')      return dateStr.startsWith(new Date().getFullYear()+'')
-  if (_gTimePeriod === 'all')       return true
-  if (_gTimePeriod === 'custom') {
-    if (_gDateFrom && dateStr < _gDateFrom) return false
-    if (_gDateTo   && dateStr > _gDateTo)   return false
+  if (window._gTimePeriod === 'month')     return dateStr.startsWith(m)
+  if (window._gTimePeriod === 'lastmonth') return dateStr.startsWith(prevMonth(m))
+  if (window._gTimePeriod === 'year')      return dateStr.startsWith(new Date().getFullYear()+'')
+  if (window._gTimePeriod === 'all')       return true
+  if (window._gTimePeriod === 'custom') {
+    if (window._gDateFrom && dateStr < window._gDateFrom) return false
+    if (window._gDateTo   && dateStr > window._gDateTo)   return false
     return true
   }
   return dateStr.startsWith(m)
@@ -3675,16 +3675,16 @@ function _gFilterBar(onChangeFn) {
 
   return `<div class="time-filter-bar">
     <span class="time-filter-label">${t('periodo')}</span>
-    <button class="time-pill ${_gTimePeriod==='month'?'active':''}"     onclick="${makeHandler('month')}">${t('este_mes')}</button>
-    <button class="time-pill ${_gTimePeriod==='lastmonth'?'active':''}" onclick="${makeHandler('lastmonth')}">${t('mes_anterior')}</button>
-    <button class="time-pill ${_gTimePeriod==='year'?'active':''}"      onclick="${makeHandler('year')}">${t('este_año')}</button>
-    <button class="time-pill ${_gTimePeriod==='all'?'active':''}"       onclick="${makeHandler('all')}">${t('todo')}</button>
-    <button class="time-pill ${_gTimePeriod==='custom'?'active':''}"    onclick="${makeHandler('custom')}">${t('personalizado')}</button>
-    ${_gTimePeriod==='custom'?`
-      <input type="date" value="${_gDateFrom}" onchange="_gDateFrom=this.value;window._callRenderFn('${onChangeFn}')"
+    <button class="time-pill ${window._gTimePeriod==='month'?'active':''}"     onclick="${makeHandler('month')}">${t('este_mes')}</button>
+    <button class="time-pill ${window._gTimePeriod==='lastmonth'?'active':''}" onclick="${makeHandler('lastmonth')}">${t('mes_anterior')}</button>
+    <button class="time-pill ${window._gTimePeriod==='year'?'active':''}"      onclick="${makeHandler('year')}">${t('este_año')}</button>
+    <button class="time-pill ${window._gTimePeriod==='all'?'active':''}"       onclick="${makeHandler('all')}">${t('todo')}</button>
+    <button class="time-pill ${window._gTimePeriod==='custom'?'active':''}"    onclick="${makeHandler('custom')}">${t('personalizado')}</button>
+    ${window._gTimePeriod==='custom'?`
+      <input type="date" value="${window._gDateFrom}" onchange="window._gDateFrom=this.value;window._callRenderFn('${onChangeFn}')"
         style="padding:4px 8px;background:var(--bg);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);font-size:.78rem">
       <span style="color:var(--text2);font-size:.78rem">→</span>
-      <input type="date" value="${_gDateTo}" onchange="_gDateTo=this.value;window._callRenderFn('${onChangeFn}')"
+      <input type="date" value="${window._gDateTo}" onchange="window._gDateTo=this.value;window._callRenderFn('${onChangeFn}')"
         style="padding:4px 8px;background:var(--bg);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);font-size:.78rem">
     `:''}
   </div>`
@@ -3693,7 +3693,7 @@ function _gFilterBar(onChangeFn) {
 // Helper function to set period and call render function safely
 window._setPeriodAndRender = function(period, renderFnName) {
   console.log('[Period Filter] Changing to:', period, '| Will call:', renderFnName)
-  window._gTimePeriod = period
+  window.window._gTimePeriod = period
   try {
     if (renderFnName && typeof window[renderFnName.replace('()','')]  === 'function') {
       window[renderFnName.replace('()','')]()
@@ -4464,7 +4464,7 @@ function _ingBulkDelete() {
 }
 
 function renderIngresos() {
-  console.log('[renderIngresos] Called with period:', _gTimePeriod, '| _ingMesFilter:', _ingMesFilter, '| Total ingresos:', S.ingresos.length)
+  console.log('[renderIngresos] Called with period:', window._gTimePeriod, '| _ingMesFilter:', _ingMesFilter, '| Total ingresos:', S.ingresos.length)
   const m = currentMonth()
   const mp = prevMonth(m)
   // KPI total: active month filter → that month; otherwise current month
@@ -4548,7 +4548,7 @@ function renderIngresos() {
         ? 'Cambia el período o limpia los filtros para ver tus ingresos'
         : 'Añade tu primer ingreso con el botón + Nuevo ingreso'
       const clearBtn = (hasAny && (_ingSearch||_ingCatFilter||_ingMesFilter))
-        ? `<button class="btn btn-ghost btn-sm" onclick="_ingSearch='';_ingCatFilter='';_ingMesFilter='';_gTimePeriod='all';renderIngresos()">🔍 Ver todos los ingresos</button>` : ''
+        ? `<button class="btn btn-ghost btn-sm" onclick="_ingSearch='';_ingCatFilter='';_ingMesFilter='';window._gTimePeriod='all';renderIngresos()">🔍 Ver todos los ingresos</button>` : ''
       const _es = window.mnEmptyStates
       return `<tr><td colspan="7">${_es ? _es.ingresos(hasAny, hasAny && (_ingSearch||_ingCatFilter||_ingMesFilter)) : `<div class="empty"><div class="empty-icon">💰</div><div class="empty-title">${emptyTitle}</div><div class="empty-sub">${emptySub}</div>${clearBtn}</div>`}</td></tr>`
     })()
@@ -4707,7 +4707,7 @@ function _gasBulkDelete() {
 }
 
 function renderGastos() {
-  console.log('[renderGastos] Called with period:', _gTimePeriod, '| Total gastos:', S.gastos.length)
+  console.log('[renderGastos] Called with period:', window._gTimePeriod, '| Total gastos:', S.gastos.length)
   const m = currentMonth()
   const mp = prevMonth(m)
   // Use global period filter
@@ -4732,7 +4732,7 @@ function renderGastos() {
       if (g.tipo === TX_TYPES.GOAL_TRANSFER) return false // internal — not a real expense
       const inPeriod = _gDateInPeriod(g.fecha)
       if (!inPeriod) {
-        console.log('[renderGastos] Filtered out:', g.concepto, '| Date:', g.fecha, '| Period:', _gTimePeriod)
+        console.log('[renderGastos] Filtered out:', g.concepto, '| Date:', g.fecha, '| Period:', window._gTimePeriod)
         return false
       }
       const q = _gasSearch.toLowerCase()
@@ -4781,7 +4781,7 @@ function renderGastos() {
   <div class="kpi-grid kpi-grid-4" style="margin-bottom:16px">
     <div class="kpi-card">
       <div class="kpi-icon" style="background:var(--red-dim)">📤</div>
-      <div class="kpi-label">${t('total_lbl','Total')} ${_gTimePeriod==='month'?t('este_mes','este mes'):_gTimePeriod==='year'?t('este_anio','este año'):t('periodo_lbl','período')}</div>
+      <div class="kpi-label">${t('total_lbl','Total')} ${window._gTimePeriod==='month'?t('este_mes','este mes'):window._gTimePeriod==='year'?t('este_anio','este año'):t('periodo_lbl','período')}</div>
       <div class="kpi-value">${eur(total)}</div>
       ${totalP?`<span class="kpi-delta ${total>totalP?'down':'up'}">${total>totalP?'↑':'↓'} ${pct(Math.abs(totalP?((total-totalP)/totalP*100):0))} ${t('vs_mes_ant','vs. mes ant.')}</span>`:`<span class="kpi-delta neu">${t('primer_mes','Primer mes')}</span>`}
     </div>
@@ -4892,7 +4892,7 @@ function renderInversiones() {
     // Open positions are always visible regardless of period (they span multiple months)
     // Closed positions: filter by liquidation date if available
     if (!inv.cerrada && inv.status !== 'liquidated') return true // always show open
-    if (_gTimePeriod !== 'all') {
+    if (window._gTimePeriod !== 'all') {
       const closeDate = inv.fechaCierre || inv.liquidatedAt || inv.fecha
       if (closeDate && !_gDateInPeriod(closeDate)) return false
     }
@@ -5191,7 +5191,7 @@ function renderDeudas() {
       if (_deudaCatFilter && d.categoria !== _deudaCatFilter) return false
       // Period filter: show debts that have payments or vencimiento in the period,
       // or show all active debts when period is 'all' or 'month' (most useful view)
-      if (_gTimePeriod !== 'all' && _gTimePeriod !== 'month') {
+      if (window._gTimePeriod !== 'all' && window._gTimePeriod !== 'month') {
         const hasPeriodActivity = (d.pagos||[]).some(p => _gDateInPeriod(p.fecha))
         const vencEnPeriod = d.vencimiento && _gDateInPeriod(d.vencimiento)
         if (!hasPeriodActivity && !vencEnPeriod) return false
@@ -5646,7 +5646,7 @@ function renderObjetivos() {
     if (_objCatFilter && o.categoria !== _objCatFilter) return false
     // Period filter: show goals with activity (aportaciones) in the period,
     // or goals whose target date falls in the period. 'month'/'all' show all.
-    if (_gTimePeriod !== 'all' && _gTimePeriod !== 'month') {
+    if (window._gTimePeriod !== 'all' && window._gTimePeriod !== 'month') {
       const hasAportacion = (o.aportaciones||[]).some(a => _gDateInPeriod(a.fecha))
       const targetInPeriod = o.fechaObjetivo && _gDateInPeriod(o.fechaObjetivo)
       if (!hasAportacion && !targetInPeriod) return false
@@ -5875,7 +5875,7 @@ function confirmarObjAvatar() {
 // ─── PRESUPUESTOS ──────────────────────────────────────────────
 function renderPresupuestos() {
   // Use selected period month for budget comparison
-  const m = _gTimePeriod === 'lastmonth' ? prevMonth(currentMonth()) : currentMonth()
+  const m = window._gTimePeriod === 'lastmonth' ? prevMonth(currentMonth()) : currentMonth()
   const catMap = gastosMesByCat(m)
   const cats = Object.keys(S.presupuestos)
   const totalLimite = cats.reduce((a,c)=>a+(Number(S.presupuestos[c])||0),0)
@@ -8186,7 +8186,7 @@ function borrarTodo() {
     S.cuentas = defaultState().cuentas
     // Reset all global filter/search state — prevents stale UI after reset
     try {
-      _gTimePeriod = 'month'; _gDateFrom = ''; _gDateTo = ''
+      window._gTimePeriod = 'month'; window._gDateFrom = ''; window._gDateTo = ''
       _ingSearch = ''; _ingCatFilter = ''; _ingMesFilter = ''
       _gasSearch = ''; _gasCatFilter = ''; _gasMesFilter = ''
       _deudaSearch = ''; _deudaCatFilter = ''
@@ -11503,7 +11503,7 @@ function activateDemoWithConfig() {
   loadDemoData('standard', null)
   save()
   // Mostrar todos los datos del demo (no solo el mes actual)
-  if (typeof window._gTimePeriod !== 'undefined') window._gTimePeriod = 'all'
+  if (typeof window.window._gTimePeriod !== 'undefined') window.window._gTimePeriod = 'all'
   if (typeof window._ingMesFilter !== 'undefined') window._ingMesFilter = ''
   if (typeof window._gasMesFilter !== 'undefined') window._gasMesFilter = ''
   // Ir al dashboard para que el usuario vea todo
@@ -13008,8 +13008,8 @@ function renderBilling() {
 function render() {
   if (!S) return // Safety: S must be loaded before rendering
   // En modo demo siempre mostrar todo el período para ver datos históricos
-  if (isDemoMode() && (_gTimePeriod === 'month' || _gTimePeriod === 'lastmonth')) {
-    _gTimePeriod = 'all'
+  if (isDemoMode() && (window._gTimePeriod === 'month' || window._gTimePeriod === 'lastmonth')) {
+    window._gTimePeriod = 'all'
   }
   updateTopBar()
   updateBadges()
