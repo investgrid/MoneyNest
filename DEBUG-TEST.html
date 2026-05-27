@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Debug Test - MoneyNest</title>
+    <style>
+        body { background: #0a0e17; color: #e8eff7; font-family: monospace; padding: 20px; }
+        .section { background: #111827; padding: 15px; margin: 10px 0; border-radius: 8px; }
+        button { padding: 10px 20px; margin: 5px; background: #00d4aa; color: #0a0e17; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        button:hover { background: #00a882; }
+        pre { background: #1e293b; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px; }
+        .pass { color: #10b981; }
+        .fail { color: #ef4444; }
+    </style>
+</head>
+<body>
+    <h1>🐛 MoneyNest Debug Console</h1>
+
+    <div class="section">
+        <h2>Test 1: Clear All & Reload</h2>
+        <button onclick="clearAndReload()">🗑️ Clear LocalStorage & Reload</button>
+        <p>This simulates a completely fresh user.</p>
+    </div>
+
+    <div class="section">
+        <h2>Test 2: Check Onboarding Flag</h2>
+        <button onclick="checkOnboardingFlag()">🔍 Check Flag</button>
+        <pre id="flagResult"></pre>
+    </div>
+
+    <div class="section">
+        <h2>Test 3: Check Period Filter</h2>
+        <button onclick="testPeriodFilter()">📅 Test Period Filter</button>
+        <pre id="periodResult"></pre>
+    </div>
+
+    <div class="section">
+        <h2>Test 4: LocalStorage Dump</h2>
+        <button onclick="dumpStorage()">📦 Dump All Keys</button>
+        <pre id="storageResult"></pre>
+    </div>
+
+    <div class="section">
+        <h2>Test 5: Open App</h2>
+        <button onclick="window.open('moneynest_premium/index.html', '_blank')">🚀 Open MoneyNest</button>
+    </div>
+
+    <script>
+        function clearAndReload() {
+            if (confirm('This will delete ALL data. Continue?')) {
+                localStorage.clear();
+                location.reload();
+            }
+        }
+
+        function checkOnboardingFlag() {
+            const result = document.getElementById('flagResult');
+            const flag = localStorage.getItem('mn7_ob_seen_v2');
+            const activeAccount = localStorage.getItem('mn_active_account');
+
+            let html = '';
+            html += `Active Account ID: ${activeAccount || '(none)'}\n`;
+            html += `Onboarding Flag (direct): ${flag || '(null)'}\n`;
+
+            if (activeAccount) {
+                const nsKey = 'mn_accounts:' + activeAccount + ':mn7_ob_seen_v2';
+                const nsFlag = localStorage.getItem(nsKey);
+                html += `Onboarding Flag (namespaced): ${nsFlag || '(null)'}\n`;
+                html += `Namespaced Key: ${nsKey}\n\n`;
+
+                if (nsFlag === 'true') {
+                    html += '<span class="fail">❌ PROBLEM: Flag is set to "true" - onboarding will be skipped</span>\n';
+                } else if (nsFlag === null) {
+                    html += '<span class="pass">✅ GOOD: Flag is null - onboarding should appear</span>\n';
+                }
+            }
+
+            result.innerHTML = html;
+        }
+
+        function testPeriodFilter() {
+            const result = document.getElementById('periodResult');
+            let html = 'Opening app in new window...\n';
+            html += 'Then run these commands in console:\n\n';
+            html += 'window._gTimePeriod = "year"\n';
+            html += 'window.renderGastos()\n';
+            html += 'console.log("Period:", window._gTimePeriod)\n\n';
+            html += 'Check if the table updates correctly.\n';
+            result.innerHTML = html;
+
+            window.open('moneynest_premium/index.html', '_blank');
+        }
+
+        function dumpStorage() {
+            const result = document.getElementById('storageResult');
+            let html = '';
+
+            const keys = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                keys.push(localStorage.key(i));
+            }
+            keys.sort();
+
+            keys.forEach(key => {
+                const value = localStorage.getItem(key);
+                const preview = value.length > 60 ? value.substring(0, 60) + '...' : value;
+                html += `${key}:\n  ${preview}\n\n`;
+            });
+
+            if (keys.length === 0) {
+                html = '<span class="fail">LocalStorage is empty</span>';
+            }
+
+            result.innerHTML = html;
+        }
+
+        // Auto-run dump on load
+        window.addEventListener('load', () => {
+            dumpStorage();
+            checkOnboardingFlag();
+        });
+    </script>
+</body>
+</html>

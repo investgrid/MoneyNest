@@ -1199,8 +1199,11 @@ textarea{resize:vertical;min-height:70px}
   .kpi-grid-5,.kpi-grid-4,.kpi-grid-3,.kpi-grid-2{grid-template-columns:1fr}
   .inv-grid{grid-template-columns:1fr}
   .section-header{flex-direction:column;align-items:flex-start;gap:12px}
-  .section-actions{width:100%;display:flex;flex-direction:column;gap:8px}
-  .section-actions .btn{flex:1;justify-content:center;width:100%}
+  .section-actions{width:100%;display:flex;flex-direction:row;flex-wrap:wrap;gap:8px;align-items:center}
+  .section-actions .btn{justify-content:center}
+  /* Análisis compare select — compact on mobile */
+  .section-actions select{max-width:130px;font-size:.75rem}
+  .section-actions span[style*="text-transform"]{font-size:.65rem}
   .page-h1{font-size:1.15rem}
   .topbar{padding:0 12px}
   .content{padding:10px;padding-bottom:90px}
@@ -2189,10 +2192,23 @@ textarea{resize:vertical;min-height:70px}
 .time-pill{
   padding:4px 12px;border-radius:99px;font-size:.78rem;font-weight:600;
   border:1px solid var(--border);color:var(--text2);
-  background:transparent;cursor:pointer;transition:all .15s;
+  background:transparent;cursor:pointer;transition:all .15s;white-space:nowrap;flex-shrink:0;
 }
 .time-pill:hover{border-color:var(--border2);color:var(--text)}
 .time-pill.active{background:var(--accent-dim);border-color:rgba(0,212,170,0.3);color:var(--accent)}
+
+@media(max-width:900px){
+  .time-filter-bar{
+    flex-wrap:nowrap;
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+    padding:8px 12px;
+    gap:6px;
+  }
+  .time-filter-bar::-webkit-scrollbar{display:none}
+  .time-filter-label{display:none} /* hide "PERÍODO:" label on mobile to save space */
+}
 
 /* ─── TUTORIAL TRANSITIONS ────────────────────────────────────── */
 /* dup tut CSS removed */

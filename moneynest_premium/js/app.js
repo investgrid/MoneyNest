@@ -3670,21 +3670,47 @@ function _gDateInPeriod(dateStr) {
 function _gFilterBar(onChangeFn) {
   const m = currentMonth()
   const yr = new Date().getFullYear()
+  // FIX: Use window function wrapper to avoid quote escaping issues in onclick
+  const makeHandler = (period) => `window._setPeriodAndRender('${period}','${onChangeFn}')`
+
   return `<div class="time-filter-bar">
     <span class="time-filter-label">${t('periodo')}</span>
-    <button class="time-pill ${_gTimePeriod==='month'?'active':''}"     onclick="_gTimePeriod='month';${onChangeFn}">${t('este_mes')}</button>
-    <button class="time-pill ${_gTimePeriod==='lastmonth'?'active':''}" onclick="_gTimePeriod='lastmonth';${onChangeFn}">${t('mes_anterior')}</button>
-    <button class="time-pill ${_gTimePeriod==='year'?'active':''}"      onclick="_gTimePeriod='year';${onChangeFn}">${t('este_año')}</button>
-    <button class="time-pill ${_gTimePeriod==='all'?'active':''}"       onclick="_gTimePeriod='all';${onChangeFn}">${t('todo')}</button>
-    <button class="time-pill ${_gTimePeriod==='custom'?'active':''}"    onclick="_gTimePeriod='custom';${onChangeFn}">${t('personalizado')}</button>
+    <button class="time-pill ${_gTimePeriod==='month'?'active':''}"     onclick="${makeHandler('month')}">${t('este_mes')}</button>
+    <button class="time-pill ${_gTimePeriod==='lastmonth'?'active':''}" onclick="${makeHandler('lastmonth')}">${t('mes_anterior')}</button>
+    <button class="time-pill ${_gTimePeriod==='year'?'active':''}"      onclick="${makeHandler('year')}">${t('este_año')}</button>
+    <button class="time-pill ${_gTimePeriod==='all'?'active':''}"       onclick="${makeHandler('all')}">${t('todo')}</button>
+    <button class="time-pill ${_gTimePeriod==='custom'?'active':''}"    onclick="${makeHandler('custom')}">${t('personalizado')}</button>
     ${_gTimePeriod==='custom'?`
-      <input type="date" value="${_gDateFrom}" onchange="_gDateFrom=this.value;${onChangeFn}"
+      <input type="date" value="${_gDateFrom}" onchange="_gDateFrom=this.value;window._callRenderFn('${onChangeFn}')"
         style="padding:4px 8px;background:var(--bg);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);font-size:.78rem">
       <span style="color:var(--text2);font-size:.78rem">→</span>
-      <input type="date" value="${_gDateTo}" onchange="_gDateTo=this.value;${onChangeFn}"
+      <input type="date" value="${_gDateTo}" onchange="_gDateTo=this.value;window._callRenderFn('${onChangeFn}')"
         style="padding:4px 8px;background:var(--bg);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);font-size:.78rem">
     `:''}
   </div>`
+}
+
+// Helper function to set period and call render function safely
+window._setPeriodAndRender = function(period, renderFnName) {
+  console.log('[Period Filter] Changing to:', period, '| Will call:', renderFnName)
+  window._gTimePeriod = period
+  try {
+    if (renderFnName && typeof window[renderFnName.replace('()','')]  === 'function') {
+      window[renderFnName.replace('()','')]()
+    }
+  } catch(e) {
+    console.error('[Period Filter] Error calling render function:', e)
+  }
+}
+
+window._callRenderFn = function(renderFnName) {
+  try {
+    if (renderFnName && typeof window[renderFnName.replace('()','')]  === 'function') {
+      window[renderFnName.replace('()','')]()
+    }
+  } catch(e) {
+    console.error('[Period Filter] Error calling render function:', e)
+  }
 }
 
 // Filtered calc helpers using global period
@@ -4438,6 +4464,7 @@ function _ingBulkDelete() {
 }
 
 function renderIngresos() {
+  console.log('[renderIngresos] Called with period:', _gTimePeriod, '| _ingMesFilter:', _ingMesFilter, '| Total ingresos:', S.ingresos.length)
   const m = currentMonth()
   const mp = prevMonth(m)
   // KPI total: active month filter → that month; otherwise current month
@@ -4680,6 +4707,7 @@ function _gasBulkDelete() {
 }
 
 function renderGastos() {
+  console.log('[renderGastos] Called with period:', _gTimePeriod, '| Total gastos:', S.gastos.length)
   const m = currentMonth()
   const mp = prevMonth(m)
   // Use global period filter
@@ -4702,7 +4730,11 @@ function renderGastos() {
   const todos = [...S.gastos]
     .filter(g => {
       if (g.tipo === TX_TYPES.GOAL_TRANSFER) return false // internal — not a real expense
-      if (!_gDateInPeriod(g.fecha)) return false
+      const inPeriod = _gDateInPeriod(g.fecha)
+      if (!inPeriod) {
+        console.log('[renderGastos] Filtered out:', g.concepto, '| Date:', g.fecha, '| Period:', _gTimePeriod)
+        return false
+      }
       const q = _gasSearch.toLowerCase()
       if (q && !(g.concepto||'').toLowerCase().includes(q)) return false
       if (_gasCatFilter && g.categoria !== _gasCatFilter) return false
@@ -9357,12 +9389,12 @@ function renderAnalisis() {
       <div class="page-h1">📊 ${t('page_analisis','Análisis')}</div>
       <div class="page-sub">${_gPeriodLabel()}</div>
     </div>
-    <div class="section-actions">
+    <div class="section-actions" style="flex-wrap:wrap;gap:6px">
       <div style="display:flex;align-items:center;gap:6px">
-        <span style="font-size:.72rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.06em">${t('comparar_con','vs.')}</span>
+        <span style="font-size:.72rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.06em">${t('comparar_con','Comparar:')}</span>
         <select onchange="window._analisisCompareMonth=this.value;renderAnalisis?.()"
-          style="font-size:.78rem;padding:5px 10px;border-radius:8px;border:1px solid var(--border2);background:var(--bg2);color:var(--text);cursor:pointer;font-family:inherit">
-          <option value="">${t('ninguno','—')}</option>
+          style="font-size:.78rem;padding:5px 10px;border-radius:8px;border:1px solid var(--border2);background:var(--bg2);color:var(--text);cursor:pointer;font-family:inherit;max-width:140px">
+          <option value="">${t('ninguno','Sin comparar')}</option>
           ${(typeof getMonths==='function'?getMonths(12):[]).filter(m2=>m2!==currentMonth()).map(m2=>`
             <option value="${m2}" ${window._analisisCompareMonth===m2?'selected':''}>${monthLabel(m2)}</option>`).join('')}
         </select>
@@ -11581,8 +11613,15 @@ function checkOnboarding() {
   // If the flag exists, the user already completed onboarding — skip it.
   // The migration bug in accounts.js is already fixed (MIGRATION_EXCLUDE).
   // New accounts start without the flag, so they always see onboarding.
-  if (_obFlagSeen()) return
+  const flagValue = localStorage.getItem(OB_FLAG_KEY)
+  console.log('[checkOnboarding] Flag value:', flagValue, '| Active account:', localStorage.getItem('mn_active_account'))
 
+  if (_obFlagSeen()) {
+    console.log('[checkOnboarding] Onboarding already completed - skipping')
+    return
+  }
+
+  console.log('[checkOnboarding] Starting onboarding flow...')
   obStep = 1
   obData = { nombre:'', email:'', password:'', mode:'personal', lang: _currentLang || 'es', theme: S?.theme || 'dark', startTutorial:false, loadDemo:false }
   runCinematicIntro(() => {
@@ -11592,6 +11631,9 @@ function checkOnboarding() {
       ov.style.display = 'flex'
       requestAnimationFrame(() => ov.classList.add('ob-visible'))
       document.body.style.overflow = 'hidden'
+      console.log('[checkOnboarding] Onboarding overlay displayed')
+    } else {
+      console.error('[checkOnboarding] Onboarding overlay element not found!')
     }
   })
 }
@@ -14181,6 +14223,16 @@ function _postInitHooks() {
 
 
 window.addEventListener('DOMContentLoaded', function() {
+  // Initialize multi-account system BEFORE app loads
+  if (window.MNAccounts) {
+    try {
+      window.MNAccounts.boot()
+      console.log('[MoneyNest] Multi-account system initialized')
+    } catch(e) {
+      console.error('[MoneyNest] Failed to initialize accounts system:', e)
+    }
+  }
+
   init()
   setTimeout(_postInitHooks, 600)
 

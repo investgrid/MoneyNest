@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>MoneyNest Bug Test</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #0a0e17; color: #e8eff7; }
+        .test { margin: 20px 0; padding: 15px; background: #111827; border-radius: 8px; }
+        .pass { border-left: 4px solid #10b981; }
+        .fail { border-left: 4px solid #ef4444; }
+        button { padding: 8px 16px; margin: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>🐛 MoneyNest Bug Verification</h1>
+    <button onclick="runTests()">Run All Tests</button>
+    <button onclick="window.open('index.html', '_blank')">Open App</button>
+
+    <div id="results"></div>
+
+    <script>
+        async function runTests() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<p>Running tests...</p>';
+
+            const testResults = [];
+
+            // Test 1: Check localStorage for onboarding flag
+            const obFlag = localStorage.getItem('mn7_ob_seen_v2');
+            testResults.push({
+                name: 'Onboarding Flag Check',
+                pass: obFlag === null, // Should be null for new user
+                details: `Flag value: ${obFlag} (should be null for new user)`
+            });
+
+            // Test 2: Check if accounts system is working
+            const accounts = localStorage.getItem('mn_accounts_index');
+            testResults.push({
+                name: 'Accounts System',
+                pass: accounts !== null,
+                details: `Accounts index: ${accounts ? 'EXISTS' : 'MISSING'}`
+            });
+
+            // Test 3: Check active account
+            const activeId = localStorage.getItem('mn_active_account');
+            testResults.push({
+                name: 'Active Account ID',
+                pass: activeId !== null,
+                details: `Active ID: ${activeId || 'NONE'}`
+            });
+
+            // Test 4: Check if period filter variable exists
+            testResults.push({
+                name: 'Period Filter Variable',
+                pass: typeof window._gTimePeriod !== 'undefined',
+                details: `_gTimePeriod defined in global scope`
+            });
+
+            // Display results
+            let html = '';
+            testResults.forEach(test => {
+                html += `
+                    <div class="test ${test.pass ? 'pass' : 'fail'}">
+                        <h3>${test.pass ? '✅' : '❌'} ${test.name}</h3>
+                        <p>${test.details}</p>
+                    </div>
+                `;
+            });
+
+            results.innerHTML = html;
+
+            // Advanced test: Check localStorage namespace
+            html += '<div class="test"><h3>📦 LocalStorage Dump</h3><pre>';
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                const value = localStorage.getItem(key);
+                html += `${key}: ${value.substring(0, 100)}${value.length > 100 ? '...' : ''}\n`;
+            }
+            html += '</pre></div>';
+
+            results.innerHTML = html;
+        }
+
+        // Auto-run on load
+        window.addEventListener('load', () => {
+            setTimeout(runTests, 500);
+        });
+    </script>
+</body>
+</html>

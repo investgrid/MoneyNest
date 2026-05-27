@@ -144,17 +144,21 @@ ROI = (gananciaTotal / capitalInicial) * 100
 
 ## BUGS RESUELTOS (historial)
 
-| Bug | Archivo | Causa | Fix |
-|-----|---------|-------|-----|
-| App en negro | app.js + gamification.js | ASI bug en `return [` + `window.MNGamification` undefined | `;[...` + `= window.MNGamification \|\| {}` |
-| Onboarding saltado | accounts.js + app.js | Flag `mn7_ob_seen` migrado al namespace de nueva cuenta | MIGRATION_EXCLUDE + flag renombrado a `_v2` |
-| Logros muestran claves raw | gamification.js | `t(k) \|\| fallback` truthy con key | Comparar resultado === key |
-| syncLiq "cannot be parsed" | app.js | `fmt()` usa comas ES-ES en `<input type="number">` | Usar `.toFixed(2)` |
-| manifest.json 401 | vercel.json | Rewrite `/(.*) → index.html` interceptaba manifest | Rewrites explícitos antes del catch-all |
-| i18n iOS en inglés | app.js | `navigator.language='en'` sobreescribía preferencia | Default a 'es' en `loadLang()` |
-| Doble flag modo demo | app.js | `_renderDemoFab()` llamada dos veces simultáneamente | Debounce con `_renderDemoFabPending` |
-| Liquidar: ganancia incorrecta | app.js | `gananciaFinal = ganancia + beneficiosRetirados` (doble) | `gananciaFinal = ganancia - beneficiosRetirados` |
-| Filtro período Ingresos | app.js | `else { // show ALL }` ignoraba `_gTimePeriod` | Aplicar `_gDateInPeriod(i.fecha)` |
+| Bug | Archivo | Causa | Fix | Fecha |
+|-----|---------|-------|-----|-------|
+| App en negro | app.js + gamification.js | ASI bug en `return [` + `window.MNGamification` undefined | `;[...` + `= window.MNGamification \|\| {}` | 2026-05-26 |
+| Onboarding saltado | accounts.js + app.js | Flag `mn7_ob_seen` migrado al namespace de nueva cuenta | MIGRATION_EXCLUDE + flag renombrado a `_v2` | 2026-05-26 |
+| Logros muestran claves raw | gamification.js | `t(k) \|\| fallback` truthy con key | Comparar resultado === key | 2026-05-26 |
+| syncLiq "cannot be parsed" | app.js | `fmt()` usa comas ES-ES en `<input type="number">` | Usar `.toFixed(2)` | 2026-05-26 |
+| manifest.json 401 | vercel.json | Rewrite `/(.*) → index.html` interceptaba manifest | Rewrites explícitos antes del catch-all | 2026-05-26 |
+| i18n iOS en inglés | app.js | `navigator.language='en'` sobreescribía preferencia | Default a 'es' en `loadLang()` | 2026-05-26 |
+| Doble flag modo demo | app.js | `_renderDemoFab()` llamada dos veces simultáneamente | Debounce con `_renderDemoFabPending` | 2026-05-26 |
+| Liquidar: ganancia incorrecta | app.js | `gananciaFinal = ganancia + beneficiosRetirados` (doble) | `gananciaFinal = ganancia - beneficiosRetirados` | 2026-05-26 |
+| Filtro período Ingresos | app.js | `else { // show ALL }` ignoraba `_gTimePeriod` | Aplicar `_gDateInPeriod(i.fecha)` | 2026-05-26 |
+| **accounts.js no cargado** | **index.html** | **Script tag faltante** | **Añadido `<script src="js/accounts.js"></script>`** | **2026-05-27** |
+| **Onboarding no funciona** | **app.js** | **MNAccounts.boot() nunca se llamaba** | **Añadida llamada en DOMContentLoaded** | **2026-05-27** |
+| **Filtro período no funciona** | **app.js** | **onclick con comillas escapadas rotas** | **Función helper `window._setPeriodAndRender()`** | **2026-05-27** |
+| **Flags onboarding heredados** | **accounts.js** | **No se limpiaban en cuenta nueva** | **removeItem explícito en createAccount()** | **2026-05-27** |
 
 ---
 

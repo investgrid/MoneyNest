@@ -109,6 +109,15 @@ function createAccount(opts = {}) {
   const list = getAccounts()
   list.push(account)
   saveAccounts(list)
+
+  // CRITICAL: Ensure onboarding flags are NOT set for new accounts
+  // This prevents inheriting flags from other accounts or legacy storage
+  const obFlags = ['mn7_ob_seen_v2', 'mn7_tut_done']
+  for (const flag of obFlags) {
+    const nsKey = 'mn_accounts:' + id + ':' + flag
+    try { localStorage.removeItem(nsKey) } catch(_) {}
+  }
+
   return account
 }
 

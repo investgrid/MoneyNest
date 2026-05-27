@@ -414,9 +414,15 @@
   50%       { opacity: 1; }
 }
 
-/* En móvil, no mostramos sobre el header */
+/* En móvil — autosave badge en esquina inferior sin tapar contenido */
 @media (max-width: 900px) {
-  #mn-autosave { top: auto; bottom: 90px; right: 16px; }
+  #mn-autosave {
+    top: auto;
+    bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+    right: 12px;
+    font-size: .68rem;
+    padding: 3px 8px;
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════════

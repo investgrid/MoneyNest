@@ -105,6 +105,17 @@
   .tb-action-group { gap: 4px; }
 }
 
+/* Mobile: hide Import/Export in topbar — accessible via + button */
+@media (max-width: 480px) {
+  .tb-btn--import,
+  .tb-btn--export { display: none; }
+  .tb-btn--save,
+  .tb-btn--theme { padding: 6px 8px; }
+  /* Compact trial pill */
+  #dm-trial-pill { padding: 3px 8px !important; font-size: .72rem !important; }
+  #dm-trial-pill span:last-child { display: none; } /* hide "Upgrade" text */
+}
+
 /* ── Spinning save icon ─────────────────────────────────────── */
 @keyframes dm-spin {
   to { transform: rotate(360deg); }
