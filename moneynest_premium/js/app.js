@@ -11610,9 +11610,6 @@ function _setObSeen()   { try { localStorage.setItem(OB_FLAG_KEY,  'true') } cat
 function _setTutDone()  { try { localStorage.setItem(TUT_FLAG_KEY, 'true') } catch(e){} }
 
 function checkOnboarding() {
-  // If the flag exists, the user already completed onboarding — skip it.
-  // The migration bug in accounts.js is already fixed (MIGRATION_EXCLUDE).
-  // New accounts start without the flag, so they always see onboarding.
   const flagValue = localStorage.getItem(OB_FLAG_KEY)
   console.log('[checkOnboarding] Flag value:', flagValue, '| Active account:', localStorage.getItem('mn_active_account'))
 
@@ -11624,18 +11621,18 @@ function checkOnboarding() {
   console.log('[checkOnboarding] Starting onboarding flow...')
   obStep = 1
   obData = { nombre:'', email:'', password:'', mode:'personal', lang: _currentLang || 'es', theme: S?.theme || 'dark', startTutorial:false, loadDemo:false }
-  runCinematicIntro(() => {
-    obRender()
-    const ov = document.getElementById('onboardingOverlay')
-    if (ov) {
-      ov.style.display = 'flex'
-      requestAnimationFrame(() => ov.classList.add('ob-visible'))
-      document.body.style.overflow = 'hidden'
-      console.log('[checkOnboarding] Onboarding overlay displayed')
-    } else {
-      console.error('[checkOnboarding] Onboarding overlay element not found!')
-    }
-  })
+
+  // FIX: Show onboarding IMMEDIATELY without cinematic intro
+  obRender()
+  const ov = document.getElementById('onboardingOverlay')
+  if (ov) {
+    ov.style.display = 'flex'
+    requestAnimationFrame(() => ov.classList.add('ob-visible'))
+    document.body.style.overflow = 'hidden'
+    console.log('[checkOnboarding] Onboarding overlay displayed')
+  } else {
+    console.error('[checkOnboarding] Onboarding overlay element not found!')
+  }
 }
 
 // ════════════════════════════════════════════════════════════════
