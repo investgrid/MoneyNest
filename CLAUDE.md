@@ -174,10 +174,40 @@ ROI = (gananciaTotal / capitalInicial) * 100
 
 ## AUDITORÍA COMPLETA — 2026-05-27
 
-### Estado verificado con Playwright + screenshots
+### ⚠️ BUGS CRÍTICOS ENCONTRADOS Y RESUELTOS (2026-05-27 tarde)
+
+#### 1. Sistema multi-cuenta NO se inicializaba
+**Causa:** `accounts.js` faltaba en index.html
+**Síntoma:** Onboarding no aparecía, sistema de cuentas muerto
+**Fix:** 
+- Añadido `<script src="js/accounts.js"></script>` en index.html (línea 1328)
+- Añadida llamada `MNAccounts.boot()` en DOMContentLoaded (app.js:14199)
+- Limpieza explícita de flags en `createAccount()` (accounts.js:111-117)
+
+#### 2. Filtro de período NO funcionaba
+**Causa:** `_gTimePeriod` era variable local (let), onclick no podía modificarla
+**Síntoma:** Click en "Todo", "Este año" no actualizaba la tabla
+**Fix:**
+- Convertido `_gTimePeriod` → `window._gTimePeriod` (replace all en app.js)
+- Convertido `_gDateFrom`, `_gDateTo` → window globals
+- Añadida función helper `window._setPeriodAndRender(period, renderFnName)`
+
+#### 3. Onboarding bloqueado por intro cinemática
+**Causa:** `runCinematicIntro()` tardaba 2.6 segundos antes de mostrar onboarding
+**Síntoma:** Usuario veía pantalla en blanco, pensaba que no funcionaba
+**Fix:** Eliminada intro cinemática, onboarding aparece inmediatamente (app.js:11617)
+
+### Commits relacionados
+- `0de4ead` Fix crítico: onboarding + filtro de período + sistema multi-cuenta
+- `07960be` Fix definitivo: _gTimePeriod como global en window
+- `fbbfea6` Fix: onboarding aparece inmediatamente sin intro cinemática
+
+### Estado verificado con logs de usuario
 
 | Sección | Estado | Notas |
 |---------|--------|-------|
+| Onboarding | ✅ | Aparece inmediatamente en cuenta nueva |
+| Filtro período | ✅ | Botones actualizan correctamente |
 | Dashboard | ✅ | KPIs, actividad reciente, gráficos OK |
 | Ingresos | ✅ | Tabla, filtros, período OK |
 | Gastos | ✅ | Tabla, filtros, período OK |
@@ -191,15 +221,5 @@ ROI = (gananciaTotal / capitalInicial) * 100
 | Logros | ✅ | 140 cards con nombres correctos |
 | Configuración | ✅ | Idioma, tema, categorías OK |
 
-### Bugs adicionales arreglados hoy
-- **Topbar "GuardaGuarda"**: botones estáticos del HTML se acumulaban con los dinámicos de data-manager.js → eliminados del HTML
-- **Inversiones vacías con período**: posiciones abiertas siempre visibles (span múltiples meses)
-
-### Funcionalidad verificada
-- Añadir ingreso, gasto, deuda, objetivo: ✅ OK
-- Quick add: ✅ OK (display=flex)
-- Toggle tema: ✅ OK
-- Export fn: ✅ OK
-- Período filter ingresos: ✅ OK (all=1, month=1 con datos de prueba)
-- Logros: ✅ 140 cards cargadas
-- JS Errors: 0
+### Lección aprendida
+**NUNCA asumir que el código funciona sin logs reales del usuario.** Si el usuario dice "no funciona", es porque NO FUNCIONA. Pedir logs de consola, leer código, aplicar fix, push, verificar.
