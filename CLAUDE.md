@@ -44,11 +44,11 @@ moneynest_premium/
     └── auth-ui.js          # Modal de auth y trial pill Pro
 ```
 
-### Sistema de cuentas (accounts.js)
-- Proxy de localStorage: intercepta reads/writes de `ACCOUNT_SCOPED_KEYS` y los namespaces con `mn_accounts:{accountId}:{key}`
-- Claves con namespace: `mn7_data`, `mn_user`, `mn7_lang`, `mn7_ob_seen`, `mn7_ob_seen_v2`, `mn7_tut_done`, `mn_billing_sub`, etc.
-- `MIGRATION_EXCLUDE`: claves que NUNCA se copian entre cuentas: `mn7_ob_seen`, `mn7_ob_seen_v2`, `mn7_tut_done`
-- Proxy se instala una sola vez (`_proxied = true`), reemplaza `Storage.prototype` globalmente
+### Sistema de cuentas (accounts.js) — ⚠️ DESACTIVADO
+**IMPORTANTE:** El sistema multi-perfil (cambiar entre "Joan", "María", etc.) está **desactivado** desde 2026-05-28 por petición del usuario.
+- `accounts.js` NO se carga en index.html (comentado)
+- `MNAccounts.boot()` NO se ejecuta (comentado en app.js)
+- El usuario SÍ quiere las **cuentas bancarias** (BBVA, ING, Revolut) — esas siguen funcionando normalmente
 
 ---
 
@@ -159,6 +159,11 @@ ROI = (gananciaTotal / capitalInicial) * 100
 | **Onboarding no funciona** | **app.js** | **MNAccounts.boot() nunca se llamaba** | **Añadida llamada en DOMContentLoaded** | **2026-05-27** |
 | **Filtro período no funciona** | **app.js** | **onclick con comillas escapadas rotas** | **Función helper `window._setPeriodAndRender()`** | **2026-05-27** |
 | **Flags onboarding heredados** | **accounts.js** | **No se limpiaban en cuenta nueva** | **removeItem explícito en createAccount()** | **2026-05-27** |
+| **window.window._gTimePeriod** | **app.js** | **Sintaxis errónea `window.window.`** | **Corregido a `window._gTimePeriod`** | **2026-05-28** |
+| **Canvas proyección deuda** | **app.js** | **`<canvas>` no acepta innerHTML** | **Cambiado a `<div>`** | **2026-05-28** |
+| **vercel.json faltaban rewrites** | **vercel.json** | **CSS/JS no se servían correctamente** | **Añadidos `/css/(.*)` y `/js/(.*)`** | **2026-05-28** |
+| **Fechas demo antiguas** | **app.js** | **Objetivos con fechas 2025 pasadas** | **Actualizadas a 2026-2028** | **2026-05-28** |
+| **Sistema multi-perfil activo** | **index.html + app.js** | **Usuario no lo quiere** | **Desactivado (comentado)** | **2026-05-28** |
 
 ---
 
