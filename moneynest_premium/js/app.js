@@ -3638,9 +3638,9 @@ const _formGuard = {
 }
 
 // Global period filter (must be on window for onclick handlers to work)
-window.window._gTimePeriod = 'month'   // default: this month
-window.window._gDateFrom   = ''        // ISO date string (for custom)
-window.window._gDateTo     = ''        // ISO date string (for custom)
+window._gTimePeriod = window._gTimePeriod || 'month'   // default: this month
+window._gDateFrom   = window._gDateFrom || ''        // ISO date string (for custom)
+window._gDateTo     = window._gDateTo || ''        // ISO date string (for custom)
 
 function _gPeriodLabel() {
   const m = currentMonth()
@@ -5361,7 +5361,7 @@ function renderDeudas() {
       <div class="card-header">
         <div><div class="card-title">📉 ${t('proyeccion_deuda','Proyección de deuda')}</div><div class="card-subtitle">${t('proyeccion_deuda_sub','Evolución del saldo total')}</div></div>
       </div>
-      <div class="chart-container" style="height:180px"><canvas id="chartDeudaProyeccion"></canvas></div>
+      <div class="chart-container" style="height:180px"><div id="chartDeudaProyeccion"></div></div>
     </div>
     <div class="card">
       <div class="card-header">
@@ -11346,13 +11346,13 @@ function loadDemoData(scenario, nombreOverride) {
   // ── OBJETIVOS: completados + en curso ────────────────────────
   S.objetivos = [
     // EN CURSO
-    { id:'do1', nombre:'Fondo emergencia (8m)',  objetivo:25000, actual:18500, categoria:'Emergencia', color:'#00D4AA', emoji:'🛡️', fechaObjetivo:'2025-12-01',
+    { id:'do1', nombre:'Fondo emergencia (8m)',  objetivo:25000, actual:18500, categoria:'Emergencia', color:'#00D4AA', emoji:'🛡️', fechaObjetivo:'2027-06-01',
       aportaciones:[{importe:2000,fecha:d(mes(-4),'01')},{importe:1500,fecha:d(mes(-3),'01')},{importe:2000,fecha:d(mes(-2),'01')},{importe:1800,fecha:d(mes(-1),'01')}] },
-    { id:'do2', nombre:'Vacaciones Australia',   objetivo:6000,  actual:2800,  categoria:'Viaje',      color:'#6366F1', emoji:'✈️', fechaObjetivo:'2026-03-01',
+    { id:'do2', nombre:'Vacaciones Australia',   objetivo:6000,  actual:2800,  categoria:'Viaje',      color:'#6366F1', emoji:'✈️', fechaObjetivo:'2027-03-01',
       aportaciones:[{importe:600,fecha:d(mes(-3),'15')},{importe:700,fecha:d(mes(-2),'15')},{importe:650,fecha:d(mes(-1),'15')}] },
-    { id:'do3', nombre:'Tesla Model 3',          objetivo:50000, actual:12000, categoria:'Coche',      color:'#F43F5E', emoji:'🚗', fechaObjetivo:'2027-06-01',
+    { id:'do3', nombre:'Tesla Model 3',          objetivo:50000, actual:12000, categoria:'Coche',      color:'#F43F5E', emoji:'🚗', fechaObjetivo:'2028-06-01',
       aportaciones:[{importe:2000,fecha:d(mes(-5),'01')},{importe:2500,fecha:d(mes(-3),'01')},{importe:3000,fecha:d(mes(-1),'01')}] },
-    { id:'do4', nombre:'MacBook Pro M4',         objetivo:3200,  actual:3200,  categoria:'Tecnología', color:'#F59E0B', emoji:'💻', fechaObjetivo:'2025-08-01',
+    { id:'do4', nombre:'MacBook Pro M4',         objetivo:3200,  actual:3200,  categoria:'Tecnología', color:'#F59E0B', emoji:'💻', fechaObjetivo:'2026-12-01',
       aportaciones:[{importe:800,fecha:d(mes(-4),'10')},{importe:1200,fecha:d(mes(-3),'10')},{importe:1200,fecha:d(mes(-2),'10')}] },
     // COMPLETADOS (fechas relativas)
     { id:'do5', nombre:'Colchón inicial (3m)',   objetivo:9000,  actual:9000,  categoria:'Emergencia', color:'#10B981', emoji:'🏦', fechaObjetivo:d(mes(-6),'01'),
@@ -11503,7 +11503,7 @@ function activateDemoWithConfig() {
   loadDemoData('standard', null)
   save()
   // Mostrar todos los datos del demo (no solo el mes actual)
-  if (typeof window.window._gTimePeriod !== 'undefined') window.window._gTimePeriod = 'all'
+  if (typeof window._gTimePeriod !== 'undefined') window._gTimePeriod = 'all'
   if (typeof window._ingMesFilter !== 'undefined') window._ingMesFilter = ''
   if (typeof window._gasMesFilter !== 'undefined') window._gasMesFilter = ''
   // Ir al dashboard para que el usuario vea todo
@@ -14220,15 +14220,15 @@ function _postInitHooks() {
 
 
 window.addEventListener('DOMContentLoaded', function() {
-  // Initialize multi-account system BEFORE app loads
-  if (window.MNAccounts) {
-    try {
-      window.MNAccounts.boot()
-      console.log('[MoneyNest] Multi-account system initialized')
-    } catch(e) {
-      console.error('[MoneyNest] Failed to initialize accounts system:', e)
-    }
-  }
+  // Multi-account system disabled per user request
+  // if (window.MNAccounts) {
+  //   try {
+  //     window.MNAccounts.boot()
+  //     console.log('[MoneyNest] Multi-account system initialized')
+  //   } catch(e) {
+  //     console.error('[MoneyNest] Failed to initialize accounts system:', e)
+  //   }
+  // }
 
   init()
   setTimeout(_postInitHooks, 600)
