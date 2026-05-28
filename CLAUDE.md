@@ -1,230 +1,213 @@
-# MoneyNest — CLAUDE.md
-**Proyecto:** MoneyNest | **Empresa:** InvestGrid | **Versión:** 2.0  
-**Stack:** Vanilla JS + Supabase + Stripe | **Arquitectura:** Local-First PWA  
-**Repo:** https://github.com/investgrid/MoneyNest  
-**Deploy:** Vercel (branch `main`)
+# CLAUDE.md
+
+## MODO DE TRABAJO OBLIGATORIO
+
+A partir de ahora NO asumas que algo funciona solo porque existe código relacionado.
+
+Si el usuario dice que algo está roto, NO contradigas al usuario.
+El hecho de que exista código NO significa que funcione.
+
+Tu trabajo es:
+1. REPRODUCIR el problema
+2. IDENTIFICAR la causa real
+3. ARREGLARLO completamente
+4. VERIFICAR que funciona de verdad
+5. HACER COMMIT Y PUSH A GITHUB
+6. RESPONDER SOLO CON EL RESULTADO FINAL
 
 ---
 
-## REGLAS DE TRABAJO
+# REGLAS OBLIGATORIAS
 
-1. Verificar siempre con el código real antes de asumir que algo funciona
-2. Si el usuario dice que algo no va — ES QUE NO VA. No defender el código anterior
-3. Hacer tantos intentos como haga falta hasta que funcione de verdad
-4. Verificar con Playwright/screenshots antes de marcar como resuelto
-5. Actualizar este CLAUDE.md después de cada bloque de cambios
+## 1. NUNCA digas:
+- "ya existe"
+- "parece implementado"
+- "el código está correcto"
+- "no encuentro problemas"
+- "debería funcionar"
+- "ya está arreglado"
 
----
-
-## ARQUITECTURA
-
-```
-moneynest_premium/
-├── index.html              # Entry point + HTML estructura
-├── manifest.json           # PWA manifest
-├── service-worker.js       # SW con cache offline
-├── assets/                 # Iconos, logo (Logo.png → icon-192/512.png)
-├── css/
-│   ├── styles.css          # CSS principal (~4000 líneas)
-│   ├── premium-ux.css      # Estilos premium
-│   ├── billing.css         # Billing UI
-│   └── data-manager.css    # Export/Import panel
-├── js/
-│   ├── app.js              # App principal (~14.700 líneas) — TODO está aquí
-│   ├── accounts.js         # Sistema multi-cuenta con proxy localStorage
-│   ├── auth.js             # Auth local (planes, trial)
-│   ├── billing-ui.js       # UI del trial pill y billing
-│   ├── gamification.js     # 150+ logros con lógica real
-│   ├── notifications.js    # Sistema notificaciones web
-│   ├── data-manager.js     # Export/Import panel (topbar)
-│   ├── premium-empty-states.js  # Empty states con animación
-│   ├── premium-ux.js       # UX effects
-│   └── ...otros
-└── components/
-    └── auth-ui.js          # Modal de auth y trial pill Pro
-```
-
-### Sistema de cuentas (accounts.js) — ⚠️ DESACTIVADO
-**IMPORTANTE:** El sistema multi-perfil (cambiar entre "Joan", "María", etc.) está **desactivado** desde 2026-05-28 por petición del usuario.
-- `accounts.js` NO se carga en index.html (comentado)
-- `MNAccounts.boot()` NO se ejecuta (comentado en app.js)
-- El usuario SÍ quiere las **cuentas bancarias** (BBVA, ING, Revolut) — esas siguen funcionando normalmente
+SIN VERIFICARLO REALMENTE.
 
 ---
 
-## SISTEMA DE PLANES
+## 2. SI EL USUARIO DICE QUE ALGO NO FUNCIONA:
 
-| Plan | Condición | Features |
-|------|-----------|----------|
-| `trial` | Nuevo usuario, 24h desde registro | Todo desbloqueado |
-| `local` | Pago 5€ único | Sin cloud, todo local ilimitado |
-| `pro` | 5€/año + 7d trial | Cloud sync, export PDF/Excel |
+ASUME QUE ESTÁ ROTO.
 
----
+Aunque exista:
+- UI
+- funciones
+- archivos
+- lógica
+- imports
+- componentes
+- botones
 
-## ONBOARDING
+Si el usuario dice que falla:
+=> FALLA.
 
-**Flag actual:** `mn7_ob_seen_v2` (cambiado de `mn7_ob_seen` para forzar reset en usuarios existentes)
-
-**Flujo:**
-1. `init()` → `_obFlagSeen()` → si true → `runMiniIntro()` → dashboard
-2. Si false → `checkOnboarding()` → `runCinematicIntro()` → `obRender()` → 5 pasos
-
-**Pasos del onboarding (OB_TOTAL=5):**
-1. Registro/Login (email + password)
-2. Nombre del usuario
-3. Tema + idioma + preferencias
-4. Plan (trial/local/pro)
-5. Finalización → `finishOnboarding()`
-
-**Problema histórico resuelto:** `accounts.js` migraba el flag antiguo (`mn7_ob_seen`) al namespace de nuevas cuentas. Solución: `MIGRATION_EXCLUDE` lo excluye, y renombrado a `_v2` invalida flags existentes.
+Debes encontrar POR QUÉ falla realmente.
 
 ---
 
-## FILTRO DE PERÍODO GLOBAL
+## 3. OBLIGATORIO: REPRODUCIR EL BUG
 
-**Variable:** `_gTimePeriod` ('month' | 'lastmonth' | 'year' | 'all' | 'custom')  
-**Función:** `_gDateInPeriod(dateStr)` — retorna true si la fecha cae en el período  
-**UI:** `_gFilterBar(onChangeFn)` — genera los botones de período
+Antes de tocar código:
+- lanzar la app
+- navegar manualmente
+- probar el flujo real
+- abrir consola
+- revisar network
+- revisar errores runtime
+- revisar estado
+- revisar eventos
+- revisar backend/API
+- revisar base de datos si aplica
 
-**Estado por sección:**
-- ✅ Gastos: usa `_gDateInPeriod(g.fecha)` directamente
-- ✅ Ingresos: usa `_gDateInPeriod(i.fecha)` (arreglado — antes ignoraba el período)
-- ✅ Análisis: usa `_gDateInPeriod()` en cálculos
-- ✅ Inversiones: filtra por `inv.fecha` si período != 'all'
-- ✅ Deudas: filtra por pagos o vencimiento en período
-- ✅ Objetivos: filtra por aportaciones o fechaObjetivo
-- ✅ Presupuestos: muestra mes del período seleccionado
-
----
-
-## TRIAL PILL (topbar)
-
-El pill de trial viene de `data-manager.js` → `_updateTrialPill()`.  
-Mismo tamaño que el badge "Disponible": `padding:5px 14px`, `font-size:.85rem`.  
-Colores: indigo normal, amber si <6h, red si <2h.
+NO hagas cambios sin reproducir el problema.
 
 ---
 
-## LOGROS (gamification.js)
+## 4. PROHIBIDO HACER "FIXES TEÓRICOS"
 
-150+ achievements con lógica real conectada al estado de la app.  
-**Triggers en app.js:** `ingreso_added`, `gasto_added`, `gasto_deleted`, `inversion_added`, `inversion_liquidada`, `revalorizacion_done`, `deuda_added`, `pago_deuda`, `deuda_saldada`, `objetivo_added`, `objetivo_done`, `aportacion_done`, `cuenta_added`, `presupuesto_added`, `cat_created`, `settings_change`, `lang_change`, `demo_mode`, `data_check`, `streak`, `page_visit`, `export_pdf`, `export_excel`, `export_done`, `import_csv`, `custom_debt`, `avalanche_used`, `snowball_used`, `shortcut_used`
+NO hagas:
+- suposiciones
+- fixes rápidos sin probar
+- cambios "por si acaso"
+- respuestas basadas solo en leer código
 
-**Funciones internas:** `_incCounter()`, `_getCounter()`, `_markPageVisited()`, `_checkFinancial()`, `_checkStreakAchievements()`, `_calcPatrimonio()`, `_checkPresupuestoCumplido()`
-
-**Traducciones:** `_w(key, fallback)` y `_gt(key, fallback)` — comparan resultado con clave para evitar mostrar la clave literal cuando no está traducida.
-
----
-
-## MOBILE / PWA
-
-**viewport:** `width=device-width, initial-scale=1.0, viewport-fit=cover`  
-**status bar iOS:** `apple-mobile-web-app-status-bar-style: black`  
-**safe-area:** topbar usa `env(safe-area-inset-top)`, bottom-nav usa `env(safe-area-inset-bottom)`  
-**Bottom nav:** 5 items con SVG Lucide (Dashboard, Gastos, +, Análisis, Config)  
-**Sidebar overlay:** cubre inset:0 completo con backdrop-filter:blur  
-**Idioma en iOS:** `loadLang()` hace fallback a 'es' si no hay preferencia guardada
+TODO debe probarse realmente.
 
 ---
 
-## INVERSIONES — LIQUIDACIÓN
+## 5. DESPUÉS DE CADA FIX
 
-**Lógica correcta:**
-```
-ganancia = valorSalida - capitalInicial
-gananciaTotal = ganancia + beneficiosRetirados   // beneficio REAL total
-pendienteRegistrar = ganancia - beneficiosRetirados  // lo que se registra ahora
-ROI = (gananciaTotal / capitalInicial) * 100
-```
-- Si gananciaTotal=0 y beneficiosRetirados>0 → mostrar "Toda la ganancia ya fue retirada"
-- `syncLiq()` usa `.toFixed(2)` (punto decimal) para inputs type="number"
+Debes:
+- volver a ejecutar la app
+- volver a probar el flujo exacto
+- confirmar que el bug desapareció
+- comprobar que no rompiste otra cosa
 
 ---
 
-## BUGS RESUELTOS (historial)
+## 6. SI NO PUEDES REPRODUCIR EL BUG
 
-| Bug | Archivo | Causa | Fix | Fecha |
-|-----|---------|-------|-----|-------|
-| App en negro | app.js + gamification.js | ASI bug en `return [` + `window.MNGamification` undefined | `;[...` + `= window.MNGamification \|\| {}` | 2026-05-26 |
-| Onboarding saltado | accounts.js + app.js | Flag `mn7_ob_seen` migrado al namespace de nueva cuenta | MIGRATION_EXCLUDE + flag renombrado a `_v2` | 2026-05-26 |
-| Logros muestran claves raw | gamification.js | `t(k) \|\| fallback` truthy con key | Comparar resultado === key | 2026-05-26 |
-| syncLiq "cannot be parsed" | app.js | `fmt()` usa comas ES-ES en `<input type="number">` | Usar `.toFixed(2)` | 2026-05-26 |
-| manifest.json 401 | vercel.json | Rewrite `/(.*) → index.html` interceptaba manifest | Rewrites explícitos antes del catch-all | 2026-05-26 |
-| i18n iOS en inglés | app.js | `navigator.language='en'` sobreescribía preferencia | Default a 'es' en `loadLang()` | 2026-05-26 |
-| Doble flag modo demo | app.js | `_renderDemoFab()` llamada dos veces simultáneamente | Debounce con `_renderDemoFabPending` | 2026-05-26 |
-| Liquidar: ganancia incorrecta | app.js | `gananciaFinal = ganancia + beneficiosRetirados` (doble) | `gananciaFinal = ganancia - beneficiosRetirados` | 2026-05-26 |
-| Filtro período Ingresos | app.js | `else { // show ALL }` ignoraba `_gTimePeriod` | Aplicar `_gDateInPeriod(i.fecha)` | 2026-05-26 |
-| **accounts.js no cargado** | **index.html** | **Script tag faltante** | **Añadido `<script src="js/accounts.js"></script>`** | **2026-05-27** |
-| **Onboarding no funciona** | **app.js** | **MNAccounts.boot() nunca se llamaba** | **Añadida llamada en DOMContentLoaded** | **2026-05-27** |
-| **Filtro período no funciona** | **app.js** | **onclick con comillas escapadas rotas** | **Función helper `window._setPeriodAndRender()`** | **2026-05-27** |
-| **Flags onboarding heredados** | **accounts.js** | **No se limpiaban en cuenta nueva** | **removeItem explícito en createAccount()** | **2026-05-27** |
-| **window.window._gTimePeriod** | **app.js** | **Sintaxis errónea `window.window.`** | **Corregido a `window._gTimePeriod`** | **2026-05-28** |
-| **Canvas proyección deuda** | **app.js** | **`<canvas>` no acepta innerHTML** | **Cambiado a `<div>`** | **2026-05-28** |
-| **vercel.json faltaban rewrites** | **vercel.json** | **CSS/JS no se servían correctamente** | **Añadidos `/css/(.*)` y `/js/(.*)`** | **2026-05-28** |
-| **Fechas demo antiguas** | **app.js** | **Objetivos con fechas 2025 pasadas** | **Actualizadas a 2026-2028** | **2026-05-28** |
-| **Sistema multi-perfil activo** | **index.html + app.js** | **Usuario no lo quiere** | **Desactivado (comentado)** | **2026-05-28** |
+NO inventes soluciones.
+
+En ese caso:
+- añade logs
+- añade debugging
+- inspecciona estados
+- analiza flujo real
+- busca race conditions
+- busca errores silenciosos
+
+Pero NO respondas que está arreglado.
 
 ---
 
-## PENDIENTE / PRÓXIMOS PASOS
+## 7. MODO DE RESPUESTA
 
-- Mobile responsive: revisión completa pendiente (el usuario ha reportado problemas generales)
-- Export PDF/Excel: verificar que funciona en producción con plan Pro
-- Sync Supabase: pendiente de integración completa
-- i18n: los módulos nuevos tienen textos en ES hardcodeado, falta EN/CA en algunos
-- Botón + quick add en bottom nav: verificar que `openQuickAdd()` funciona
+NO des:
+- introducciones
+- resúmenes largos
+- explicaciones innecesarias
+- teoría
+- pasos técnicos enormes
+
+RESPONDE SOLO:
+
+## Bugs arreglados
+- ...
+- ...
+- ...
+
+## Cambios realizados
+- ...
+- ...
+
+## Verificación realizada
+- ...
+- ...
+
+## Git
+- Commit: ...
+- Push realizado a GitHub
+
+Nada más.
 
 ---
 
-## AUDITORÍA COMPLETA — 2026-05-27
+## 8. SI HAY ERRORES NUEVOS
 
-### ⚠️ BUGS CRÍTICOS ENCONTRADOS Y RESUELTOS (2026-05-27 tarde)
+NO los ignores.
 
-#### 1. Sistema multi-cuenta NO se inicializaba
-**Causa:** `accounts.js` faltaba en index.html
-**Síntoma:** Onboarding no aparecía, sistema de cuentas muerto
-**Fix:** 
-- Añadido `<script src="js/accounts.js"></script>` en index.html (línea 1328)
-- Añadida llamada `MNAccounts.boot()` en DOMContentLoaded (app.js:14199)
-- Limpieza explícita de flags en `createAccount()` (accounts.js:111-117)
+Debes arreglar TODO lo que rompas antes de terminar.
 
-#### 2. Filtro de período NO funcionaba
-**Causa:** `_gTimePeriod` era variable local (let), onclick no podía modificarla
-**Síntoma:** Click en "Todo", "Este año" no actualizaba la tabla
-**Fix:**
-- Convertido `_gTimePeriod` → `window._gTimePeriod` (replace all en app.js)
-- Convertido `_gDateFrom`, `_gDateTo` → window globals
-- Añadida función helper `window._setPeriodAndRender(period, renderFnName)`
+---
 
-#### 3. Onboarding bloqueado por intro cinemática
-**Causa:** `runCinematicIntro()` tardaba 2.6 segundos antes de mostrar onboarding
-**Síntoma:** Usuario veía pantalla en blanco, pensaba que no funcionaba
-**Fix:** Eliminada intro cinemática, onboarding aparece inmediatamente (app.js:11617)
+## 9. SI EL FIX NO FUNCIONA
 
-### Commits relacionados
-- `0de4ead` Fix crítico: onboarding + filtro de período + sistema multi-cuenta
-- `07960be` Fix definitivo: _gTimePeriod como global en window
-- `fbbfea6` Fix: onboarding aparece inmediatamente sin intro cinemática
+NO repitas el mismo intento.
 
-### Estado verificado con logs de usuario
+Debes:
+- replantear la causa
+- revisar arquitectura
+- revisar flujo completo
+- encontrar el origen REAL
 
-| Sección | Estado | Notas |
-|---------|--------|-------|
-| Onboarding | ✅ | Aparece inmediatamente en cuenta nueva |
-| Filtro período | ✅ | Botones actualizan correctamente |
-| Dashboard | ✅ | KPIs, actividad reciente, gráficos OK |
-| Ingresos | ✅ | Tabla, filtros, período OK |
-| Gastos | ✅ | Tabla, filtros, período OK |
-| Inversiones | ✅ | Abiertas siempre visibles; cerradas filtra por fechaCierre |
-| Deudas | ✅ | Estrategias, pago, período OK |
-| Objetivos | ✅ | Progreso, aportaciones OK |
-| Presupuestos | ✅ | Barras progreso, alertas OK |
-| Cuentas | ✅ | Cards, movimientos OK |
-| Patrimonio | ✅ | Cálculo correcto OK |
-| Análisis | ✅ | Gráficos, métricas OK |
-| Logros | ✅ | 140 cards con nombres correctos |
-| Configuración | ✅ | Idioma, tema, categorías OK |
+---
 
-### Lección aprendida
-**NUNCA asumir que el código funciona sin logs reales del usuario.** Si el usuario dice "no funciona", es porque NO FUNCIONA. Pedir logs de consola, leer código, aplicar fix, push, verificar.
+## 10. NO TERMINES HASTA QUE FUNCIONE
+
+Tu tarea NO es modificar código.
+Tu tarea es que la funcionalidad FUNCIONE DE VERDAD.
+
+---
+
+# CHECKLIST OBLIGATORIA ANTES DE TERMINAR
+
+- [ ] reproduje el bug
+- [ ] encontré la causa real
+- [ ] hice el fix
+- [ ] probé el fix manualmente
+- [ ] comprobé consola
+- [ ] comprobé network
+- [ ] comprobé que no rompe otras partes
+- [ ] hice commit
+- [ ] hice push a GitHub
+
+SI ALGUNA NO ESTÁ COMPLETA:
+NO TERMINES.
+
+---
+
+# GIT OBLIGATORIO
+
+Al finalizar SIEMPRE:
+1. git add .
+2. git commit -m "fix: descripción clara"
+3. git push
+
+---
+
+# PRIORIDAD PRINCIPAL
+
+FUNCIONAR > código bonito.
+
+NO priorices refactors innecesarios.
+NO cambies cosas que no hacen falta.
+ARREGLA EL PROBLEMA REAL.
+
+---
+
+# IMPORTANTE
+
+El usuario NO programa.
+Si el usuario dice que algo falla:
+NO discutas.
+INVESTIGA.
+PRUÉBALO.
+ARRÉGLALO.
+VERIFÍCALO.
