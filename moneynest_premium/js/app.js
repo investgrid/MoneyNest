@@ -10886,7 +10886,7 @@ async function obNext() {
       if (btn) { btn.disabled = true; btn.textContent = t('loading_entrando') }
       try {
         await window.MNSupabaseAuth.signIn(email, pw)
-        _auth.upgradeTrial && _auth.upgradeTrial(email)
+        window.MNAuth && window.MNAuth.upgradeTrial && window.MNAuth.upgradeTrial(email)
         // Login = returning user who already created an account.
         // They may not have completed onboarding on this device,
         // but they chose to log in → mark onboarding done and go to dashboard.
@@ -10913,7 +10913,7 @@ async function obNext() {
       try {
         await window.MNSupabaseAuth.signUp(email, pw)
         obData._registered = true
-        _auth.upgradeTrial && _auth.upgradeTrial(email)
+        window.MNAuth && window.MNAuth.upgradeTrial && window.MNAuth.upgradeTrial(email)
         showErr('✅ Cuenta creada. Continuando...', '#00D4AA')
         // Continue to next step automatically after successful signup
         obStep++
