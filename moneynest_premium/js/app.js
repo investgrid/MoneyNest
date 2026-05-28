@@ -4467,9 +4467,12 @@ function renderIngresos() {
   console.log('[renderIngresos] Called with period:', window._gTimePeriod, '| _ingMesFilter:', _ingMesFilter, '| Total ingresos:', S.ingresos.length)
   const m = currentMonth()
   const mp = prevMonth(m)
-  // KPI total: active month filter → that month; otherwise current month
-  const kpiMonth = _ingMesFilter || m
-  const total    = S.ingresos.filter(i=>i.status!=='pending'&&(i.fecha||'').startsWith(kpiMonth)).reduce((a,i)=>a+(Number(i.importe)||0),0)
+  // KPI total: active month filter → that month; otherwise use global period filter
+  const total = S.ingresos.filter(i => {
+    if (i.status === 'pending') return false
+    if (_ingMesFilter) return (i.fecha||'').startsWith(_ingMesFilter)
+    return _gDateInPeriod(i.fecha)
+  }).reduce((a,i)=>a+(Number(i.importe)||0),0)
   const totalP   = calcIngresosMes(mp)
   const pending  = S.ingresos.filter(i=>i.status==='pending').reduce((a,i)=>a+(Number(i.importe)||0),0)
   const catMapPeriod = {}
