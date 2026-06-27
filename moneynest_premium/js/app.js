@@ -51,7 +51,7 @@ const SK = 'mn7_data'
 const USER_KEY  = 'mn_user'
 const TRIAL_DAYS = 1 // 24 horas (v2 — ver js/auth.js)
 
-const PLANS = Object.freeze({ GUEST:'trial', TRIAL:'trial', LOCKED_LOCAL:'locked_local', LOCAL:'local', PRO:'pro' })
+const PLANS = Object.freeze({ GUEST:'trial', TRIAL:'trial', LOCKED_LOCAL:'locked_local', LOCAL:'local' })
 window.PLANS = PLANS
 
 const DEFAULT_USER = Object.freeze({
@@ -103,7 +103,7 @@ function initUser() {
 
 function checkAccess() {
   const user = getUser()
-  if (user.plan === 'pro' || user.plan === 'local') return { ok: true, reason: null }
+  if (user.plan === 'local' || user.plan === 'pro') return { ok: true, reason: null }
   if (user.plan === 'locked_local') {
     bloquearApp(user)
     return { ok: false, reason: 'locked_local' }
@@ -124,17 +124,12 @@ function upgradeTrial(email) {
   return patchUser({ plan:'trial', trialEndsAt, upgradedAt: Date.now(), ...(email ? { email } : {}) })
 }
 
-function upgradePro(email) {
-  return patchUser({ plan:'pro', trialEndsAt: null, cloudEnabled: true, upgradedAt: Date.now(), ...(email ? { email } : {}) })
-}
 
 function downgradeGuest() {
   return patchUser({ plan:'local', trialEndsAt: null, cloudEnabled: false, upgradedAt: Date.now() })
 }
 // v2 aliases
 function buyLocal(email)    { return patchUser({ plan:'local', trialEndsAt:null, cloudEnabled:false, upgradedAt:Date.now(), ...(email?{email}:{}) }) }
-function cancelPro()        { return downgradeGuest() }
-function activatePro(email) { return upgradePro(email) }
 function trialMsLeft()      { const u=getUser(); if(u.plan!=='trial'||!u.trialEndsAt) return 0; return Math.max(0,u.trialEndsAt-Date.now()) }
 function isLocked()         { return getUser().plan === 'locked_local' }
 function isLocal()          { return getUser().plan === 'local' }
@@ -150,7 +145,6 @@ function isTrialExpired() {
   return user.plan === 'trial' && !!user.trialEndsAt && Date.now() > user.trialEndsAt
 }
 
-function isPro()   { return getUser().plan === 'pro' }
 function isGuest() { return getUser().plan === 'locked_local'; }
 
 function bloquearApp(user) {
@@ -227,13 +221,13 @@ function bloquearApp(user) {
 // más completas (trialHoursLeft, trialTimeLeftLabel, etc.). No lo pisamos.
 if (!window.MNAuth) {
   window.MNAuth = { PLANS, DEFAULT_USER, getUser, saveUser, patchUser, initUser,
-      buyLocal, activatePro: upgradePro, cancelPro: downgradeGuest,
+      buyLocal,
       isLocked: () => getUser().plan === 'locked_local',
       isLocal:  () => getUser().plan === 'local',
       trialTimeLeftLabel: () => { const ms = trialMsLeft ? trialMsLeft() : 0; const h=Math.floor(ms/3600000); const m=Math.floor((ms%3600000)/60000); return h>0?`${h}h ${m}m`:`${m}m`; },
       trialMsLeft: () => { const u=getUser(); if(u.plan!=='trial'||!u.trialEndsAt) return 0; return Math.max(0,u.trialEndsAt-Date.now()); },
-    checkAccess, upgradeTrial, upgradePro, downgradeGuest,
-    trialDaysLeft, isTrialExpired, isPro, isGuest, bloquearApp };
+    checkAccess, upgradeTrial,
+    trialDaysLeft, isTrialExpired, isGuest, bloquearApp };
 }
 
 
@@ -385,9 +379,9 @@ const TRANSLATIONS = {
     cfg_demo_titulo: 'Modo demo',
     cfg_demo_activo_lbl: '● Activo · datos de ejemplo cargados',
     cfg_demo_inactivo_lbl: 'Explorar la app con datos de ejemplo',
-    cfg_demo_desc_on: 'Los datos son de ejemplo. Usa el botón flotante 🟡 Modo demo (esquina inferior derecha) para cambiar de perfil o salir al modo real.',
+    cfg_demo_desc_on: 'Los datos son de ejemplo. Usa el botón flotante 🟡 Modo demo (esquina inferior derecha) para salir al modo real.',
     cfg_demo_desc_off: 'Explora todas las funciones sin introducir datos propios. Elige un perfil (asalariado, freelance, familia, inversor) y carga datos realistas al instante.',
-    cfg_demo_salir: '🏁 Salir al modo real', cfg_demo_recargar: '🔄 Recargar con perfil estándar',
+    cfg_demo_salir: '🏁 Salir al modo real',
     cfg_demo_activar: '🚀 Activar modo demo',
     cfg_info: 'Información de la app', cfg_version_lbl: 'Versión',
     cfg_ver_tutorial: '🎓 Ver tutorial',
@@ -832,9 +826,9 @@ const TRANSLATIONS = {
     cfg_demo_titulo: 'Demo mode',
     cfg_demo_activo_lbl: '● Active · sample data loaded',
     cfg_demo_inactivo_lbl: 'Explore the app with sample data',
-    cfg_demo_desc_on: 'Data is for demo. Use the floating 🟡 Demo mode button (bottom right) to change profile or exit.',
+    cfg_demo_desc_on: 'Data is for demo. Use the floating 🟡 Demo mode button (bottom right) to exit.',
     cfg_demo_desc_off: 'Explore all features without entering your own data. Choose a profile and load realistic data instantly.',
-    cfg_demo_salir: '🏁 Exit to real mode', cfg_demo_recargar: '🔄 Reload with standard profile',
+    cfg_demo_salir: '🏁 Exit to real mode',
     cfg_demo_activar: '🚀 Activate demo mode',
     cfg_info: 'App information', cfg_version_lbl: 'Version',
     cfg_ver_tutorial: '🎓 View tutorial',
@@ -1249,7 +1243,7 @@ const TRANSLATIONS = {
     cfg_demo_inactivo_lbl: 'Esplora l\'app con dati di esempio',
     cfg_demo_desc_on: 'I dati sono di esempio. Usa il pulsante flottante 🟡 Modalità demo (in basso a destra) per cambiare profilo o uscire.',
     cfg_demo_desc_off: 'Esplora tutte le funzioni senza inserire i tuoi dati. Scegli un profilo e carica dati realistici istantaneamente.',
-    cfg_demo_salir: '🏁 Esci alla modalità reale', cfg_demo_recargar: '🔄 Ricarica con profilo standard',
+    cfg_demo_salir: '🏁 Esci alla modalità reale',
     cfg_demo_activar: '🚀 Attiva modalità demo',
     cfg_info: 'Informazioni sull\'app', cfg_version_lbl: 'Versione',
     cfg_ver_tutorial: '🎓 Vedi tutorial',
@@ -1664,7 +1658,7 @@ const TRANSLATIONS = {
     cfg_demo_inactivo_lbl: 'Explorer l\'app avec des données exemples',
     cfg_demo_desc_on: 'Les données sont des exemples. Utilisez le bouton flottant 🟡 Mode démo (en bas à droite) pour changer de profil ou quitter.',
     cfg_demo_desc_off: 'Explorez toutes les fonctions sans saisir vos propres données. Choisissez un profil et chargez des données réalistes instantanément.',
-    cfg_demo_salir: '🏁 Quitter le mode réel', cfg_demo_recargar: '🔄 Recharger avec profil standard',
+    cfg_demo_salir: '🏁 Quitter le mode réel',
     cfg_demo_activar: '🚀 Activer le mode démo',
     cfg_info: 'Informations sur l\'app', cfg_version_lbl: 'Version',
     cfg_ver_tutorial: '🎓 Voir le tutoriel',
@@ -2079,7 +2073,7 @@ const TRANSLATIONS = {
     cfg_demo_inactivo_lbl: 'App mit Beispieldaten erkunden',
     cfg_demo_desc_on: 'Die Daten sind Beispiele. Verwenden Sie den schwebenden Knopf 🟡 Demo-Modus (unten rechts), um das Profil zu wechseln oder zu beenden.',
     cfg_demo_desc_off: 'Erkunden Sie alle Funktionen ohne eigene Daten einzugeben. Wählen Sie ein Profil und laden Sie sofort realistische Daten.',
-    cfg_demo_salir: '🏁 Zum echten Modus wechseln', cfg_demo_recargar: '🔄 Mit Standardprofil neu laden',
+    cfg_demo_salir: '🏁 Zum echten Modus wechseln',
     cfg_demo_activar: '🚀 Demo-Modus aktivieren',
     cfg_info: 'App-Informationen', cfg_version_lbl: 'Version',
     cfg_ver_tutorial: '🎓 Tutorial ansehen',
@@ -2494,7 +2488,7 @@ const TRANSLATIONS = {
     cfg_demo_inactivo_lbl: 'Explorar a app com dados de exemplo',
     cfg_demo_desc_on: 'Os dados são de exemplo. Use o botão flutuante 🟡 Modo demo (canto inferior direito) para alterar o perfil ou sair.',
     cfg_demo_desc_off: 'Explore todas as funções sem introduzir os seus próprios dados. Escolha um perfil e carregue dados realistas instantaneamente.',
-    cfg_demo_salir: '🏁 Sair para o modo real', cfg_demo_recargar: '🔄 Recarregar com perfil padrão',
+    cfg_demo_salir: '🏁 Sair para o modo real',
     cfg_demo_activar: '🚀 Ativar modo demo',
     cfg_info: 'Informações da app', cfg_version_lbl: 'Versão',
     cfg_ver_tutorial: '🎓 Ver tutorial',
@@ -2864,6 +2858,8 @@ function t(key) {
       invertido: 'Invertido',
       activos: 'Activos',
       deudas_lbl: 'Deudas',
+      ingresos_lbl: 'Ingresos',
+      gastos_lbl: 'Gastos',
       sin_deudas: 'Sin deudas ✅',
       cuentas_lbl: 'Cuentas',
       superavit: 'Superávit',
@@ -3125,6 +3121,8 @@ function t(key) {
       invertido: 'Invested',
       activos: 'Assets',
       deudas_lbl: 'Debts',
+      ingresos_lbl: 'Income',
+      gastos_lbl: 'Expenses',
       sin_deudas: 'No debts ✅',
       cuentas_lbl: 'Accounts',
       superavit: 'Surplus',
@@ -3366,7 +3364,7 @@ function t(key) {
     },
   }
   // Copy ES keys to IT/FR/DE/PT with fallback to ES (only keys not yet defined)
-  const FALLBACK_LANGS = ['it','fr','de','pt']
+  const FALLBACK_LANGS = ['it','fr','de','pt','ca']
   Object.keys(EXT.es).forEach(key => {
     FALLBACK_LANGS.forEach(lang => {
       if (!EXT[lang]) EXT[lang] = {}
@@ -3425,6 +3423,74 @@ const CAT_TRANSLATIONS = {
   'Jubilación':     { en:'Retirement',  it:'Pensione',     fr:'Retraite',   de:'Rente',     pt:'Reforma'    },
   // Shared
   'Otro':           { en:'Other',       it:'Altro',        fr:'Autre',      de:'Andere',    pt:'Outro'      },
+
+  ca: {
+    // ── Nav ─────────────────────────────────────────────────────
+    nav_principal: 'Principal', nav_finanzas: 'Finances',
+    nav_planificacion: 'Planificació', nav_patrimonio_sec: 'Patrimoni',
+    // ── Dashboard ───────────────────────────────────────────────
+    hola_sin_coma: 'Hola,', resumen_financiero: 'Resum financer',
+    ingresos_mes: 'Ingressos del mes', gastos_mes: 'Despeses del mes',
+    cash_flow: 'Flux de caixa', patrimonio_neto: 'Patrimoni net',
+    evolucion_patrimonio: 'Evolució del patrimoni', ultimos_6_meses: 'Últims 6 mesos',
+    actividad_reciente: 'Activitat recent', ultimas_transacciones: 'Últimes transaccions',
+    gastos_categoria: 'Despeses per categoria', generados_tus_datos: 'Generats amb les teves dades',
+    ver_todo: 'Veure tot', sin_movimientos_aun: 'Encara no hi ha moviments',
+    // ── Sidebar nav ─────────────────────────────────────────────
+    nav_dashboard: 'Inici', nav_ingresos: 'Ingressos', nav_gastos: 'Despeses',
+    nav_deudas: 'Deutes', nav_objetivos: 'Objectius', nav_presupuestos: 'Pressupostos',
+    nav_inversiones: 'Inversions', nav_cuentas: 'Comptes', nav_patrimonio: 'Patrimoni',
+    nav_analisis: 'Anàlisi', nav_configuracion: 'Configuració',
+    // ── Period filter ───────────────────────────────────────────
+    periodo: 'Període', este_mes: 'Aquest mes', mes_anterior: 'Mes anterior',
+    este_año: 'Aquest any', todo: 'Tot', personalizado: 'Personalitzat',
+    // ── Ingresos ────────────────────────────────────────────────
+    ingresos_cobrados: 'Ingressos cobrats', cobrar_btn: 'Cobrar',
+    estado_pendiente: 'Pendent', buscar_concepto: '🔍 Cercar concepte',
+    todas_categorias: 'Totes les categories', limpiar_filtros: 'Netejar filtres',
+    // ── Gastos ──────────────────────────────────────────────────
+    nuevo_gasto: '+ Nova despesa', nuevo_ingreso: '+ Nou ingrés',
+    btn_editar: 'Editar', btn_eliminar: 'Eliminar',
+    // ── Deutes ──────────────────────────────────────────────────
+    proyeccion_deuda: 'Projecció del deute', proyeccion_deuda_sub: 'Evolució del saldo total',
+    estrategias_pago: 'Estratègies de pagament', estrategias_pago_sub: 'Selecciona el teu ritme',
+    bola_nieve: 'Bola de neu', avalancha: 'Allau',
+    bola_nieve_desc: 'Comença pel deute més petit per guanyar impuls psicològic.',
+    avalancha_desc: 'Comença pel de major interès — estalvies més diners a llarg termini.',
+    orden_pago: 'Ordre de pagament recomanat',
+    libertad_financiera: 'Data de llibertat financera',
+    estrategia_personalizada: 'Estratègia personalitzada',
+    crear_estrategia: 'Crear estratègia', personaliza_pago: 'Personalitza el teu pagament mensual',
+    sin_deudas: 'Sense deutes', sin_deudas_pendientes: 'No hi ha deutes pendents per calcular',
+    // ── Objectius ───────────────────────────────────────────────
+    sin_objetivos: 'Sense objectius', nuevo_objetivo: '+ Nou objectiu',
+    // ── Pressupostos ────────────────────────────────────────────
+    presupuesto: 'Pressupost', sin_presupuestos: 'Sense pressupostos',
+    // ── Inversions ──────────────────────────────────────────────
+    sin_inversiones: 'Sense inversions', nueva_inversion: '+ Nova inversió',
+    // ── Comptes ─────────────────────────────────────────────────
+    sin_cuentas: 'Sense comptes', nueva_cuenta: '+ Nou compte',
+    // ── Configuració ────────────────────────────────────────────
+    cfg_idioma: 'Idioma', cfg_apariencia: 'Aparença',
+    cfg_perfil: 'El teu perfil', cfg_nombre: 'Nom', cfg_guardar: '💾 Desar',
+    cfg_oscuro: 'Fosc', cfg_claro: 'Clar', cfg_activo: 'Actiu',
+    cfg_datos: 'Dades',
+    // ── Misc ────────────────────────────────────────────────────
+    concepto: 'Concepte', importe: 'Import', categoria: 'Categoria',
+    fecha: 'Data', acciones: 'Accions', estado: 'Estat',
+    meses: 'mesos', mes_lbl: 'mes', guardar: 'Desar',
+    cancelar: 'Cancel·lar', eliminar: 'Eliminar', editar: 'Editar',
+    confirmar: 'Confirmar', cerrar: 'Tancar', buscar: 'Cercar',
+    liquidez: 'Liquiditat', invertido: 'Invertit', activos: 'Actius',
+    deudas_lbl: 'Deutes', ingresos_lbl: 'Ingressos', gastos_lbl: 'Despeses',
+    // ── Auth ────────────────────────────────────────────────────
+    auth_email: 'Adreça electrònica', auth_password: 'Contrasenya',
+    auth_entrar: 'Entrar', auth_crear_cuenta: 'Crear compte →',
+    auth_iniciar_sesion: 'Iniciar sessió',
+    auth_plan_local_activo: 'Pla Local actiu',
+    auth_acceso_desbloqueado: 'Accés desbloquejat',
+    auth_datos_locales: 'Les teves dades es guarden en aquest dispositiu.',
+  },
 }
 
 /** Translate a category name respecting user-created custom ones */
@@ -3692,14 +3758,17 @@ function _gFilterBar(onChangeFn) {
 
 // Helper function to set period and call render function safely
 window._setPeriodAndRender = function(period, renderFnName) {
-  console.log('[Period Filter] Changing to:', period, '| Will call:', renderFnName)
-  window.window._gTimePeriod = period
+  window._gTimePeriod = period
+  // If switching to non-custom, clear date range
+  if (period !== 'custom') { window._gDateFrom = ''; window._gDateTo = '' }
+  // Reset any local section filters so global takes effect
+  if (typeof _ingMesFilter !== 'undefined') { _ingMesFilter = null }
+  if (typeof _gasMesFilter !== 'undefined') { _gasMesFilter = '' }
   try {
-    if (renderFnName && typeof window[renderFnName.replace('()','')]  === 'function') {
-      window[renderFnName.replace('()','')]()
-    }
+    const fn = renderFnName.replace('()','')
+    if (fn && typeof window[fn] === 'function') window[fn]()
   } catch(e) {
-    console.error('[Period Filter] Error calling render function:', e)
+    console.error('[Period Filter]', e)
   }
 }
 
@@ -4062,8 +4131,9 @@ function renderDashboard() {
   const m  = currentMonth()
   const mp = prevMonth(m)
   const yr = new Date().getFullYear() + ''
-  const ing  = calcIngresosMes(m)
-  const gas  = calcGastosMes(m)
+  // Period-aware KPIs — respect global filter
+  const ing  = S.ingresos.filter(i=>i.status!=='pending'&&_gDateInPeriod(i.fecha)).reduce((a,i)=>a+(Number(i.importe)||0),0)
+  const gas  = S.gastos.filter(g=>_gDateInPeriod(g.fecha)&&g.tipo!==TX_TYPES.GOAL_TRANSFER).reduce((a,g)=>a+(Number(g.importe)||0),0)
   const cf   = ing - gas
   const ingP = calcIngresosMes(mp)
   const gasP = calcGastosMes(mp)
@@ -4156,7 +4226,7 @@ function renderDashboard() {
       <div class="page-h1">${t('hola_sin_coma')} <span style="color:var(--accent)">${S.usuario.nombre}</span>
         ${streak >= 3 ? `<span class="streak-badge" style="font-size:.7rem;vertical-align:middle;margin-left:8px">🔥 ${streak} días</span>` : ''}
       </div>
-      <div class="page-sub">${monthLabel(m)} · ${t('resumen_financiero')}</div>
+      <div class="page-sub">${_gPeriodLabel()} · ${t('resumen_financiero')}</div>
     </div>
     <div style="display:flex;gap:8px;flex-shrink:0" class="ytd-strip">
       <div style="display:flex;align-items:center;gap:9px;padding:9px 14px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm)">
@@ -4217,27 +4287,30 @@ function renderDashboard() {
     </div>
   </div>
 
+  <!-- ── PERIOD FILTER ────────────────────────────────────────── -->
+  ${_gFilterBar('renderDashboard()')}
+
   <!-- ── KPI STRIP ─────────────────────────────────────────────── -->
   <div class="kpi-grid kpi-grid-3" style="margin-bottom:14px">
     <div class="kpi-card" data-sparkline-off="ingresos">
       <div class="kpi-icon" style="background:var(--green-dim)">💰</div>
-      <div class="kpi-label">${t('ingresos_mes')}</div>
+      <div class="kpi-label">${t('ingresos_lbl','Ingresos')} · ${_gPeriodLabel()}</div>
       <div class="kpi-value" data-animate-raw="${ing}">${eur(ing)}</div>
       ${ingP ? `<span class="kpi-delta ${deltaClass(ing-ingP)}">${deltaIcon(ing-ingP)} ${pct(Math.abs(ingP?((ing-ingP)/ingP*100):0))} vs. ant.</span>` : '<span class="kpi-delta neu">Primer mes</span>'}
-      <div class="kpi-sub" style="margin-top:5px">${S.ingresos.filter(i=>i.status!=='pending'&&(i.fecha||'').startsWith(m)).length} entradas</div>
+      <div class="kpi-sub" style="margin-top:5px">${S.ingresos.filter(i=>i.status!=='pending'&&_gDateInPeriod(i.fecha)).length} entradas</div>
     </div>
     <div class="kpi-card" data-sparkline-off="gastos">
       <div class="kpi-icon" style="background:var(--red-dim)">💳</div>
-      <div class="kpi-label">${t('gastos_mes')}</div>
+      <div class="kpi-label">${t('gastos_lbl','Gastos')} · ${_gPeriodLabel()}</div>
       <div class="kpi-value" data-animate-raw="${gas}">${eur(gas)}</div>
       ${gasP ? `<span class="kpi-delta ${gas>gasP?'down':'up'}">${gas>gasP?'↑':'↓'} ${pct(Math.abs(gasP?((gas-gasP)/gasP*100):0))} vs. ant.</span>` : '<span class="kpi-delta neu">Primer mes</span>'}
-      <div class="kpi-sub" style="margin-top:5px">${S.gastos.filter(g=>g.tipo!==TX_TYPES.GOAL_TRANSFER&&(g.fecha||'').startsWith(m)).length} salidas</div>
+      <div class="kpi-sub" style="margin-top:5px">${S.gastos.filter(g=>g.tipo!==TX_TYPES.GOAL_TRANSFER&&_gDateInPeriod(g.fecha)).length} salidas</div>
     </div>
     <div class="kpi-card" data-sparkline-off="cashflow">
       <div class="kpi-icon" style="background:${cf>=0?'var(--accent-dim)':'var(--red-dim)'}">${cf>=0?'📊':'⚠️'}</div>
       <div class="kpi-label">${t('cash_flow')}</div>
       <div class="kpi-value" style="color:${cf>=0?'var(--accent)':'var(--red)'}" data-animate-raw="${cf}">${cf>=0?'+':''}${eur(cf)}</div>
-      <span class="kpi-delta ${cf>=0?'up':'down'}">${cf>=0?'Superávit':'Déficit'} · ${monthLabel(m)}</span>
+      <span class="kpi-delta ${cf>=0?'up':'down'}">${cf>=0?'Superávit':'Déficit'} · ${_gPeriodLabel()}</span>
       <div class="kpi-sub" style="margin-top:5px">Ahorro: <strong style="color:${calcSavingsRate(m)>=20?'var(--green)':'var(--gold)'}">${pct(Math.max(0,calcSavingsRate(m)))}</strong></div>
     </div>
   </div>
@@ -4305,7 +4378,7 @@ function renderDashboard() {
   }
 
   document.querySelectorAll('.kpi-value[data-target]').forEach(el => animateCounter(el, el.dataset.target))
-  setTimeout(() => { renderChartPatrimonio(); renderChartDonut() }, 50)
+  requestAnimationFrame(() => setTimeout(() => { renderChartPatrimonio(); renderChartDonut() }, 80))
   syncBottomNav('dashboard')
   updateDocTitle()
 }
@@ -4550,16 +4623,16 @@ function renderIngresos() {
       const emptySub = hasAny
         ? 'Cambia el período o limpia los filtros para ver tus ingresos'
         : 'Añade tu primer ingreso con el botón + Nuevo ingreso'
-      const clearBtn = (hasAny && (_ingSearch||_ingCatFilter||_ingMesFilter))
+      const clearBtn = (hasAny && (_ingSearch||_ingCatFilter))
         ? `<button class="btn btn-ghost btn-sm" onclick="_ingSearch='';_ingCatFilter='';_ingMesFilter='';window._gTimePeriod='all';renderIngresos()">🔍 Ver todos los ingresos</button>` : ''
       const _es = window.mnEmptyStates
-      return `<tr><td colspan="7">${_es ? _es.ingresos(hasAny, hasAny && (_ingSearch||_ingCatFilter||_ingMesFilter)) : `<div class="empty"><div class="empty-icon">💰</div><div class="empty-title">${emptyTitle}</div><div class="empty-sub">${emptySub}</div>${clearBtn}</div>`}</td></tr>`
+      return `<tr><td colspan="7">${_es ? _es.ingresos(hasAny, hasAny && (_ingSearch||_ingCatFilter)) : `<div class="empty"><div class="empty-icon">💰</div><div class="empty-title">${emptyTitle}</div><div class="empty-sub">${emptySub}</div>${clearBtn}</div>`}</td></tr>`
     })()
 
   const ingPeriodLabel = _ingMesFilter ? monthLabel(_ingMesFilter) : 'Todos'
   document.getElementById('content').innerHTML = `
   <div class="section-header">
-    <div><div class="page-h1">💰 ${t('page_ingresos')}</div><div class="page-sub">${ingPeriodLabel} · ${S.ingresos.filter(i=>i.status!=='pending').length} cobrados · ${pendingIngs.length} pendientes</div></div>
+    <div><div class="page-h1"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:0.85"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> ${t('page_ingresos')}</div><div class="page-sub">${ingPeriodLabel} · ${S.ingresos.filter(i=>i.status!=='pending').length} cobrados · ${pendingIngs.length} pendientes</div></div>
     <div class="section-actions">
       <button class="btn btn-primary btn-sm" onclick="openModal('ingresoModal');resetIngresoForm()">${t('btn_nuevo_ingreso','+ Nuevo ingreso')}</button>
     </div>
@@ -4570,7 +4643,7 @@ function renderIngresos() {
   <div class="kpi-grid kpi-grid-4" style="margin-bottom:16px">
     <div class="kpi-card">
       <div class="kpi-icon" style="background:var(--green-dim)">📥</div>
-      <div class="kpi-label">${t('cobrado_este_mes')}</div>
+      <div class="kpi-label">${window._currentLang==='en'?'Collected':'Cobrado'} · ${_gPeriodLabel()}</div>
       <div class="kpi-value">${eur(total)}</div>
       ${totalP?`<span class="kpi-delta ${deltaClass(total-totalP)}">${deltaIcon(total-totalP)} ${pct(totalP?Math.abs((total-totalP)/totalP*100):0)} vs. ant.</span>`:'<span class="kpi-delta neu">Primer mes</span>'}
     </div>
@@ -4629,12 +4702,8 @@ function renderIngresos() {
       <option value="">${t('todas_categorias')}</option>
       ${allCats.map(c=>`<option value="${c}" ${_ingCatFilter===c?'selected':''}>${catEmoji(c)} ${c}</option>`).join('')}
     </select>
-    <select class="filter-select" onchange="_ingMesFilter=this.value;renderIngresos()">
-      <option value="">${t('todos_sin_filtro')}</option>
-      ${allMeses.map(mes=>`<option value="${mes}" ${_ingMesFilter===mes?'selected':''}>${monthLabel(mes)}</option>`).join('')}
-    </select>
-    ${_ingSearch||_ingCatFilter||_ingMesFilter?`<button class="btn btn-ghost btn-sm" onclick="_ingSearch='';_ingCatFilter='';_ingMesFilter='';renderIngresos()">${t('limpiar_filtros')}</button>`:''}
-    <span style="margin-left:auto;font-size:.78rem;color:var(--text2)">${receivedIngs.length} cobrado${receivedIngs.length!==1?'s':''}</span>
+    ${_ingSearch||_ingCatFilter?`<button class="btn btn-ghost btn-sm" onclick="_ingSearch='';_ingCatFilter='';renderIngresos()">${t('limpiar_filtros')}</button>`:''}
+    <span style="margin-left:auto;font-size:.78rem;color:var(--text2)">${receivedIngs.length} cobrado${receivedIngs.length!==1?'s':''} · ${_gPeriodLabel()}</span>
   </div>
 
   <!-- Bulk action bar -->
@@ -4772,7 +4841,7 @@ function renderGastos() {
 
   document.getElementById('content').innerHTML = `
   <div class="section-header">
-    <div><div class="page-h1">💳 ${t('page_gastos')}</div><div class="page-sub">${_gPeriodLabel()} · ${t('control_salidas')}</div></div>
+    <div><div class="page-h1"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:0.85"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg> ${t('page_gastos')}</div><div class="page-sub">${_gPeriodLabel()} · ${t('control_salidas')}</div></div>
     <div class="section-actions">
       <button class="btn btn-ghost btn-sm" onclick="window.MNCSVImport&&MNCSVImport.openModal()" title="${t('importar_csv_title','Importar extracto bancario CSV')}">📂 ${t('importar_csv','Importar CSV')}</button>
       <button class="btn btn-primary btn-sm" onclick="openModal('gastoModal');resetGastoForm()">${t('btn_nuevo_gasto')}</button>
@@ -4828,7 +4897,7 @@ function renderGastos() {
       ${allCats.map(c=>`<option value="${c}" ${_gasCatFilter===c?'selected':''}>${catEmoji(c)} ${c}</option>`).join('')}
     </select>
     ${_gasSearch||_gasCatFilter?`<button class="btn btn-ghost btn-sm" onclick="_gasSearch='';_gasCatFilter='';renderGastos()">${t('limpiar_filtros')}</button>`:''}
-    <span style="margin-left:auto;font-size:.78rem;color:var(--text2)">${todos.length} resultado${todos.length!==1?'s':''}</span>
+    <span style="margin-left:auto;font-size:.78rem;color:var(--text2)">${todos.length} resultado${todos.length!==1?'s':''} · ${_gPeriodLabel()}</span>
   </div>
 
   <!-- Bulk action bar -->
@@ -4992,7 +5061,7 @@ function renderInversiones() {
   document.getElementById('content').innerHTML = `
   <div class="section-header">
     <div>
-      <div class="page-h1">📈 ${t('page_inversiones')}</div>
+      <div class="page-h1"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:0.85"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg> ${t('page_inversiones')}</div>
       <div class="page-sub">${t('inv_page_sub','Cartera de inversiones')}</div>
     </div>
     <div class="section-actions">
@@ -5192,13 +5261,6 @@ function renderDeudas() {
       const q = _deudaSearch.toLowerCase()
       if (q && !( (d.nombre||'').toLowerCase().includes(q) || (d.categoria||'').toLowerCase().includes(q) )) return false
       if (_deudaCatFilter && d.categoria !== _deudaCatFilter) return false
-      // Period filter: show debts that have payments or vencimiento in the period,
-      // or show all active debts when period is 'all' or 'month' (most useful view)
-      if (window._gTimePeriod !== 'all' && window._gTimePeriod !== 'month') {
-        const hasPeriodActivity = (d.pagos||[]).some(p => _gDateInPeriod(p.fecha))
-        const vencEnPeriod = d.vencimiento && _gDateInPeriod(d.vencimiento)
-        if (!hasPeriodActivity && !vencEnPeriod) return false
-      }
       return true
     })
 
@@ -5264,15 +5326,13 @@ function renderDeudas() {
   <!-- ── HEADER ────────────────────────────────────────────────── -->
   <div class="section-header mn-section">
     <div>
-      <div class="page-h1">${t('deudas_lbl','Deudas')}</div>
+      <div class="page-h1"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:0.85"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><line x1="12" y1="22" x2="12" y2="12"/><path d="M3.27 6.96L12 12.01l8.73-5.05"/></svg> ${t('deudas_lbl','Deudas')}</div>
       <div class="page-sub">${t('deudas_page_sub','Seguimiento, reducción y estrategia de pago')}</div>
     </div>
     <div class="section-actions">
       <button class="btn btn-primary btn-sm" onclick="openModal('deudaModal');resetDeudaForm()">${t('btn_nueva_deuda','+ Nueva deuda')}</button>
     </div>
   </div>
-
-  ${_gFilterBar('renderDeudas()')}
 
   <!-- ── KPIs ──────────────────────────────────────────────────── -->
   <div class="kpi-grid kpi-grid-4 mn-section">
@@ -5402,7 +5462,8 @@ function renderDeudas() {
   <div class="grid-3 mn-section">${cards}</div>`
 
   if (pendiente > 0) {
-    setTimeout(() => renderChartDeudaProyeccion(pendiente, activePago), 60)
+    // Use requestAnimationFrame + extra delay to ensure DOM is painted
+    requestAnimationFrame(() => setTimeout(() => renderChartDeudaProyeccion(pendiente, activePago), 80))
   }
 }
 
@@ -5643,25 +5704,31 @@ let _objCatFilter = ''
 
 function renderObjetivos() {
   const allCats = [...new Set(S.objetivos.map(o=>o.categoria).filter(Boolean))]
+  // No period filter for objectives — always show all
   const filtered = S.objetivos.filter(o => {
     const q = _objSearch.toLowerCase()
     if (q && !((o.nombre||'').toLowerCase().includes(q))) return false
     if (_objCatFilter && o.categoria !== _objCatFilter) return false
-    // Period filter: show goals with activity (aportaciones) in the period,
-    // or goals whose target date falls in the period. 'month'/'all' show all.
-    if (window._gTimePeriod !== 'all' && window._gTimePeriod !== 'month') {
-      const hasAportacion = (o.aportaciones||[]).some(a => _gDateInPeriod(a.fecha))
-      const targetInPeriod = o.fechaObjetivo && _gDateInPeriod(o.fechaObjetivo)
-      if (!hasAportacion && !targetInPeriod) return false
-    }
     return true
   })
 
-  const cards = filtered.map(obj=>{
+
+  // KPIs
+  const totalMeta = S.objetivos.reduce((a,o)=>a+(Number(o.objetivo)||0),0)
+  const totalActual = S.objetivos.reduce((a,o)=>a+(Number(o.actual)||0),0)
+  const completados = S.objetivos.filter(o=>((Number(o.actual)||0)>=(Number(o.objetivo)||1))).length
+
+  // Split into in-progress and completed
+  const inProgress = filtered.filter(o => (Number(o.actual)||0) < (Number(o.objetivo)||1))
+  const done       = filtered.filter(o => (Number(o.actual)||0) >= (Number(o.objetivo)||1))
+
+  // Build a map of card html by id
+  const cards_map = {}
+  const makeCards = (list) => list.map(obj=>cards_map[obj.id]||'').join('')
+  filtered.forEach(obj => {
     const pctVal = obj.objetivo ? clamp((Number(obj.actual)||0)/Number(obj.objetivo)*100,0,100) : 0
     const falta  = Math.max(0,(Number(obj.objetivo)||0)-(Number(obj.actual)||0))
     let prediccion = ''
-    // Monthly average contributions
     const contribs = (obj.aportaciones||[])
     const avgMonthly = (() => {
       if (contribs.length >= 2) {
@@ -5669,7 +5736,6 @@ function renderObjetivos() {
         const months = Math.max(1, contribs.length)
         return total / months
       }
-      // Fallback: use savings rate
       const m2 = currentMonth()
       const sr2 = calcSavingsRate(m2)
       const ing2 = calcIngresosMes(m2)
@@ -5686,7 +5752,7 @@ function renderObjetivos() {
       const mesesETA = Math.ceil(falta / avgMonthly)
       const etaDate = new Date()
       etaDate.setMonth(etaDate.getMonth() + mesesETA)
-      const _etaLoc={'es':'es-ES','en':'en-GB','it':'it-IT','fr':'fr-FR','de':'de-DE','pt':'pt-PT'}[_currentLang]||'es-ES'; const etaLabel = etaDate.toLocaleDateString(_etaLoc,{month:'short',year:'numeric'})
+      const _etaLoc={'es':'es-ES','en':'en-GB'}[_currentLang]||'es-ES'; const etaLabel = etaDate.toLocaleDateString(_etaLoc,{month:'short',year:'numeric'})
       etaText = `A este ritmo: <strong>${etaLabel}</strong> (${mesesETA} ${mesesETA===1?'mes':'meses'})`
     } else if (falta <= 0) {
       etaText = '🎉 ¡Meta alcanzada!'
@@ -5703,7 +5769,7 @@ function renderObjetivos() {
     const textColor2 = hasBgImg ? 'rgba(255,255,255,0.8)' : 'var(--text2)'
     const emojiContent = !hasBgImg ? (obj.emoji || catEmoji(obj.categoria) || '🎯') : ''
     const borderTopStyle = hasBgImg ? '' : `border-top:3px solid ${color};`
-    return `
+    cards_map[obj.id] = `
     <div class="goal-card ${hasBgImg?'has-img':''}" style="${borderTopStyle}position:relative;${bgStyle}overflow:hidden">
       <div style="${overlayStyle}"></div>
       <div style="position:relative;z-index:1">
@@ -5740,22 +5806,17 @@ function renderObjetivos() {
       </div>
       </div>
     </div>`
-  }).join('') || (window.mnEmptyStates ? window.mnEmptyStates.objetivos(!!(_objSearch||_objCatFilter)) : `<div class="empty" style="grid-column:1/-1"><div class="empty-icon">🎯</div><div class="empty-title">${_objSearch||_objCatFilter?'Sin resultados':'Define tu próxima meta'}</div></div>`)
+  })
 
-  // KPIs
-  const totalMeta = S.objetivos.reduce((a,o)=>a+(Number(o.objetivo)||0),0)
-  const totalActual = S.objetivos.reduce((a,o)=>a+(Number(o.actual)||0),0)
-  const completados = S.objetivos.filter(o=>((Number(o.actual)||0)>=(Number(o.objetivo)||1))).length
+  const emptyHtml = (window.mnEmptyStates ? window.mnEmptyStates.objetivos(!!(_objSearch||_objCatFilter)) : `<div class="empty" style="grid-column:1/-1"><div class="empty-icon">🎯</div><div class="empty-title">${_objSearch||_objCatFilter?'Sin resultados':'Define tu próxima meta'}</div></div>`)
 
   document.getElementById('content').innerHTML = `
   <div class="section-header">
-    <div><div class="page-h1">🎯 ${t('page_objetivos','Objetivos')}</div><div class="page-sub">${t('obj_page_sub','Metas financieras y predicciones')}</div></div>
+    <div><div class="page-h1"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:0.85"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg> ${t('page_objetivos','Objetivos')}</div><div class="page-sub">${t('obj_page_sub','Metas financieras y predicciones')}</div></div>
     <div class="section-actions">
       <button class="btn btn-primary btn-sm" onclick="openModal('objetivoModal');resetObjForm()">${t('btn_nuevo_objetivo','+ Nuevo objetivo')}</button>
     </div>
   </div>
-
-  ${_gFilterBar('renderObjetivos()')}
 
   <div class="kpi-grid kpi-grid-4" style="margin-bottom:16px">
     <div class="kpi-card">
@@ -5790,7 +5851,25 @@ function renderObjetivos() {
     ${_objSearch||_objCatFilter?`<button class="btn btn-ghost btn-sm" onclick="_objSearch='';_objCatFilter='';renderObjetivos()">✕ ${t('limpiar','Limpiar')}</button>`:''}
   </div>
 
-  <div class="grid-3">${cards}</div>`
+  ${inProgress.length > 0 ? `
+  <div style="margin-bottom:8px;margin-top:4px">
+    <div style="font-size:.72rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;padding-left:2px">
+      🚀 ${window._currentLang==='en'?'In progress':'En progreso'} · ${inProgress.length}
+    </div>
+    <div class="grid-3">${inProgress.map(o=>cards_map[o.id]).join('')}</div>
+  </div>` : (!done.length ? emptyHtml : '')}
+
+  ${done.length > 0 ? `
+  <div style="margin-top:24px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;padding-left:2px">
+      <div style="flex:1;height:1px;background:var(--border)"></div>
+      <div style="font-size:.72rem;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.08em;white-space:nowrap">
+        🏆 ${window._currentLang==='en'?'Completed':'Completados'} · ${done.length}
+      </div>
+      <div style="flex:1;height:1px;background:var(--border)"></div>
+    </div>
+    <div class="grid-3" style="opacity:0.7">${done.map(o=>cards_map[o.id]).join('')}</div>
+  </div>` : ''}`
 }
 
 function exportarObjetivos() {
@@ -5877,18 +5956,46 @@ function confirmarObjAvatar() {
 
 // ─── PRESUPUESTOS ──────────────────────────────────────────────
 function renderPresupuestos() {
-  // Use selected period month for budget comparison
-  const m = window._gTimePeriod === 'lastmonth' ? prevMonth(currentMonth()) : currentMonth()
-  const catMap = gastosMesByCat(m)
-  const cats = Object.keys(S.presupuestos)
-  const totalLimite = cats.reduce((a,c)=>a+(Number(S.presupuestos[c])||0),0)
-  const totalGastado = cats.reduce((a,c)=>a+(Number(catMap[c])||0),0)
-  const enRojo = cats.filter(c=>(Number(catMap[c])||0)>=(Number(S.presupuestos[c])||0)).length
+  // Ensure presupuestosV2 exists (migrate legacy)
+  if (!S.presupuestosV2) S.presupuestosV2 = {}
+  Object.keys(S.presupuestos).forEach(cat => {
+    if (!S.presupuestosV2[cat]) S.presupuestosV2[cat] = { limite: S.presupuestos[cat], tipo: 'monthly' }
+  })
 
-  const items = cats.map(cat=>{
-    const limite = Number(S.presupuestos[cat])||0
-    const gastado = Number(catMap[cat])||0
-    const pctVal = limite ? clamp((gastado/limite)*100,0,120) : 0
+  if (!window._presPeriod) window._presPeriod = 'month'
+  const m = window._presPeriod === 'lastmonth' ? prevMonth(currentMonth()) : currentMonth()
+  const yr = currentMonth().slice(0, 4)
+  const quarterStart = (() => { const mo = parseInt(m.slice(5,7))-1; const qs = Math.floor(mo/3)*3; const d = new Date(); d.setFullYear(parseInt(yr), qs, 1); return d.toISOString().slice(0,7) })()
+
+  const catMap = gastosMesByCat(m)
+  const catMapYear = {}
+  const catMapQ = {}
+  ;(S.gastos||[]).forEach(g => {
+    if (!g.fecha || !g.categoria) return
+    if (g.fecha.startsWith(yr)) { catMapYear[g.categoria] = (catMapYear[g.categoria]||0) + (Number(g.importe)||0) }
+    if (g.fecha >= quarterStart && g.fecha <= m+'-31') { catMapQ[g.categoria] = (catMapQ[g.categoria]||0) + (Number(g.importe)||0) }
+  })
+
+  const cats = Object.keys(S.presupuestosV2)
+  const totalLimiteM = cats.reduce((a,c) => {
+    const { limite, tipo } = S.presupuestosV2[c] || { limite: 0, tipo: 'monthly' }
+    return a + (tipo==='annual' ? (Number(limite)||0)/12 : tipo==='quarterly' ? (Number(limite)||0)/3 : (Number(limite)||0))
+  }, 0)
+  const totalGastadoM = cats.reduce((a,c)=>a+(Number(catMap[c])||0),0)
+  const enRojo = cats.filter(c => {
+    const { limite, tipo } = S.presupuestosV2[c] || { limite: S.presupuestos[c], tipo: 'monthly' }
+    const spent = tipo==='annual' ? (catMapYear[c]||0) : tipo==='quarterly' ? (catMapQ[c]||0) : (catMap[c]||0)
+    return spent >= (Number(limite)||0)
+  }).length
+
+  const tipoLabel = { monthly: window._currentLang==='en'?'Monthly':'Mensual', quarterly: window._currentLang==='en'?'Quarterly':'Trimestral', annual: window._currentLang==='en'?'Annual':'Anual' }
+  const tipoIcon = { monthly: '📅', quarterly: '📆', annual: '🗓️' }
+
+  const items = cats.map(cat => {
+    const { limite, tipo } = S.presupuestosV2[cat] || { limite: S.presupuestos[cat], tipo: 'monthly' }
+    const limiteN = Number(limite)||0
+    const gastado = tipo==='annual' ? (catMapYear[cat]||0) : tipo==='quarterly' ? (catMapQ[cat]||0) : (catMap[cat]||0)
+    const pctVal = limiteN ? clamp((gastado/limiteN)*100,0,120) : 0
     const cls = pctVal>=100?'progress-danger':pctVal>=80?'progress-warn':'progress-ok'
     const badge = pctVal>=100
       ? '<span class="badge badge-red">⚠ Superado</span>'
@@ -5899,15 +6006,16 @@ function renderPresupuestos() {
       <div class="budget-header">
         <div class="budget-cat">
           <span style="font-size:1rem">${catEmoji(cat)}</span> ${cat} ${badge}
+          <span style="font-size:.68rem;color:var(--text2);margin-left:6px">${tipoIcon[tipo]||''} ${tipoLabel[tipo]||tipo}</span>
         </div>
         <div style="display:flex;align-items:center;gap:8px">
-          <div class="budget-nums">${eur(gastado)} / <strong>${eur(limite)}</strong></div>
+          <div class="budget-nums">${eur(gastado)} / <strong>${eur(limiteN)}</strong></div>
           <button class="btn-del" style="padding:3px 8px;font-size:.7rem" onclick="borrarPresupuesto(this.dataset.cat)" data-cat="${cat}">🗑</button>
         </div>
       </div>
       <div class="progress-wrap"><div class="progress-bar ${cls}" style="width:${Math.min(pctVal,100)}%"></div></div>
       <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:.75rem;color:var(--text2)">
-        <span>Disponible: <strong style="color:var(--text)">${eur(Math.max(0,limite-gastado))}</strong></span>
+        <span>Disponible: <strong style="color:var(--text)">${eur(Math.max(0,limiteN-gastado))}</strong></span>
         <span>${pct(pctVal)} usado</span>
       </div>
     </div>`
@@ -5915,40 +6023,44 @@ function renderPresupuestos() {
 
   document.getElementById('content').innerHTML = `
   <div class="section-header">
-    <div><div class="page-h1">📊 ${t('page_presupuestos','Presupuestos')}</div><div class="page-sub">${monthLabel(m)} · ${t('pres_page_sub','Control de límites por categoría')}</div></div>
+    <div><div class="page-h1"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:0.85"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="9" x2="9" y2="21"/></svg> ${t('page_presupuestos','Presupuestos')}</div><div class="page-sub">${monthLabel(m)} · ${t('pres_page_sub','Control de límites por categoría')}</div></div>
     <div class="section-actions">
       <button class="btn btn-primary btn-sm" onclick="openModal('presupuestoModal');resetPresForm()">${t('btn_nuevo_presupuesto','+ Nuevo presupuesto')}</button>
     </div>
   </div>
 
-  ${_gFilterBar('renderPresupuestos()')}
+  <div class="time-filter-bar">
+    <span class="time-filter-label">${t('periodo','Período')}</span>
+    <button class="time-pill ${window._presPeriod==='month'?'active':''}" onclick="window._presPeriod='month';renderPresupuestos()">${t('este_mes','Este mes')}</button>
+    <button class="time-pill ${window._presPeriod==='lastmonth'?'active':''}" onclick="window._presPeriod='lastmonth';renderPresupuestos()">${t('mes_anterior','Mes anterior')}</button>
+  </div>
 
   <div class="kpi-grid kpi-grid-4" style="margin-bottom:16px">
     <div class="kpi-card">
       <div class="kpi-icon" style="background:var(--indigo-dim)">💰</div>
       <div class="kpi-label">${t('pres_total_presupuestado','Total presupuestado')}</div>
-      <div class="kpi-value">${eur(totalLimite)}</div>
+      <div class="kpi-value">${eur(totalLimiteM)}<span style="font-size:.6em;color:var(--text2)">/mes</span></div>
     </div>
     <div class="kpi-card">
       <div class="kpi-icon" style="background:var(--red-dim)">💳</div>
       <div class="kpi-label">${t('pres_total_gastado','Total gastado')}</div>
-      <div class="kpi-value">${eur(totalGastado)}</div>
+      <div class="kpi-value">${eur(totalGastadoM)}</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-icon" style="background:var(--green-dim)">✅</div>
       <div class="kpi-label">${t('pres_disponible','Disponible')}</div>
-      <div class="kpi-value">${eur(Math.max(0,totalLimite-totalGastado))}</div>
+      <div class="kpi-value">${eur(Math.max(0,totalLimiteM-totalGastadoM))}</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-icon" style="background:var(--red-dim)">⚠️</div>
       <div class="kpi-label">${t('pres_en_rojo','Categorías en rojo')}</div>
-      <div class="kpi-value" style="color:${enRojo?'var(--red)':'var(--green)'}">${enRojo}</div>
+      <div class="kpi-value" style="color:${enRojo?'var(--red)':'var(--green)'}">
+        ${enRojo}</div>
     </div>
   </div>
 
   <div class="card">${items}</div>`
 
-  // Animate budget alert cards
   if (window.MNPremiumFeatures) setTimeout(window.MNPremiumFeatures.enhanceBudgetCards, 80)
 }
 
@@ -6033,7 +6145,7 @@ function renderCuentas() {
 
   document.getElementById("content").innerHTML = `
   <div class="section-header">
-    <div><div class="page-h1">🏦 ${t('page_cuentas','Cuentas')}</div><div class="page-sub">${t('cuentas_page_sub','Dinero disponible y valor total por cuenta')}</div></div>
+    <div><div class="page-h1"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:0.85"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg> ${t('page_cuentas','Cuentas')}</div><div class="page-sub">${t('cuentas_page_sub','Dinero disponible y valor total por cuenta')}</div></div>
     <div class="section-actions">
       <button class="btn btn-ghost btn-sm" onclick="openModal('transModal');poblarTransModal()">⇄ Transferir</button>
       <button class="btn btn-primary btn-sm" onclick="openModal('cuentaModal');resetCuentaForm()">+ Nueva cuenta</button>
@@ -6147,7 +6259,7 @@ function renderConfiguracion() {
 
   document.getElementById('content').innerHTML = `
   <div class="section-header">
-    <div><div class="page-h1">⚙️ ${t('page_configuracion')}</div><div class="page-sub">${t('cfg_personaliza_sub')} · v${VERSION}</div></div>
+    <div><div class="page-h1"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:0.85"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> ${t('page_configuracion')}</div><div class="page-sub">${t('cfg_personaliza_sub')} · v${VERSION}</div></div>
   </div>
 
   <div class="grid-2">
@@ -6168,7 +6280,7 @@ function renderConfiguracion() {
       <div class="card">
         <div class="card-header"><div class="card-title">🌐 ${t('cfg_idioma')}</div></div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:4px">
-          ${[['es','🇪🇸','Español'],['en','🇺🇸','English'],['it','🇮🇹','Italiano'],['fr','🇫🇷','Français'],['de','🇩🇪','Deutsch'],['pt','🇵🇹','Português']].map(([code,flag,name])=>`
+          ${[['es','🇪🇸','Español'],['en','🇬🇧','English']].map(([code,flag,name])=>`
             <div onclick="setLang('${code}');renderConfiguracion()" style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--radius-sm);background:var(--bg2);border:1.5px solid ${_currentLang===code?'var(--accent)':'var(--border)'};cursor:pointer;transition:all .15s;${_currentLang===code?'background:var(--accent-dim)':''}">
               <span style="font-size:1.1rem">${flag}</span>
               <span style="font-size:.82rem;font-weight:600;color:${_currentLang===code?'var(--accent)':'var(--text2)'}">${name}</span>
@@ -6289,7 +6401,7 @@ function renderLogros() {
   if (!el) return
   el.innerHTML = `
   <div class="section-header">
-    <div><div class="page-h1">🏆 ${t('nav_logros') || 'Logros'}</div><div class="page-sub">${t('nav_sub_logros') || 'Tu progreso en MoneyNest'}</div></div>
+    <div><div class="page-h1"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:0.85"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg> ${t('nav_logros') || 'Logros'}</div><div class="page-sub">${t('nav_sub_logros') || 'Tu progreso en MoneyNest'}</div></div>
   </div>
   <div id="achievementsContainer"></div>`
 
@@ -6320,7 +6432,23 @@ function chartDefaults() {
       tooltip: {
         backgroundColor: tooltipBg(),
         borderColor: isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.08)',
-        borderWidth: 1,
+     
+      // ── Added missing EN keys ──
+      proyeccion_titulo: 'Wealth projection',
+      proyeccion_sub: 'Last 3 months average',
+      escenario_conservador: 'Conservative',
+      escenario_moderado: 'Moderate',
+      escenario_optimista: 'Optimistic',
+      proyeccion_negativa: 'Negative projection',
+      proyeccion_negativa_msg: 'Reduce expenses or increase income.',
+      proyeccion_excelente: 'Excellent projection',
+      proyeccion_excelente_msg: 'Consider investing the surplus.',
+      de_ingresos: 'of income',
+      mes_lbl: 'month',
+      crear_estrategia: 'Create strategy',
+      personaliza_pago: 'Customize your monthly payment',
+      desbloquear: 'Unlock',
+   borderWidth: 1,
         titleColor: tooltipText(),
         bodyColor: isLight ? '#475569' : '#94A3B8',
         padding: { x: 14, y: 10 },
@@ -7963,7 +8091,17 @@ function confirmarAportar() {
 // ─── PRESUPUESTO CRUD ───────────────────────────────────────────
 function resetPresForm() {
   document.getElementById('presLimite').value = ''
+  const tipoEl = document.getElementById('presTipo')
+  if (tipoEl) tipoEl.value = 'monthly'
+  window._updatePresLabel()
   poblarSelect('presCat','gasto')
+}
+window._updatePresLabel = function() {
+  const tipoEl = document.getElementById('presTipo')
+  const labelEl = document.getElementById('presLimiteLabel')
+  if (!tipoEl || !labelEl) return
+  const labels = { monthly: 'Límite mensual (€) *', quarterly: 'Límite trimestral (€) *', annual: 'Límite anual (€) *' }
+  labelEl.textContent = labels[tipoEl.value] || labels.monthly
 }
 function guardarPresupuesto() {
   if (!_formGuard.lock('presupuestoModal')) return
@@ -7972,7 +8110,12 @@ function guardarPresupuesto() {
   if (!cat) { toast(t('err_selecciona_cat'),'error'); _unlock(); return }
   const limite = parseFloat(document.getElementById('presLimite').value)
   if (!limite || limite <= 0) { toast(t('err_limite_valido'),'error'); _unlock(); return }
-  S.presupuestos[cat] = limite
+  const tipo = (document.getElementById('presTipo')?.value) || 'monthly'
+  // Store as object with type info; keep backward compat (plain number = monthly)
+  if (!S.presupuestosV2) S.presupuestosV2 = {}
+  S.presupuestosV2[cat] = { limite, tipo }
+  // Also update legacy S.presupuestos with monthly-equivalent for charts
+  S.presupuestos[cat] = tipo === 'annual' ? limite/12 : tipo === 'quarterly' ? limite/3 : limite
   save(); if (window.MNGamification) MNGamification.checkAchievement('presupuesto_added'); closeModal('presupuestoModal'); _unlock(); render(); toast(t('toast_presupuesto_guardado'))
 }
 function borrarPresupuesto(cat) {
@@ -8992,23 +9135,74 @@ function calc503020(month) {
  * @returns {Array} deudas ordenadas
  */
 function debtSnowball() {
+  // Sort: smallest balance first — gain momentum by clearing small debts first
   return [...S.deudas]
     .filter(d => (Number(d.importeTotal) - Number(d.importePagado || 0)) > 0)
     .sort((a, b) => {
       const pendA = Number(a.importeTotal) - Number(a.importePagado || 0)
       const pendB = Number(b.importeTotal) - Number(b.importePagado || 0)
-      return pendA - pendB
+      return pendA - pendB  // ascending: smallest first
     })
 }
 
 /**
  * Método AVALANCHA — pagar primero las deudas con mayor interés
- * @returns {Array} deudas ordenadas
+ * @returns {Array} deudas ordenadas por interés descendente
  */
 function debtAvalanche() {
+  // Sort: highest interest rate first — minimize total interest paid
   return [...S.deudas]
     .filter(d => (Number(d.importeTotal) - Number(d.importePagado || 0)) > 0)
-    .sort((a, b) => Number(b.interes || 0) - Number(a.interes || 0))
+    .sort((a, b) => Number(b.interes || 0) - Number(a.interes || 0))  // descending: highest interest first
+}
+
+/**
+ * Simula el pago mes a mes con un método dado (snowball/avalanche).
+ * Devuelve { months, totalInterest, payoffOrder }
+ */
+function simulateDebtPayoff(monthlyBudget, orderedDebts) {
+  if (!monthlyBudget || monthlyBudget <= 0 || !orderedDebts.length) return { months: 0, totalInterest: 0 }
+  // Deep copy balances
+  const debts = orderedDebts.map(d => ({
+    id: d.id,
+    nombre: d.nombre||'—',
+    balance: Math.max(0, (Number(d.importeTotal)||0) - (Number(d.importePagado)||0)),
+    rate: (Number(d.interes)||0) / 100 / 12,  // monthly rate
+    minPay: Math.max(10, (Math.max(0,(Number(d.importeTotal)||0)-(Number(d.importePagado)||0))) * 0.02)
+  })).filter(d => d.balance > 0)
+
+  let months = 0
+  let totalInterest = 0
+  const MAX_MONTHS = 600
+
+  while (debts.some(d => d.balance > 0) && months < MAX_MONTHS) {
+    months++
+    let remaining = monthlyBudget
+
+    // Apply minimum payments first
+    debts.forEach(d => {
+      if (d.balance <= 0) return
+      const interest = d.balance * d.rate
+      const minPay = Math.min(d.minPay, d.balance + interest)
+      const actualMin = Math.min(minPay, remaining)
+      totalInterest += interest
+      d.balance = Math.max(0, d.balance + interest - actualMin)
+      remaining -= actualMin
+    })
+
+    // Apply extra to first active debt (the ordered priority)
+    for (let i = 0; i < debts.length; i++) {
+      if (debts[i].balance > 0 && remaining > 0) {
+        const pay = Math.min(remaining, debts[i].balance)
+        debts[i].balance = Math.max(0, debts[i].balance - pay)
+        remaining -= pay
+        if (debts[i].balance <= 0.01) debts[i].balance = 0
+        break
+      }
+    }
+  }
+
+  return { months, totalInterest }
 }
 
 /** Calcula cuántos meses aproximados para saldar todas las deudas */
@@ -9389,7 +9583,7 @@ function renderAnalisis() {
   <!-- ── HEADER ────────────────────────────────────────────────── -->
   <div class="section-header mn-section">
     <div>
-      <div class="page-h1">📊 ${t('page_analisis','Análisis')}</div>
+      <div class="page-h1"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:0.85"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg> ${t('page_analisis','Análisis')}</div>
       <div class="page-sub">${_gPeriodLabel()}</div>
     </div>
     <div class="section-actions" style="flex-wrap:wrap;gap:6px">
@@ -9405,8 +9599,6 @@ function renderAnalisis() {
       <button class="btn btn-secondary btn-sm" onclick="abrirCierreMes()">📋 ${t('btn_monthly_cerrar','Cierre')}</button>
     </div>
   </div>
-
-  ${_gFilterBar('renderAnalisis()')}
 
   <!-- ── COMPARATIVA AÑO ACTUAL VS ANTERIOR ─────────────────────── -->
   ${(() => {
@@ -10300,7 +10492,7 @@ function _obLeftHTML(step) {
 
   // STEP 1: Auth — left panel shows language selector + brand tagline
   if (step === 1) {
-    const langs = [['es','🇪🇸','Español'],['en','🇺🇸','English'],['fr','🇫🇷','Français'],['de','🇩🇪','Deutsch'],['pt','🇵🇹','Português'],['it','🇮🇹','Italiano']]
+    const langs = [['es','🇪🇸','Español'],['en','🇬🇧','English']]
     return `
     <div class="ob-left-content ob-left-content--auth">
       ${brand}
@@ -10366,7 +10558,6 @@ function _obLeftHTML(step) {
     const planInfo = {
       trial: { icon: '🕐', color: '#F59E0B', label: 'Free Trial', desc: '24 horas gratuitas' },
       local: { icon: '💾', color: '#10B981', label: 'Local', desc: 'Pago único 5€' },
-      pro:   { icon: '⚡', color: '#6366F1', label: 'Pro', desc: '5€ + 5€/año' },
     }
     const p = planInfo[obData.plan] || planInfo.trial
     return `
@@ -10591,29 +10782,6 @@ function _obRightHTML(step) {
           <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
       </div>
-
-      <div class="ob-plan-card ob-plan-card--pro ${obData.plan === 'pro' ? 'selected' : ''}" onclick="obSelectPlan('pro')">
-        <div class="ob-pc-popular">⚡ Popular</div>
-        <div class="ob-pc-top">
-          <span class="ob-pc-emoji">🚀</span>
-          <span class="ob-pc-tag ob-pc-tag--pro">Todo incluido</span>
-        </div>
-        <div class="ob-pc-name">Pro</div>
-        <div class="ob-pc-price-stack">
-          <div class="ob-pc-price-row"><span class="ob-pc-price-lbl ob-pc-price-lbl--local">Local</span><span class="ob-pc-price-val">5€ único</span></div>
-          <div class="ob-pc-price-plus">+</div>
-          <div class="ob-pc-price-row"><span class="ob-pc-price-lbl ob-pc-price-lbl--pro">Pro</span><span class="ob-pc-price-val">5€/año</span></div>
-        </div>
-        <div class="ob-pc-period">7 días de prueba gratis</div>
-        <div class="ob-pc-divider"></div>
-        <ul class="ob-pc-feats">
-          <li class="ok">Todo lo de Local</li>
-          <li class="ok">Sincronización cloud</li>
-          <li class="ok">7 días gratis incluidos</li>
-        </ul>
-        <div class="ob-pc-check ${obData.plan === 'pro' ? 'active' : ''}">
-          <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </div>
       </div>
 
     </div>
@@ -10664,7 +10832,7 @@ function obSelectPlan(plan) {
     const chk = el.querySelector('.ob-pc-check')
     if (chk) chk.classList.remove('active')
   })
-  const map = { trial: 0, local: 1, pro: 2 }
+  const map = { trial: 0, local: 1 }
   const els = document.querySelectorAll('#obPlanCards .ob-plan-card')
   if (els[map[plan]]) {
     els[map[plan]].classList.add('selected')
@@ -10910,27 +11078,13 @@ async function obNext() {
     } else {
       const btn = document.querySelector('#obContentArea .ob-next-btn')
       if (btn) { btn.disabled = true; btn.textContent = t('loading_creando_cuenta') }
-      try {
-        await window.MNSupabaseAuth.signUp(email, pw)
-        obData._registered = true
-        window.MNAuth && window.MNAuth.upgradeTrial && window.MNAuth.upgradeTrial(email)
-        showErr('✅ Cuenta creada. Continuando...', '#00D4AA')
-        // Continue to next step automatically after successful signup
-        obStep++
-        setTimeout(() => obRender('forward'), 500)
-        return
-      } catch (err) {
-        const code = err?.code || ''
-        if (code === 'email_exists') {
-          showErr('⚠ Este email ya tiene cuenta. Usa "Iniciar sesión →"')
-        } else if (code === 'rate_limited') {
-          showErr('⚠ Demasiados intentos. Espera unos minutos.')
-        } else {
-          showErr('⚠ ' + (err?.message || 'Error al crear la cuenta.'))
-        }
-        if (btn) { btn.disabled = false; btn.innerHTML = 'Crear cuenta <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="display:inline;vertical-align:middle"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' }
-        return
-      }
+      // Register in background — never block onboarding flow
+      obData._registered = true
+      window.MNAuth && window.MNAuth.upgradeTrial && window.MNAuth.upgradeTrial(email)
+      window.MNSupabaseAuth && window.MNSupabaseAuth.signUp(email, pw).catch(() => {})
+      obStep++
+      obRender('forward')
+      return
     }
   }
 
@@ -10947,13 +11101,11 @@ async function obNext() {
 
   if (obStep === OB_TOTAL) { finishOnboarding(); return }
 
-  // If user just chose a paid plan on step 4, open payment first.
+  // If user chose the local paid plan on step 4, open payment first.
   // Only advance to step 5 after successful payment (mn:paymentSuccess event).
-  if (obStep === 4 && obData.plan !== 'trial') {
+  if (obStep === 4 && obData.plan === 'local') {
     const email = obData.email || ''
-    const priceId = obData.plan === 'pro'
-      ? window.MNStripeConfig?.prices?.pro
-      : window.MNStripeConfig?.prices?.local
+    const priceId = window.MNStripeConfig?.prices?.local
 
     // Register a one-shot listener to advance after payment succeeds
     const _onPaid = (e) => {
@@ -11399,6 +11551,9 @@ function loadDemoData(scenario, nombreOverride) {
     const noise = Math.round(Math.random() * 800 - 200)
     S.patrimonio_hist.push({ mes: mesi, valor: basePatr + trend + noise })
   }
+
+  // Ensure current month patrimonio is recorded
+  try { recordPatrimonio() } catch(e) {}
 }
 
 function clearDemoData() {
@@ -11500,7 +11655,6 @@ function _buildDemoPanel() {
     </div>`
 }
 
-function demoScenarioPreview(val) { /* future: live preview */ }
 
 function activateDemoWithConfig() {
   loadDemoData('standard', null)
@@ -11516,16 +11670,6 @@ function activateDemoWithConfig() {
   toast(t('toast_modo_demo','✅ Modo demo activado — explora sin límites'))
 }
 
-function reloadDemoWithScenario() {
-  const scenario = document.getElementById('dpmScenario')?.value || 'standard'
-  const nombre   = S.usuario.nombre || 'Demo'
-  toggleDemoPanel()
-  loadDemoData(scenario, nombre)
-  save()
-  render()
-  _renderDemoFab()
-  toast(t('toast_escenario_recargado','🔄 Escenario recargado'))
-}
 
 function finishOnboarding() {
   if (obData.nombre) S.usuario.nombre = obData.nombre
@@ -11614,7 +11758,7 @@ function _setTutDone()  { try { localStorage.setItem(TUT_FLAG_KEY, 'true') } cat
 
 function checkOnboarding() {
   const flagValue = localStorage.getItem(OB_FLAG_KEY)
-  console.log('[checkOnboarding] Flag value:', flagValue, '| Active account:', localStorage.getItem('mn_active_account'))
+  console.log('[checkOnboarding] Flag value:', flagValue)
 
   if (_obFlagSeen()) {
     console.log('[checkOnboarding] Onboarding already completed - skipping')
@@ -12588,7 +12732,7 @@ function renderPatrimonio() {
   document.getElementById('content').innerHTML = `
   <div class="section-header" style="margin-bottom:16px">
     <div>
-      <div class="page-h1">🏛 ${t('patrimonio_neto','Patrimonio Neto')}</div>
+      <div class="page-h1"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:0.85"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg> ${t('patrimonio_neto','Patrimonio Neto')}</div>
       <div class="page-sub">${t('pat_page_sub','Vista completa de tu riqueza financiera')}</div>
     </div>
   </div>
@@ -13009,7 +13153,7 @@ function render() {
   if (!S) return // Safety: S must be loaded before rendering
   // En modo demo siempre mostrar todo el período para ver datos históricos
   if (isDemoMode() && (window._gTimePeriod === 'month' || window._gTimePeriod === 'lastmonth')) {
-    window._gTimePeriod = 'all'
+    window._gTimePeriod = 'year'
   }
   updateTopBar()
   updateBadges()
@@ -13606,13 +13750,12 @@ function init() {
     // Returning user: show mini intro, then nothing
     runMiniIntro(() => {})
   } else {
-    // First-time user: skip mini intro, go straight to cinematic intro + onboarding
-    // Remove mini intro overlay immediately without animating
+    // First-time user: show onboarding immediately
     const miniEl = document.getElementById('mnMiniIntro')
     if (miniEl) miniEl.remove()
     const appEl = document.querySelector('.app')
     if (appEl) appEl.classList.remove('mn-intro-blur')
-    checkOnboarding()         // onboarding only fires if first-time
+    checkOnboarding()
   }
 }
 
@@ -14166,7 +14309,6 @@ function _authStartTrial() {
 
 function _authActivatePro() {
   // v2: dispatch event — el listener en index.html llama a MNAuth.activatePro()
-  document.dispatchEvent(new CustomEvent('mn:activatePro', { detail: { source: 'app' } }));
   document.getElementById('authModal').style.display = 'none';
   const gg = document.getElementById('guestGateModal');
   if (gg) gg.style.display = 'none';
@@ -14214,7 +14356,6 @@ function _postInitHooks() {
   document.addEventListener('mn:saved', () => {
     updateMisionBar()
   })
-  document.addEventListener('mn:upgradePro',     () => _showAuthModal())
   document.addEventListener('mn:restoreAccess',  () => _showAuthModal())
 }
 
@@ -14223,16 +14364,6 @@ function _postInitHooks() {
 
 
 window.addEventListener('DOMContentLoaded', function() {
-  // Multi-account system disabled per user request
-  // if (window.MNAccounts) {
-  //   try {
-  //     window.MNAccounts.boot()
-  //     console.log('[MoneyNest] Multi-account system initialized')
-  //   } catch(e) {
-  //     console.error('[MoneyNest] Failed to initialize accounts system:', e)
-  //   }
-  // }
-
   init()
   setTimeout(_postInitHooks, 600)
 
@@ -14509,6 +14640,14 @@ window._mnCloseAuthModal  = _mnCloseAuthModal
 // ════════════════════════════════════════════════════════════════════
 
 window.openCustomDebtModal = function() {
+  // Remove stale overlay if any
+  const old = document.getElementById('customDebtModalOverlay')
+  if (old) old.remove()
+  if (window._customDebtChartInstance) {
+    try { window._customDebtChartInstance.destroy() } catch(_) {}
+    window._customDebtChartInstance = null
+  }
+
   const pend = S.deudas.reduce((a,d) => a + Math.max(0,(Number(d.importeTotal)||0)-(Number(d.importePagado)||0)), 0)
   if (pend <= 0) {
     toast(t('sin_deudas_pendientes','No hay deudas pendientes para calcular'), 'info')
@@ -14584,8 +14723,12 @@ window.openCustomDebtModal = function() {
   document.body.appendChild(overlay)
   setTimeout(() => overlay.classList.add('active'), 10)
 
-  // Initialize calculation
-  updateCustomCalc()
+  // Initialize calculation after DOM is ready
+  requestAnimationFrame(() => {
+    window._customDebtMethod = 'avalanche'
+    window._customDebtCalc = null
+    updateCustomCalc()
+  })
 }
 
 window.closeCustomDebtModal = function() {
@@ -14623,24 +14766,16 @@ window.updateCustomCalc = function() {
     return
   }
 
+  const method = window._customDebtMethod || 'avalanche'
+  const orderedDebts = method === 'snowball' ? debtSnowball() : debtAvalanche()
+
+  // Simulate with chosen method
+  const { months, totalInterest } = simulateDebtPayoff(monthlyPay, orderedDebts)
+
   const pend = S.deudas.reduce((a,d) => a + Math.max(0,(Number(d.importeTotal)||0)-(Number(d.importePagado)||0)), 0)
-  const intMed = S.deudas.length ? S.deudas.reduce((a,d) => a+(Number(d.interes)||0),0)/S.deudas.length : 0
 
-  // Calculate months with interest
-  let months = 0
-  let totalPaid = 0
-  if (intMed > 0) {
-    const r = intMed / 100 / 12
-    months = Math.ceil(Math.log(monthlyPay / (monthlyPay - r * pend)) / Math.log(1 + r))
-    if (!isFinite(months) || months <= 0) months = Math.ceil(pend / monthlyPay)
-    totalPaid = monthlyPay * months
-  } else {
-    months = Math.ceil(pend / monthlyPay)
-    totalPaid = pend
-  }
-
-  const totalInterest = Math.max(0, totalPaid - pend)
   const fechaLibre = (() => {
+    if (!months) return '—'
     const fd = new Date()
     fd.setMonth(fd.getMonth() + months)
     return fd.toLocaleDateString(_currentLang === 'en' ? 'en-US' : 'es-ES', { month: 'long', year: 'numeric' })
@@ -14648,18 +14783,7 @@ window.updateCustomCalc = function() {
 
   // Calculate baseline (minimum payment = 2% of balance)
   const baselinePayment = Math.max(20, pend * 0.02)
-  let baselineMonths = 0
-  let baselineTotalPaid = 0
-  if (intMed > 0) {
-    const r = intMed / 100 / 12
-    baselineMonths = Math.ceil(Math.log(baselinePayment / (baselinePayment - r * pend)) / Math.log(1 + r))
-    if (!isFinite(baselineMonths) || baselineMonths <= 0) baselineMonths = Math.ceil(pend / baselinePayment)
-    baselineTotalPaid = baselinePayment * baselineMonths
-  } else {
-    baselineMonths = Math.ceil(pend / baselinePayment)
-    baselineTotalPaid = pend
-  }
-  const baselineInterest = Math.max(0, baselineTotalPaid - pend)
+  const { months: baselineMonths, totalInterest: baselineInterest } = simulateDebtPayoff(baselinePayment, method === 'snowball' ? debtSnowball() : debtAvalanche())
   const interestSavings = Math.max(0, baselineInterest - totalInterest)
 
   // Results cards
@@ -14678,7 +14802,12 @@ window.updateCustomCalc = function() {
     </div>
   `
 
-  // Savings motivation card
+  // Order of payment display
+  const orderHtml = orderedDebts.slice(0,5).map((d,i) => {
+    const bal = Math.max(0,(Number(d.importeTotal)||0)-(Number(d.importePagado)||0))
+    return `<span style="font-size:.72rem;color:var(--text2);margin-right:6px">${i+1}. <strong style="color:var(--text)">${d.nombre||'—'}</strong> (${eur(bal)})</span>`
+  }).join('') + (orderedDebts.length > 5 ? `<span style="font-size:.72rem;color:var(--text3)">+${orderedDebts.length-5} más</span>` : '')
+
   const percentFaster = baselineMonths > 0 ? Math.round(((baselineMonths - months) / baselineMonths) * 100) : 0
   saveCard.innerHTML = `
     <div class="mn-custom-save-icon">💎</div>
@@ -14691,14 +14820,18 @@ window.updateCustomCalc = function() {
         ? `<strong>${percentFaster}% ${t('mas_rapido','más rápido')}</strong> ${t('que_pago_minimo','que el pago mínimo')}.`
         : t('muy_cerca_pago_minimo','Estás cerca del pago mínimo.')
       }
+      ${orderedDebts.length > 1 ? `<div style="margin-top:6px;font-size:.72rem;color:var(--text3)">Orden de pago: ${orderHtml}</div>` : ''}
     </div>
   `
 
-  // Render comparison chart
-  renderCustomDebtChart(monthlyPay, months, baselinePayment, baselineMonths, pend)
-
-  // Store current calculation in window for saveCustomStrategy
   window._customDebtCalc = { monthlyPay, months, fechaLibre, totalInterest, interestSavings, baselineInterest }
+
+  // Render comparison chart — guard against missing canvas
+  try {
+    renderCustomDebtChart(monthlyPay, months, baselinePayment, baselineMonths, pend)
+  } catch(e) {
+    console.warn('[CustomDebt] Chart render error:', e)
+  }
 }
 
 function renderCustomDebtChart(customPay, customMonths, basePay, baseMonths, totalDebt) {
@@ -14805,20 +14938,27 @@ window.saveCustomStrategy = function() {
   const nameInput = document.getElementById('customStratName')
   const method = window._customDebtMethod || 'avalanche'
 
-  if (!calc || !calc.monthlyPay || calc.months <= 0) {
-    toast(t('err_calculo_invalido','Cálculo inválido'), 'error')
-    return
+  if (!calc || !calc.monthlyPay || !isFinite(calc.months) || calc.months <= 0) {
+    // Try to recalculate first
+    updateCustomCalc()
+    const calc2 = window._customDebtCalc
+    if (!calc2 || !calc2.monthlyPay || calc2.months <= 0) {
+      toast(t('err_calculo_invalido','Introduce un pago mensual válido'), 'error')
+      return
+    }
   }
+  const finalCalc = window._customDebtCalc
 
   const name = (nameInput?.value || t('nombre_estrategia_default','Mi estrategia')).trim()
+  const calcData = window._customDebtCalc
 
   window._customDebtStrategy = {
     icon: '🎯',
     name: name,
-    monthlyPayment: calc.monthlyPay,
-    months: calc.months,
-    date: calc.fechaLibre,
-    savings: calc.interestSavings || 0,
+    monthlyPayment: calcData.monthlyPay,
+    months: calcData.months,
+    date: calcData.fechaLibre,
+    savings: calcData.interestSavings || 0,
     method: method,
   }
 

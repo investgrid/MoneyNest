@@ -212,13 +212,13 @@
 
   function _toggle(label, key, val) {
     return `
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.05)">
-        <span style="font-size:.82rem;color:rgba(255,255,255,.65)">${label}</span>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">
+        <span style="font-size:.82rem;color:var(--text2)">${label}</span>
         <label style="position:relative;display:inline-block;width:38px;height:22px;cursor:pointer">
           <input type="checkbox" ${val?'checked':''} onchange="MNNotifications._setPref('${key}',this.checked)"
             style="opacity:0;width:0;height:0">
-          <span style="position:absolute;inset:0;background:${val?'#00D4AA':'rgba(255,255,255,0.12)'};border-radius:99px;transition:.2s;cursor:pointer"></span>
-          <span style="position:absolute;top:3px;left:${val?'19px':'3px'};width:16px;height:16px;background:#fff;border-radius:50%;transition:.2s"></span>
+          <span style="position:absolute;inset:0;background:${val?'var(--accent)':'var(--border2)'};border-radius:99px;transition:.2s;cursor:pointer"></span>
+          <span style="position:absolute;top:3px;left:${val?'19px':'3px'};width:16px;height:16px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.3)"></span>
         </label>
       </div>`;
   }
@@ -227,6 +227,16 @@
     const p = getPrefs();
     p[key] = val;
     savePrefs(p);
+    // Re-render settings so toggle visual state is consistent
+    const containerId = 'mn-notif-settings-container';
+    // If enabling any pref, ensure permission is requested
+    if (val && 'Notification' in window && Notification.permission !== 'granted') {
+      requestPermission().then(() => {
+        renderSettingsUI(containerId);
+      });
+    } else {
+      renderSettingsUI(containerId);
+    }
   }
 
   function _sendTest() {

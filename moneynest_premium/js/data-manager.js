@@ -797,6 +797,21 @@ window.dmSaveLocal = async function() {
   try {
     if (typeof save === 'function') save();
 
+    // Also download a JSON backup file so user can re-import it
+    try {
+      const state = (typeof S !== 'undefined') ? S : {};
+      const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+      const url  = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const dateStr = new Date().toISOString().slice(0, 10);
+      a.download = `MoneyNest_backup_${dateStr}.json`;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 500);
+    } catch(_) {}
+
     // Brief delay for feedback
     await new Promise(r => setTimeout(r, 600));
 
@@ -804,7 +819,7 @@ window.dmSaveLocal = async function() {
       icon.innerHTML = ICONS.check;
       icon.querySelector('svg').style.color = 'var(--accent)';
     }
-    dmToast(_dm('dm_datos_guardados', '💾 Datos guardados localmente'), 'success');
+    dmToast(_dm('dm_datos_guardados', '💾 Datos guardados y descargados como backup'), 'success');
 
     setTimeout(() => {
       if (icon) icon.innerHTML = ICONS.save;
