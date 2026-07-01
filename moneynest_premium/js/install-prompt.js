@@ -587,8 +587,13 @@
   }
 
   function triggerInstall() {
-    // Siempre mostrar modal de confirmación primero, después dispara el prompt si aplica
-    showInstallConfirmModal();
+    // En Android/Windows con prompt disponible → disparar directamente el diálogo nativo del navegador
+    if (deferredPrompt) {
+      triggerInstallNow()
+      return
+    }
+    // Sin prompt nativo → modal con instrucciones
+    showInstallConfirmModal()
   }
 
   // ── PWA events ────────────────────────────────────────────────────
