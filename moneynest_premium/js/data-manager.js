@@ -911,49 +911,12 @@ function injectTopbarButtons() {
     </button>
   `;
 
-  // Trial pill — solo visible en plan trial
-  const trialPill = document.createElement('div');
-  trialPill.id = 'dm-trial-pill';
-  trialPill.style.cssText = 'display:none;align-items:center;gap:8px;padding:5px 14px;border-radius:99px;background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.25);font-size:.85rem;font-weight:600;color:#A5B4FC;cursor:pointer;transition:all .18s;white-space:nowrap';
-  trialPill.onclick = () => { if(window.MNAuthUI) MNAuthUI.showAuthModal('plan'); };
-  right.insertBefore(trialPill, right.firstChild);
-  _updateTrialPill();
-  // Update every 60s
-  setInterval(_updateTrialPill, 60_000);
+  // Trial pill removed (pro plan removed)
 
   right.appendChild(group);
 }
 
-function _updateTrialPill() {
-  const pill = document.getElementById('dm-trial-pill');
-  if (!pill) return;
-  if (!window.MNAuth) { pill.style.display = 'none'; return; }
-  const user = MNAuth.getUser();
-  if (user.plan !== 'trial' || !user.trialEndsAt) { pill.style.display = 'none'; return; }
-  const msLeft = Math.max(0, user.trialEndsAt - Date.now());
-  if (msLeft <= 0) { pill.style.display = 'none'; return; }
-  const h = Math.floor(msLeft / 3600000);
-  const m = Math.floor((msLeft % 3600000) / 60000);
-  const label = h > 0 ? `${h}h ${m}m` : `${m}m`;
-  const urgent = h < 2;
-  const warn = h < 6;
-  const color = urgent ? '#F43F5E' : warn ? '#F59E0B' : '#A5B4FC';
-  const bg = urgent ? 'rgba(244,63,94,.12)' : warn ? 'rgba(245,158,11,.1)' : 'rgba(99,102,241,.12)';
-  const border = urgent ? 'rgba(244,63,94,.35)' : warn ? 'rgba(245,158,11,.3)' : 'rgba(99,102,241,.3)';
-  pill.style.display = 'flex';
-  pill.style.color = color;
-  pill.style.background = bg;
-  pill.style.border = `1px solid ${border}`;
-  // Compact, minimal pill — emoji + time + subtle CTA text, no filled badge
-  pill.innerHTML = `<span style="opacity:.8">${urgent?'🚨':warn?'⚠️':'⏳'}</span><span style="color:var(--text);font-weight:700">${_dm('dm_pill_trial','Trial:')}</span><span style="color:#fff;font-weight:700">${label}</span><span style="color:${color};font-size:.75rem;font-weight:700">· ${_dm('dm_pill_desbloquear','Desbloquear')}</span>`;
-
-  // Lock import button visually during trial
-  const importBtn = document.getElementById('dm-import-topbtn');
-  if (importBtn) {
-    importBtn.style.opacity = '0.45';
-    importBtn.title = _dm('dm_importar_requiere_plan','🔒 Importar requiere Plan Local o Pro');
-  }
-}
+function _updateTrialPill() { /* pro plan removed */ }
 
 // ── Inject panel HTML ──────────────────────────────────────────
 function injectPanelHTML() {

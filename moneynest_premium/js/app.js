@@ -57,7 +57,7 @@ window.PLANS = PLANS
 const DEFAULT_USER = Object.freeze({
   id:           null,
   email:        null,
-  plan:         'trial',  // v2: plan inicial = trial 24h
+  plan:         'local',  // plan pro removed
   trialEndsAt:  null,
   cloudEnabled: false,
   createdAt:    null,
@@ -93,7 +93,7 @@ function _generateUserId() {
 function initUser() {
   let user = getUser()
   if (!user.id) {
-    user = { ...DEFAULT_USER, id: _generateUserId(), plan: 'trial', trialEndsAt: Date.now() + 86400000, createdAt: Date.now() }
+    user = { ...DEFAULT_USER, id: _generateUserId(), plan: 'local', trialEndsAt: null, createdAt: Date.now() }
     saveUser(user)
   } else if (!user.createdAt) {
     saveUser({ ...user, createdAt: Date.now() })
@@ -101,23 +101,7 @@ function initUser() {
   return user
 }
 
-function checkAccess() {
-  const user = getUser()
-  if (user.plan === 'local' || user.plan === 'pro') return { ok: true, reason: null }
-  if (user.plan === 'locked_local') {
-    bloquearApp(user)
-    return { ok: false, reason: 'locked_local' }
-  }
-  if (user.plan === 'trial') {
-    if (user.trialEndsAt && Date.now() > user.trialEndsAt) {
-      patchUser({ plan: 'locked_local' })
-      bloquearApp(user)
-      return { ok: false, reason: 'trial_expired' }
-    }
-    return { ok: true, reason: null }
-  }
-  return { ok: true, reason: null }
-}
+function checkAccess() { return { ok: true, reason: null } }
 
 function upgradeTrial(email) {
   const trialEndsAt = Date.now() + TRIAL_DAYS * 86400000
@@ -147,74 +131,7 @@ function isTrialExpired() {
 
 function isGuest() { return getUser().plan === 'locked_local'; }
 
-function bloquearApp(user) {
-  const u = user || getUser()
-  const theme = document.documentElement.getAttribute('data-theme') || 'dark'
-  const isDark = theme === 'dark'
-  const bg = isDark ? '#0A0E17' : '#F1F5F9'
-  const card = isDark ? '#111827' : '#FFFFFF'
-  const txt  = isDark ? '#E8EFF7' : '#0F172A'
-  const txt2 = isDark ? '#94A3B8' : '#475569'
-  const bdr  = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'
-
-  document.body.style.overflow = 'hidden'
-  document.body.innerHTML = `
-  <style>
-    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-    body{background:${bg};font-family:'Plus Jakarta Sans','Inter',system-ui,sans-serif;
-         display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px}
-    .pw-wrap{width:100%;max-width:440px;text-align:center;animation:pwIn .5s cubic-bezier(0.22,1,0.36,1) forwards}
-    @keyframes pwIn{from{opacity:0;transform:scale(.96) translateY(16px)}to{opacity:1;transform:none}}
-    .pw-card{background:${card};border:1px solid ${bdr};border-radius:24px;padding:40px 36px 32px;
-             box-shadow:0 32px 80px rgba(0,0,0,${isDark?.7:.12});margin-bottom:20px}
-    .pw-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(244,63,94,.1);
-              border:1px solid rgba(244,63,94,.2);color:#F43F5E;font-size:.7rem;font-weight:700;
-              text-transform:uppercase;letter-spacing:.1em;padding:4px 12px;border-radius:99px;margin-bottom:24px}
-    .pw-dot{width:5px;height:5px;border-radius:50%;background:#F43F5E}
-    .pw-icon{font-size:3.5rem;margin-bottom:16px;display:block;
-             animation:pwPop .5s cubic-bezier(0.34,1.56,.64,1) .1s both}
-    @keyframes pwPop{from{transform:scale(0)}to{transform:scale(1)}}
-    .pw-title{font-size:1.6rem;font-weight:800;color:${txt};letter-spacing:-.04em;line-height:1.2;margin-bottom:10px}
-    .pw-sub{font-size:.9rem;color:${txt2};line-height:1.65;margin-bottom:28px}
-    .pw-feats{display:flex;flex-direction:column;gap:8px;margin-bottom:28px;text-align:left}
-    .pw-feat{display:flex;align-items:center;gap:12px;padding:10px 14px;
-             background:rgba(0,212,170,.06);border:1px solid rgba(0,212,170,.12);
-             border-radius:10px;font-size:.82rem;color:${txt};font-weight:600}
-    .pw-cta-primary{width:100%;padding:16px;border-radius:14px;border:none;
-                    background:linear-gradient(135deg,#00D4AA,#00A882);color:#0A0E17;
-                    font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;
-                    box-shadow:0 6px 24px rgba(0,212,170,.35);transition:transform .2s,box-shadow .2s;
-                    margin-bottom:10px;display:block}
-    .pw-cta-primary:hover{transform:translateY(-2px);box-shadow:0 10px 36px rgba(0,212,170,.45)}
-    .pw-cta-ghost{width:100%;padding:13px;border-radius:12px;border:1.5px solid ${bdr};
-                  background:transparent;color:${txt2};font-size:.85rem;font-weight:600;
-                  cursor:pointer;font-family:inherit;transition:all .18s;display:block}
-    .pw-cta-ghost:hover{border-color:#00D4AA;color:#00D4AA}
-    .pw-note{font-size:.72rem;color:${txt2};line-height:1.5}
-    .pw-note a{color:#00D4AA;text-decoration:none;font-weight:600}
-  </style>
-  <div class="pw-wrap">
-    <div class="pw-card">
-      <div class="pw-badge"><div class="pw-dot"></div>Prueba finalizada</div>
-      <span class="pw-icon">⏰</span>
-      <div class="pw-title">Tu prueba ha terminado</div>
-      <div class="pw-sub">Los ${TRIAL_DAYS} días de prueba gratuita han concluido.
-        Activa <strong>MoneyNest Pro</strong> para continuar con acceso total.</div>
-      <div class="pw-feats">
-        <div class="pw-feat">✅ &nbsp;Todos tus datos guardados y seguros</div>
-        <div class="pw-feat">✅ &nbsp;Ingresos, gastos, inversiones ilimitados</div>
-        <div class="pw-feat">✅ &nbsp;Exportación PDF y Excel</div>
-        <div class="pw-feat">✅ &nbsp;Sincronización en la nube (próximamente)</div>
-      </div>
-      <button class="pw-cta-primary" onclick="_pw_activatePro()">🔓 Comprar Plan Local — 5€ único</button>
-    </div>
-    <p class="pw-note">¿Ya tienes licencia? <a href="#" onclick="_pw_restore(event)">Restaurar acceso</a> ·
-       Tus datos están seguros.</p>
-  </div>`
-
-  window._pw_activatePro = () => document.dispatchEvent(new CustomEvent('mn:buyLocal', { detail: { source:'paywall' } }))
-  window._pw_restore     = (e) => { e.preventDefault(); document.dispatchEvent(new CustomEvent('mn:restoreAccess', { detail: { source:'paywall' } })) }
-}
+function bloquearApp(user) { /* pro plan removed */ }
 
 // Expose on window for debugging / external use.
 // Si js/auth.js (v2) ya cargó antes, ya definió window.MNAuth con funciones
@@ -11902,7 +11819,7 @@ function renderTutStep() {
     inversiones:renderInversiones, deudas:renderDeudas, cuentas:renderCuentas,
     objetivos:renderObjetivos, presupuestos:renderPresupuestos,
     analisis:renderAnalisis, configuracion:renderConfiguracion,
-    patrimonio:renderPatrimonio, billing:renderBilling, logros:renderLogros
+    patrimonio:renderPatrimonio, // billing removed logros:renderLogros
   }
   if (step.page && step.page !== currentPage) {
     currentPage = step.page
@@ -13138,16 +13055,7 @@ function assetIcon(tipo) {
 }
 
 // ─── RENDER: full routing ──────────────────────────────────────
-function renderBilling() {
-  if (window.MNBillingUI && window.MNBillingUI.renderBillingPage) {
-    window.MNBillingUI.renderBillingPage();
-  } else {
-    document.getElementById('content').innerHTML = `
-      <div style="display:flex;align-items:center;justify-content:center;height:300px;color:var(--text2);font-size:.9rem">
-        Cargando Billing Center…
-      </div>`;
-  }
-}
+function renderBilling() { renderConfiguracion(); }
 
 function render() {
   if (!S) return // Safety: S must be loaded before rendering
@@ -13175,7 +13083,7 @@ function render() {
     cuentas:      renderCuentas,
     analisis:     renderAnalisis,
     configuracion:renderConfiguracion,
-    billing:      renderBilling,
+    // billing: removed
     patrimonio:   renderPatrimonio,
     faq:          renderFAQ,
     sugerencias:  renderFAQ,
@@ -13540,7 +13448,7 @@ function syncBottomNav(page) {
     dashboard:    'bn-dashboard',
     gastos:       'bn-gastos',
     analisis:     'bn-analisis',
-    billing:      'bn-billing',
+    // billing: removed
     configuracion:'bn-config'
   }
   document.querySelectorAll('.bottom-nav-item').forEach(el => el.classList.remove('active'))
@@ -14338,7 +14246,7 @@ function _showGuestGateModal() {
       <div style="font-size:1.25rem;font-weight:800;color:var(--text);letter-spacing:-.04em;margin-bottom:8px">Tu prueba de 24h ha expirado</div>
       <div style="font-size:.85rem;color:var(--text2);line-height:1.6;margin-bottom:28px">Tus datos están a salvo. Elige un plan para seguir usando MoneyNest.</div>
       <div style="display:flex;flex-direction:column;gap:10px">
-        <button onclick="document.getElementById('guestGateModal').style.display='none';goTo('billing')" style="padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#00D4AA,#00A882);color:#0A0E17;font-size:.9rem;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 4px 16px rgba(0,212,170,.3)">🔓 Ver planes — desde 5€</button>
+        
         <button onclick="document.getElementById('guestGateModal').style.display='none'" style="padding:11px;border-radius:12px;border:1.5px solid var(--border2);background:transparent;color:var(--text3);font-size:.8rem;font-weight:600;cursor:pointer;font-family:inherit">Solo explorar</button>
       </div>
     </div>`
@@ -14368,9 +14276,7 @@ window.addEventListener('DOMContentLoaded', function() {
   setTimeout(_postInitHooks, 600)
 
   // Re-render sidebar badge whenever billing plan changes
-  ;['mn:billing:change','mn:billing:activated','mn:billing:cancelled'].forEach(ev => {
-    document.addEventListener(ev, () => setTimeout(updateSidebarLogo, 50))
-  })
+  
 })
 
 /* ─── PWA Service Worker Registration ─── */
@@ -14934,20 +14840,21 @@ function renderCustomDebtChart(customPay, customMonths, basePay, baseMonths, tot
 }
 
 window.saveCustomStrategy = function() {
+  // Always recalc to ensure fresh data
+  if (typeof updateCustomCalc === 'function') updateCustomCalc()
   const calc = window._customDebtCalc
   const nameInput = document.getElementById('customStratName')
   const method = window._customDebtMethod || 'avalanche'
 
-  if (!calc || !calc.monthlyPay || !isFinite(calc.months) || calc.months <= 0) {
-    // Try to recalculate first
-    updateCustomCalc()
-    const calc2 = window._customDebtCalc
-    if (!calc2 || !calc2.monthlyPay || calc2.months <= 0) {
-      toast(t('err_calculo_invalido','Introduce un pago mensual válido'), 'error')
-      return
-    }
+  if (!calc || !calc.monthlyPay || calc.monthlyPay <= 0) {
+    toast(t('err_calculo_invalido','Introduce un pago mensual válido primero'), 'error')
+    return
   }
-  const finalCalc = window._customDebtCalc
+  if (!isFinite(calc.months) || calc.months <= 0) {
+    // Fallback: estimate from balance / payment
+    const pend = S.deudas.reduce((a,d)=>a+Math.max(0,(Number(d.importeTotal)||0)-(Number(d.importePagado)||0)),0)
+    calc.months = pend > 0 ? Math.ceil(pend / calc.monthlyPay) : 1
+  }
 
   const name = (nameInput?.value || t('nombre_estrategia_default','Mi estrategia')).trim()
   const calcData = window._customDebtCalc
